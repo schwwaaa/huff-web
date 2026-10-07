@@ -1,8 +1,8 @@
-/* capability-instrumentation.js — HUFF Classic Pass 27
+/* capability-instrumentation.js — HUFF Classic runtime instrumentation
  *
  * Profiler-gated timing and low-cost lifecycle counters for capability and
- * long-session stability testing. This module does not alter rendering,
- * controls, presets, routing, media ownership, or output pacing.
+ * long-session stability testing. This module observes the application without
+ * changing rendering, controls, presets, routing, media ownership, or pacing.
  */
 (() => {
   'use strict';

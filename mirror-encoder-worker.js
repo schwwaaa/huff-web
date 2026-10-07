@@ -1,9 +1,9 @@
 /* mirror-encoder-worker.js
  * Off-main-thread scaler + JPEG encoder for the HUFF canvas mirror.
- * Receives a transferable ImageBitmap that Pass 15 normally pre-sizes to the
- * bounded mirror dimensions, copies it into a persistent OffscreenCanvas, encodes
- * with convertToBlob(), then transfers the encoded ArrayBuffer back. Legacy full-
- * resolution bitmaps remain supported and are scaled here when required.
+ * Receives a transferable ImageBitmap, copies it into a persistent bounded
+ * OffscreenCanvas, encodes with convertToBlob(), and transfers the encoded
+ * ArrayBuffer back to the main page. Full-resolution inputs are scaled here
+ * when required by the mirror transport.
  */
 
 'use strict';

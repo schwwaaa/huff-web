@@ -1,0 +1,5 @@
+/* ===== block-1 ===== */
+html,body{ margin:0; width:100vw; height:100vh; background:#000; overflow:hidden; }
+    #mirror{ position:fixed; inset:0; width:100vw; height:100vh; display:block; background:#000; }
+    #mirror:fullscreen, #mirror:-webkit-full-screen{ width:100vw; height:100vh; object-fit:fill; background:#000; }
+    * { user-select:none; }

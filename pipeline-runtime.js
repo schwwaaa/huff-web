@@ -1,13 +1,11 @@
-/* pipeline-runtime.js — HUFF Classic Pass 58 constrained recipe expansion
+/* pipeline-runtime.js — HUFF Classic serial recipe system
  *
- * CLASSIC remains the exact Pass 22 compatibility route. Pass 58 expands the
- * existing immutable serial-recipe system with five additional stage orders.
- * Every recipe uses the same gCur / gBuf / gScratch topology, compiles once at
- * startup, and is selected atomically at the start of a rendered frame.
+ * Defines the legal stage zones and immutable processing recipes used by the
+ * renderer. Every recipe uses the same gCur / gBuf / gScratch topology, compiles
+ * once at startup, and is selected atomically at the start of a rendered frame.
  *
- * No effect algorithm, decoder path, temporal store, output path, native code,
- * parallel branch, same-frame cycle, or additional full-resolution buffer is
- * introduced by this file.
+ * This module changes stage order only; it does not implement effects, decoding,
+ * temporal storage, output transport, or additional full-resolution buffers.
  */
 (() => {
   'use strict';
@@ -105,7 +103,7 @@
     'glitch-luma-group',
   ]);
 
-  // Pass 48: Layer Priority is intentionally a stable binary routing choice.
+  // Layer Priority is intentionally a stable binary routing choice.
   // The former NEUTRAL/ALTERNATE and PULSE modes were render-time order
   // oscillators rather than meaningful layer hierarchy, and are removed.
   const FRONT_STAGE_PRIORITY_MODES = Object.freeze({
@@ -130,19 +128,19 @@
     const expectedGroupIds = ['glitch-luma-group', 'scanline-group'];
     const actualGroupIds = Object.keys(contract.groups ?? {});
     if (JSON.stringify(actualGroupIds) !== JSON.stringify(expectedGroupIds)) {
-      errors.push('front-stage group IDs differ from Pass 22');
+      errors.push('front-stage group IDs differ from the CLASSIC contract');
     }
     if (JSON.stringify(contract.groups?.['glitch-luma-group']) !== JSON.stringify(['glitch', 'pipeline-luma-key'])) {
-      errors.push('Glitch/Luma group differs from Pass 22');
+      errors.push('Glitch/Luma group differs from the CLASSIC contract');
     }
     if (JSON.stringify(contract.groups?.['scanline-group']) !== JSON.stringify(['scanlines'])) {
-      errors.push('Scanline group differs from Pass 22');
+      errors.push('Scanline group differs from the CLASSIC contract');
     }
     if (JSON.stringify(contract.modes?.scan) !== JSON.stringify(FRONT_STAGE_SCAN_TOP_ORDER)) {
-      errors.push('SCAN TOP order differs from Pass 22');
+      errors.push('SCAN TOP order differs from the CLASSIC contract');
     }
     if (JSON.stringify(contract.modes?.glitch) !== JSON.stringify(FRONT_STAGE_GLITCH_TOP_ORDER)) {
-      errors.push('GLITCH TOP order differs from Pass 22');
+      errors.push('GLITCH TOP order differs from the CLASSIC contract');
     }
     if (Object.keys(contract.modes ?? {}).some(mode => mode !== 'scan' && mode !== 'glitch')) {
       errors.push('front-stage priority contains a non-stable mode');
@@ -159,8 +157,8 @@
 
   function resolveFrontStageOrder(mode) {
     if (mode === 'glitch') return FRONT_STAGE_GLITCH_TOP_ORDER;
-    // SCAN TOP is both the default and the deterministic migration target for
-    // removed legacy ALTERNATE/PULSE values.
+    // SCAN TOP is the default and deterministic fallback for unsupported
+    // ALTERNATE/PULSE values.
     return FRONT_STAGE_SCAN_TOP_ORDER;
   }
 
@@ -199,7 +197,7 @@
     });
   }
 
-  const PASS22_SERIAL_RECIPE = freezeArray([
+  const CLASSIC_SERIAL_RECIPE = freezeArray([
     freezeObject({ zone: 'source-sync', stage: 'source-sync' }),
     freezeObject({ zone: 'persistent-decay', stage: 'persistent-decay' }),
     freezeObject({
@@ -327,10 +325,10 @@
     [CLASSIC_RECIPE_ID]: Object.freeze({
       id: CLASSIC_RECIPE_ID,
       label: 'CLASSIC',
-      description: 'Exact Pass 22 stage order.',
+      description: 'Baseline HUFF Classic stage order.',
       diagram: freezeArray(['image-feed', 'feedback', 'flow', 'symmetry', 'solarize']),
       zoneOrder: ZONE_ORDER,
-      steps: PASS22_SERIAL_RECIPE,
+      steps: CLASSIC_SERIAL_RECIPE,
       fullResolutionBufferCount: 3,
       scratchResources: freezeArray(['gScratch']),
       declaredCycles: freezeArray([]),
@@ -470,7 +468,7 @@
       if (step.stage === 'front-stage-priority') {
         const expectedMembers = ['glitch', 'pipeline-luma-key', 'scanlines'];
         if (JSON.stringify(step.members) !== JSON.stringify(expectedMembers)) {
-          errors.push('front-stage members differ from Pass 22');
+          errors.push('front-stage members differ from the CLASSIC contract');
         }
         const priorityValidation = validateFrontStagePriorityContract(step.priorityContract);
         if (!priorityValidation.valid) errors.push(...priorityValidation.errors);
@@ -668,9 +666,9 @@
     throw new Error(`[HUFF pipeline] built-in front-stage contract failed validation: ${frontStageValidation.errors.join('; ')}`);
   }
 
-  const validation = validateRecipe(PASS22_SERIAL_RECIPE, ZONE_ORDER);
+  const validation = validateRecipe(CLASSIC_SERIAL_RECIPE, ZONE_ORDER);
   if (!validation.valid) {
-    throw new Error(`[HUFF pipeline] built-in Pass 22 recipe failed validation: ${validation.errors.join('; ')}`);
+    throw new Error(`[HUFF pipeline] built-in CLASSIC recipe failed validation: ${validation.errors.join('; ')}`);
   }
 
   const recipeValidations = Object.freeze(Object.fromEntries(
@@ -699,7 +697,7 @@
     STAGE_LEGAL_ZONES,
     STAGE_RESOURCE_RULES,
     FRONT_STAGE_PRIORITY_CONTRACT,
-    PASS22_SERIAL_RECIPE,
+    CLASSIC_SERIAL_RECIPE,
     CRISP_FINISH_SERIAL_RECIPE,
     TEMPORAL_UNDERLAY_SERIAL_RECIPE,
     SYMMETRY_MEMORY_SERIAL_RECIPE,

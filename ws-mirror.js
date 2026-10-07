@@ -2,7 +2,7 @@
 (function(){
   const STREAM_MAX_W = 1280;
   const STREAM_MAX_H = 1280;
-  const STREAM_FPS   = 30;
+  const STREAM_FPS   = 60;
   const STREAM_Q     = 0.76;
   const USE_JPEG     = true;
 
@@ -59,7 +59,7 @@
     try {
       const cnv = findCanvas();
       if (cnv){
-        const period = 1000 / Math.max(1, 30);
+        const period = 1000 / Math.max(1, 60);
         if (!last || ts - last >= period){ last = ts; sendFrameNow(cnv); }
       }
     } catch(e){}

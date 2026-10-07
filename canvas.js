@@ -1,37 +1,8 @@
-/* canvas.js — p5 lifecycle + buffers + UI
- * Enhancements over previous version:
- *  - FrameRing replaces plain array — O(1) push/read, no shift() cost
- *  - allocBuffers uses double-buffer swap — resize never exposes disposed graphics to draw()
- *  - Preset save / load (native file dialogs + portable JSON; built-in recall)
- *  - 10-step undo stack with Ctrl+Z (debounced 300 ms snapshot)
- *  - showToast() — visible error/status feedback for camera, file, and decode failures
- *  - global keyboard shortcuts never consume typing inside editable controls
- *  - WS mirror JPEG quality and target FPS dynamically follow the quality slider
- *  - hookUI split into focused sub-functions
- *  - Pass 8: one shared full-resolution scratch buffer for feedback/flow/symmetry
- *  - Pass 31: decoded-frame Glitch-only strobe; Luma Key and all other stages remain live
- *  - Pass 34: Fairlight-style stored Luma Stencil + INDIGO Cleanup/Density + bounded Soft Add
- *  - Pass 36: LIVE Luma stability rebase + stateless stored-stencil mask rebuilds
- *  - Pass 39R: restore exact Pass 38 Feedback controls/behavior; add optional transform-only strobe + clean restore
- *  - Pass 39M: merge additive Feedback enable/range controls without replacing legacy controls; add independent Cluster Speed
- *  - Pass 8: p5.Graphics and pixel-processing scratch canvases resize in place
- *  - Pass 8: final presentation uses direct Canvas2D blits
- *  - Pass 9: ring capture contexts stay in copy mode and capacity math is cached
- *  - Pass 9: mirror encoding pauses without an attached canvas receiver
- *  - Pass 11: neutral stages bypass full-frame work and clean presentation
- *    avoids redundant background/buffer copies while decoded-frame state stays current
- *  - Pass 13S: source-generation guards and owned async cleanup harden file,
- *    camera, autoplay, and shutdown lifecycle without changing frame scheduling
- *  - Pass 14: exact-size Canvas2D copies use the non-scaling draw path;
- *    temporal ring backing stores are explicitly released on shrink/resize/exit
- *  - Pass 15: mirror ImageBitmaps are captured at bounded preview dimensions
- *    before Worker transfer when supported, with automatic legacy fallback
- *  - Pass 25: the exact Pass 22 active route dispatches through a validated,
- *    immutable serial recipe with no new routing controls or render buffers
+/* huff - canvas.js 
  */
 
 // ─── Module-local DOM helpers ─────────────────────────────────────────────────
-// Not stomped onto window — window.$ preserved for any legacy references.
+// Keep the local DOM helper while preserving any pre-existing global `$` helper.
 const _$ = id  => document.getElementById(id);
 window.$  = window.$  || _$;
 window.$$ = window.$$ || (sel => document.querySelector(sel));
@@ -50,7 +21,7 @@ let _audioSrc  = null;   // currently-active MediaElementAudioSourceNode (routed
 // A media element can be wrapped by createMediaElementSource() exactly ONCE for its
 // lifetime — a second call on the same element throws InvalidStateError. We therefore
 // create the source node once per element and cache it here, reusing it on every
-// later call. Keyed weakly so entries vanish when an old <video> element is GC'd.
+// later call. WeakMap ownership allows entries to disappear when a retired <video> element is collected.
 const _audioSrcMap = new WeakMap();
 
 function _ensureAudioCtx() {
@@ -86,7 +57,7 @@ function connectVideoAudio(videoElement) {
     }
 
     // Re-point the gain node at the current element's source. Disconnect any other
-    // source still feeding the gain (e.g. a previous clip's element), then ensure
+    // source still feeding the gain (for example, a replaced clip), then ensure
     // exactly one clean connection from this source into the gain node.
     if (_audioSrc && _audioSrc !== src) { try { _audioSrc.disconnect(_gainNode); } catch {} }
     try { src.disconnect(); } catch {}
@@ -142,8 +113,8 @@ function _retireCurrentSource({ revokeBlob = true } = {}) {
   const hadSource = !!videoEl || !!currentBlobUrl;
   const generation = ++_sourceGeneration;
   if (hadSource) _capabilityInstrumentation?.count('sourceRetirements');
-  // Invalidate only the decode callback chain. Independent render, transport,
-  // mirror, and profiler schedulers remain exactly as they were in Pass 12R.
+  // Invalidate only the decode callback chain. Rendering, transport, mirror,
+  // and profiler schedulers keep their independent clocks.
   _pumpSession++;
   _clearSourceReadyPoller();
   _clearSourceGestureUnlock();
@@ -321,18 +292,17 @@ function initRenderStateCache() {
 }
 
 let baseSeed = 1, seededOnce = false;
-// When the renderer is in a true bypass state, gBuf only needs to follow gCur
-// once per decoded source frame. The previous path copied the same full frame
-// on every 60 Hz render tick even when a 24/30 fps source had not changed.
+// In true bypass, synchronize gBuf with gCur once per decoded source frame.
+// This avoids repeating a full-frame copy on render ticks that do not contain
+// a newly decoded video frame.
 let _bypassSyncedVfc = -1;
 let _renderWasBypassed = true;
 let nPhaseX = 0, nPhaseY = 1000;
-// Pass 38: one explicit Corrupt motion clock. SPEED scales autonomous Corrupt
-// movement without changing decoded-frame STROBE / MULTIGRAB timing semantics.
+// Corrupt uses an explicit motion clock. SPEED scales autonomous movement
+// without changing decoded-frame STROBE / MULTIGRAB timing.
 let _corruptClock = 0;
-// Pass 40W separates Corrupt's visual-presence clock from its evolution clock.
-// CONTINUOUS Corrupt stays composited every render so Scan/Luma cannot erase a
-// slowed layer between updates. A decoded-frame source clock advances at the
+// Corrupt separates visual presence from effect evolution. CONTINUOUS mode
+// remains composited every render while a decoded-frame source clock advances at the
 // active Random/Cluster SPEED and chooses a stable historical age per patch.
 let _corruptSourceClock = 0;
 let _corruptSourceLastVfc = -1;
@@ -502,9 +472,9 @@ class FrameRing {
     this._version++;
   }
 
-  // release=true is used after a render-resolution change so old large backing
-  // stores are eligible for collection immediately instead of lingering until
-  // every ring slot has been overwritten at the new dimensions.
+  // release=true drops backing stores immediately after a render-resolution
+  // change so obsolete large canvases can be collected instead of waiting for
+  // each ring slot to be reused.
   clear(release = false) {
     if (release) {
       for (const frame of this._buf) this._releaseFrame(frame);
@@ -644,33 +614,31 @@ function _clampToElement(el, val) {
 
 function applyPreset(data) {
   if (!data) return;
-  // Presets created before Pass 30 did not contain a route ID. They must load
-  // into the exact CLASSIC compatibility recipe, regardless of the route that
-  // happens to be active when the preset is recalled. Unknown imported route
-  // IDs also recover to CLASSIC before any control events are dispatched.
+  // Imported presets without a recognized route ID load into CLASSIC before
+  // any control events are dispatched. This keeps preset recall deterministic.
   const sourceData = { ...data };
-  // Pass 41A splits the misleading QUALITY control into explicit decoded-frame
-  // HISTORY while keeping `quality` as a hidden compatibility alias. Legacy
-  // presets retain the old target-frame intent before the memory clamp.
+  // HISTORY is the decoded-frame target. Imported presets that only contain
+  // `quality` are translated to an equivalent history-frame count before the
+  // memory budget clamps the ring size.
   if (!('historyFrames' in sourceData)) {
     const legacyQuality = Math.max(0, Number(sourceData.quality ?? 1) || 0);
     sourceData.historyFrames = String(Math.max(4, Math.min(HISTORY_MAX_FRAMES, Math.round(120 * legacyQuality))));
   }
-  // processResolution is intentionally ignored in Web Classic. The processing
-  // surface is fixed at 1280×720 regardless of imported legacy preset data.
-  // Web Classic source mapping is fixed. Ignore legacy SOURCE FIT and SEED fields.
+  // Web Classic always processes at 1280×720 with fixed source mapping. Imported
+  // resolution, SOURCE FIT, and SEED fields are ignored because they are not
+  // user-configurable in this build.
   delete sourceData.sourceFit;
   delete sourceData.seed;
   delete sourceData.seedOnLoad;
-  // Pass 42 extends Solarize without changing the accepted Classic algorithm.
-  // Old presets always restore the exact THRESHOLD path; the DaVE-inspired
-  // LUMA QUANTIZE controls are additive and receive useful neutral-safe defaults.
+  // Solarize defaults to THRESHOLD when an imported preset has no mode field.
+  // LUMA QUANTIZE parameters receive neutral-safe defaults so imported presets
+  // remain visually stable.
   if (!('solarizeMode' in sourceData)) sourceData.solarizeMode = 'threshold';
   if (!('solarizeLevel' in sourceData)) sourceData.solarizeLevel = '75';
   if (!('solarizeSoft' in sourceData)) sourceData.solarizeSoft = '0';
   if (!('solarizeInvert' in sourceData)) sourceData.solarizeInvert = false;
-  // Pass 43 adds Solarize-local temporal slew. 100% is a strict compatibility
-  // bypass, so all older presets retain Pass 42 frame-for-frame behavior.
+  // Solarize FLUIDITY defaults to 100%, which follows the processed Solarize
+  // frame immediately. Lower values add local temporal slew.
   if (!('solarizeFluidity' in sourceData)) sourceData.solarizeFluidity = '100';
   if (!('solarizePosterLevel' in sourceData)) sourceData.solarizePosterLevel = '75';
   if (!('solarizePosterSoft' in sourceData)) sourceData.solarizePosterSoft = '0';
@@ -679,8 +647,8 @@ function applyPreset(data) {
   if (!validRecipeIds.has(String(sourceData.pipelineRecipe || ''))) {
     sourceData.pipelineRecipe = 'classic';
   }
-  // Pass 37 makes the temporal policy explicit. Legacy Glitch Strobe
-  // presets migrate to the equivalent CORRUPT update mode.
+  // Imported presets with Glitch Strobe fields are translated to the equivalent
+  // CORRUPT update mode.
   if (!('glitchStrobeEvery' in sourceData)) sourceData.glitchStrobeEvery = '4';
   if (!('corruptUpdateMode' in sourceData)) {
     sourceData.corruptUpdateMode = sourceData.glitchStrobe ? 'strobe' : 'continuous';
@@ -693,8 +661,8 @@ function applyPreset(data) {
   if (!('corruptMoveY' in sourceData)) sourceData.corruptMoveY = '0';
   if (!('corruptMoveZ' in sourceData)) sourceData.corruptMoveZ = '0';
 
-  // Pass 39M is additive: old presets receive neutral Feedback merge controls
-  // while FEEDBACK, PERSISTENCE and FB X/Y/Z/theta keep their original IDs, values and equations.
+  // Missing Feedback merge fields receive neutral defaults. FEEDBACK, PERSISTENCE
+  // and FB X/Y/Z/theta retain their stored IDs, values, and equations.
   if (!('feedbackEnabled' in sourceData)) sourceData.feedbackEnabled = true;
   if (!('feedbackMotionRange' in sourceData)) sourceData.feedbackMotionRange = 'classic';
   if (!('feedbackStrobe' in sourceData)) sourceData.feedbackStrobe = false;
@@ -705,9 +673,8 @@ function applyPreset(data) {
   if (!('corruptDistribution' in sourceData)) {
     sourceData.corruptDistribution = sourceData.clusterTiles ? 'cluster' : 'random';
   }
-  // Legacy presets predate the 2.5D cluster depth plane. Keep them visually
-  // flat unless they explicitly store the new parameter. Fresh sessions use
-  // the UI default so turning Clusters on immediately reveals depth.
+  // Imported presets without cluster-depth data stay flat. New sessions use the
+  // UI default so enabling Clusters immediately exposes the depth plane.
   if (!('cluDepth' in sourceData)) sourceData.cluDepth = '0';
   if (!('clusterMasterSpeed' in sourceData)) sourceData.clusterMasterSpeed = '1';
   if (!('cluMoveX' in sourceData)) sourceData.cluMoveX = '0';
@@ -717,7 +684,7 @@ function applyPreset(data) {
   if (!('corruptMaskThreshold' in sourceData)) sourceData.corruptMaskThreshold = '128';
   if (!('corruptMaskSide' in sourceData)) sourceData.corruptMaskSide = 'bright';
 
-  // Symmetry expansion is additive. Legacy presets used one `symPos` axis for both directions.
+  // Imported presets with only `symPos` apply that value to both symmetry axes.
   const legacySymPos = String(sourceData.symPos ?? '0.5');
   if (!('symPos' in sourceData)) sourceData.symPos = legacySymPos;
   if (!('symPosX' in sourceData)) sourceData.symPosX = legacySymPos;
@@ -729,16 +696,15 @@ function applyPreset(data) {
   if (!('symFlipV' in sourceData)) sourceData.symFlipV = false;
   if (!new Set(['v','h','hv','quad']).has(String(sourceData.symMode || ''))) sourceData.symMode = 'v';
 
-  // Pass 40S is spatially additive. Legacy presets keep exact Scanlines behavior.
+  // Scanline spatial controls use neutral defaults when absent from an imported preset.
   if (!('scanPlaceX' in sourceData)) sourceData.scanPlaceX = '0';
   if (!('scanPlaceY' in sourceData)) sourceData.scanPlaceY = '0';
   if (!('scanZoom' in sourceData)) sourceData.scanZoom = '1';
   if (!('scanMoveX' in sourceData)) sourceData.scanMoveX = '0';
   if (!('scanMoveY' in sourceData)) sourceData.scanMoveY = '0';
   if (!('scanMoveZ' in sourceData)) sourceData.scanMoveZ = '0';
-  // Pass 40U adds an alternate organization of the same Scan panels.
-  // Existing presets remain BANDS; FIELD parameters are preloaded with useful
-  // values so deliberately switching layout immediately reveals the collage mode.
+  // Scan panels support BANDS and FIELD organizations. Imported presets default
+  // to BANDS; FIELD controls receive useful defaults for immediate switching.
   if (!('scanPanelLayout' in sourceData)) sourceData.scanPanelLayout = 'bands';
   // Ordered BANDS additions are neutral/additive for existing presets. SPREAD 1
   // means full-frame ordered lanes; EXPAND and MAGNET remain off until used.
@@ -763,9 +729,8 @@ function applyPreset(data) {
   if (!('scanFieldSizeVar' in sourceData)) sourceData.scanFieldSizeVar = '0.20';
   if (!('scanFieldDrift' in sourceData)) sourceData.scanFieldDrift = '0.15';
   if (!('scanFieldDepthDrift' in sourceData)) sourceData.scanFieldDepthDrift = '0.10';
-  // Pass 34 removes the rejected GLITCH key source. Legacy/self/glitch key
-  // presets migrate safely to LIVE. Stored stencil pixels are intentionally not
-  // serialized in presets; only the selected process source is.
+  // Unsupported SELF/GLITCH key-source values map to LIVE. Stored stencil pixels
+  // are not serialized in presets; only the selected key source is stored.
   if (!('lumaKeyTarget' in sourceData)) sourceData.lumaKeyTarget = 'composite';
   if (!('lumaKeyGain' in sourceData)) sourceData.lumaKeyGain = '1';
   if (!('lumaKeySource' in sourceData) || sourceData.lumaKeySource === 'glitch') {
@@ -776,8 +741,8 @@ function applyPreset(data) {
   if (!validLumaFades.has(String(sourceData.lumaKeyFade || ''))) sourceData.lumaKeyFade = 'xfade';
   if (!('lumaKeyCleanup' in sourceData)) sourceData.lumaKeyCleanup = '0';
   if (!('lumaKeyDensity' in sourceData)) sourceData.lumaKeyDensity = '0';
-  // Pass 48 removes render-time Layer Priority oscillators. Imported NEUTRAL,
-  // ALTERNATE, PULSE, or unknown values migrate deterministically to SCAN TOP.
+  // Layer Priority accepts only SCAN TOP or CORRUPT TOP. Imported unsupported
+  // values map deterministically to SCAN TOP.
   if (sourceData.layerPriority !== 'glitch' && sourceData.layerPriority !== 'scan') sourceData.layerPriority = 'scan';
   if (!('globalMixCurve' in sourceData)) sourceData.globalMixCurve = 'linear';
   if (!new Set(['linear','smooth','punch']).has(String(sourceData.globalMixCurve || ''))) sourceData.globalMixCurve = 'linear';
@@ -796,8 +761,8 @@ function applyPreset(data) {
       el.dispatchEvent(new Event('input',  { bubbles:true }));
       el.dispatchEvent(new Event('change', { bubbles:true }));
     });
-    // RATE is a derived performance view over the exact legacy speed stack.
-    // Preset recall leaves SPEED/FINE/MULT byte-for-byte semantically intact.
+    // FIELD RATE is a derived view over SPEED/FINE/MULT. Preset recall keeps
+    // those underlying control values intact.
     _syncCorruptRateFromLegacy();
     _resetScanSpatialMotion();
     updateLabels();
@@ -820,12 +785,11 @@ function applyPreset(data) {
 //   SAVE FILE…:       current state -> native system Save dialog -> JSON file.
 //   LOAD FILE…:       native system Open dialog -> JSON file -> current state + session menu slot.
 //
-// Older beta builds stored named presets in localStorage and exported whole
-// preset banks. Pass 53 keeps those states recallable/readable for migration,
-// but new saves never write to localStorage. Loaded user files live in RAM only
-// for the current HUFF session and disappear from the menu when HUFF closes.
+// Named presets stored in localStorage are read only for import compatibility.
+// New saves are file-based and loaded preset files live in memory for the current
+// HUFF session only.
 
-const PRESETS_LS_KEY = 'huff_presets_v1'; // read-only legacy migration
+const PRESETS_LS_KEY = 'huff_presets_v1'; // read-only import source
 const PRESET_FILE_FORMAT = 'huff-classic-preset';
 const PRESET_FILE_FORMAT_VERSION = 1;
 const PRESET_FILE_MAX_BYTES = 1024 * 1024;
@@ -833,6 +797,191 @@ const PRESET_FILE_MAX_BYTES = 1024 * 1024;
 let _classicDefaultPreset = null;
 const _sessionLoadedPresets = new Map();
 let _sessionLoadedPresetSerial = 0;
+
+// Repository/folder presets are discovered at page load instead of being
+// hard-coded into the menu. Plain browsers cannot enumerate an arbitrary
+// static directory, so discovery uses three progressively broader sources:
+//   1) a local directory listing when the development server exposes one;
+//   2) presets/manifest.json for static/offline hosting;
+//   3) the public GitHub Contents API so newly-pushed preset files can appear
+//      on the live website without editing canvas.js or index.html.
+// Preset JSON is fetched lazily only when the user recalls it.
+const PRESET_REPOSITORY = Object.freeze({
+  owner: 'schwwaaa',
+  repo: 'huff-web',
+  branch: 'main',
+  directory: 'presets',
+});
+const _repositoryPresets = new Map();
+let _repositoryPresetCatalogLoaded = false;
+
+function _presetCatalogKey(path) {
+  return String(path || '').replace(/^\.\//, '').replace(/^\//, '').toLowerCase();
+}
+
+function _presetCatalogDisplayName(fileName, explicitName='') {
+  const clean = String(explicitName || '').trim();
+  if (clean) return clean;
+  return _presetDisplayNameFromPath(fileName);
+}
+
+function _isJsonPresetFile(path) {
+  const leaf = String(path || '').split(/[\\/]/).pop() || '';
+  return /\.json$/i.test(leaf) && leaf.toLowerCase() !== 'manifest.json';
+}
+
+function _naturalPresetSort(a, b) {
+  return String(a?.name || '').localeCompare(String(b?.name || ''), undefined, { numeric:true, sensitivity:'base' });
+}
+
+function _upsertRepositoryPreset(item, prefer=false) {
+  if (!item || !_isJsonPresetFile(item.path || item.file || item.url)) return;
+  const path = String(item.path || item.file || '').replace(/^\.\//, '').replace(/^\//, '');
+  const key = _presetCatalogKey(path || item.url);
+  if (!key) return;
+  if (_repositoryPresets.has(key) && !prefer) return;
+  _repositoryPresets.set(key, {
+    key,
+    path,
+    name: _presetCatalogDisplayName(path, item.name),
+    url: String(item.url || path || ''),
+    source: String(item.source || 'folder'),
+    preset: item.preset || null,
+  });
+}
+
+async function _discoverPresetDirectoryIndex() {
+  try {
+    const res = await fetch(`${PRESET_REPOSITORY.directory}/`, { cache:'no-store' });
+    if (!res.ok) return [];
+    const type = String(res.headers.get('content-type') || '').toLowerCase();
+    if (!type.includes('text/html')) return [];
+    const html = await res.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const out = [];
+    doc.querySelectorAll('a[href]').forEach(a => {
+      const href = a.getAttribute('href') || '';
+      let url;
+      try { url = new URL(href, res.url); } catch { return; }
+      const leaf = decodeURIComponent(url.pathname.split('/').pop() || '');
+      if (!_isJsonPresetFile(leaf)) return;
+      // Directory indexes can contain parent/sibling links. Only accept files
+      // whose resolved path remains inside the presets directory.
+      if (!url.pathname.includes(`/${PRESET_REPOSITORY.directory}/`)) return;
+      out.push({
+        path: `${PRESET_REPOSITORY.directory}/${leaf}`,
+        name: _presetDisplayNameFromPath(leaf),
+        url: url.href,
+        source: 'local-folder',
+      });
+    });
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+async function _discoverPresetManifest() {
+  try {
+    const url = `${PRESET_REPOSITORY.directory}/manifest.json?_=${Date.now()}`;
+    const res = await fetch(url, { cache:'no-store' });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const entries = Array.isArray(data) ? data : Array.isArray(data?.presets) ? data.presets : [];
+    return entries.flatMap(entry => {
+      const item = typeof entry === 'string' ? { file:entry } : entry;
+      const file = String(item?.file || item?.path || '').replace(/^\.\//, '').replace(/^\//, '');
+      if (!_isJsonPresetFile(file)) return [];
+      const path = file.startsWith(`${PRESET_REPOSITORY.directory}/`) ? file : `${PRESET_REPOSITORY.directory}/${file}`;
+      return [{
+        path,
+        name: _presetCatalogDisplayName(file, item?.name),
+        url: path,
+        source: 'manifest',
+      }];
+    });
+  } catch {
+    return [];
+  }
+}
+
+async function _discoverPresetGitHub() {
+  const { owner, repo, branch, directory } = PRESET_REPOSITORY;
+  try {
+    const api = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodeURIComponent(directory)}?ref=${encodeURIComponent(branch)}&_=${Date.now()}`;
+    const res = await fetch(api, {
+      cache:'no-store',
+      headers:{ 'Accept':'application/vnd.github+json' },
+    });
+    if (!res.ok) return [];
+    const items = await res.json();
+    if (!Array.isArray(items)) return [];
+    return items.flatMap(item => {
+      if (item?.type !== 'file' || !_isJsonPresetFile(item?.name)) return [];
+      const path = `${directory}/${item.name}`;
+      return [{
+        path,
+        name: _presetDisplayNameFromPath(item.name),
+        url: item.download_url || `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`,
+        source: 'github',
+      }];
+    });
+  } catch (err) {
+    console.warn('[huff] GitHub preset discovery unavailable', err);
+    return [];
+  }
+}
+
+async function refreshRepositoryPresetCatalog() {
+  const isLocalHost = /^(localhost|127(?:\.\d+){3}|0\.0\.0\.0|::1)$/i.test(location.hostname || '');
+  const [folderEntries, manifestEntries, githubEntries] = await Promise.all([
+    _discoverPresetDirectoryIndex(),
+    _discoverPresetManifest(),
+    _discoverPresetGitHub(),
+  ]);
+
+  _repositoryPresets.clear();
+
+  // A committed manifest is the deterministic baseline for static/offline use.
+  manifestEntries.forEach(item => _upsertRepositoryPreset(item));
+
+  if (isLocalHost) {
+    // Local development should reflect files currently present on disk even if
+    // they have not yet been pushed to GitHub or added to the manifest.
+    githubEntries.forEach(item => _upsertRepositoryPreset(item));
+    folderEntries.forEach(item => _upsertRepositoryPreset(item, true));
+  } else {
+    // On the deployed site GitHub is authoritative, allowing a newly pushed
+    // preset to appear after reload even before a new site bundle is published.
+    folderEntries.forEach(item => _upsertRepositoryPreset(item));
+    githubEntries.forEach(item => _upsertRepositoryPreset(item, true));
+  }
+
+  _repositoryPresetCatalogLoaded = true;
+  refreshPresetList();
+  console.info(`[huff] preset catalog: ${_repositoryPresets.size} repository presets`, {
+    localFolder: folderEntries.length,
+    manifest: manifestEntries.length,
+    github: githubEntries.length,
+  });
+}
+
+async function _loadRepositoryPreset(entry) {
+  if (!entry) throw new Error('Preset catalog entry is missing');
+  if (entry.preset) return entry.preset;
+  const separator = entry.url.includes('?') ? '&' : '?';
+  const res = await fetch(`${entry.url}${separator}huff=${Date.now()}`, { cache:'no-store' });
+  if (!res.ok) throw new Error(`Preset fetch failed (${res.status})`);
+  const parsed = await res.json();
+  const doc = _parsePresetDocument(parsed, entry.name);
+  if (doc.kind !== 'single') throw new Error('Folder preset files must contain one preset');
+  entry.name = String(doc.name || entry.name);
+  entry.preset = doc.preset;
+  return entry.preset;
+}
+
+// Useful from DevTools when editing/pushing presets without reloading the app.
+window.refreshHuffPresetCatalog = refreshRepositoryPresetCatalog;
 
 function _loadLegacyPresetMap() {
   try {
@@ -871,7 +1020,7 @@ function _parsePresetDocument(parsed, fallbackName='Preset') {
     throw new Error('Preset JSON must contain an object');
   }
 
-  // Pass 53 portable single-preset document.
+  // Portable single-preset document.
   if (parsed.format === PRESET_FILE_FORMAT && parsed.preset && typeof parsed.preset === 'object') {
     return {
       kind: 'single',
@@ -881,12 +1030,12 @@ function _parsePresetDocument(parsed, fallbackName='Preset') {
     };
   }
 
-  // Legacy single-preset JSON accepted without conversion.
+  // Accept a raw single-preset JSON object without wrapping metadata.
   if ('_v' in parsed) {
     return { kind: 'single', name: fallbackName, preset: parsed, formatVersion: 0 };
   }
 
-  // Pass 52D and earlier "Export JSON" files were maps of name -> preset.
+  // Accept preset-bank JSON maps of name -> preset for import compatibility.
   const entries = Object.entries(parsed).filter(([, data]) => data && typeof data === 'object' && '_v' in data);
   if (entries.length) {
     return { kind: 'bank', entries };
@@ -942,7 +1091,7 @@ function refreshPresetList() {
 
   const placeholder = document.createElement('option');
   placeholder.value = '';
-  placeholder.textContent = '— built-in presets —';
+  placeholder.textContent = '— choose preset —';
   sel.appendChild(placeholder);
 
   const builtins = document.createElement('optgroup');
@@ -953,8 +1102,8 @@ function refreshPresetList() {
   builtins.appendChild(classic);
   sel.appendChild(builtins);
 
-  // Read-only bridge for presets saved by pre-Pass-53 beta builds. This is not
-  // the new persistence model; recall one and SAVE FILE… to migrate it.
+  // Read-only bridge for presets stored in localStorage. Recall one and use
+  // SAVE FILE… to move it into the current file-based preset workflow.
   const legacy = _loadLegacyPresetMap();
   const legacyNames = Object.keys(legacy).filter(name => legacy[name] && typeof legacy[name] === 'object').sort();
   if (legacyNames.length) {
@@ -964,6 +1113,21 @@ function refreshPresetList() {
       const o = document.createElement('option');
       o.value = `legacy:${name}`;
       o.textContent = name;
+      group.appendChild(o);
+    });
+    sel.appendChild(group);
+  }
+
+  if (_repositoryPresets.size) {
+    const group = document.createElement('optgroup');
+    group.label = 'PRESET FOLDER / GITHUB';
+    [..._repositoryPresets.values()].sort(_naturalPresetSort).forEach(entry => {
+      const o = document.createElement('option');
+      o.value = `repository:${entry.key}`;
+      o.textContent = entry.name;
+      o.title = entry.source === 'github'
+        ? `GitHub preset · ${entry.path}`
+        : `Preset folder · ${entry.path}`;
       group.appendChild(o);
     });
     sel.appendChild(group);
@@ -985,7 +1149,7 @@ function refreshPresetList() {
   if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
 }
 
-function recallPresetSelection() {
+async function recallPresetSelection() {
   const sel = _$('presetList');
   const value = String(sel?.value || '');
   if (!value) { showToast('Select a preset first', true); return; }
@@ -998,6 +1162,21 @@ function recallPresetSelection() {
   } else if (value.startsWith('legacy:')) {
     name = value.slice('legacy:'.length);
     preset = _loadLegacyPresetMap()[name];
+  } else if (value.startsWith('repository:')) {
+    const key = value.slice('repository:'.length);
+    const entry = _repositoryPresets.get(key);
+    if (entry) {
+      name = entry.name;
+      try {
+        preset = await _loadRepositoryPreset(entry);
+        name = entry.name;
+      } catch (err) {
+        console.error('[huff] repository preset load failed', err);
+        showToast(`Preset "${name || key}" could not be loaded`, true);
+        _setPresetFileState('repository preset load failed', true);
+        return;
+      }
+    }
   } else if (value.startsWith('session:')) {
     const id = value.slice('session:'.length);
     const entry = _sessionLoadedPresets.get(id);
@@ -1014,6 +1193,8 @@ function recallPresetSelection() {
   if (nameEl && name !== 'Classic Default') nameEl.value = name;
   if (value.startsWith('legacy:')) {
     _setPresetFileState(`legacy local · ${name} · SAVE FILE… to migrate`, true);
+  } else if (value.startsWith('repository:')) {
+    _setPresetFileState(`preset folder · ${name}`);
   } else if (value.startsWith('session:')) {
     _setPresetFileState(`session loaded · ${name}`);
   } else {
@@ -1179,7 +1360,7 @@ async function loadPresetViaFileDialog() {
 
 // ─── Undo stack ───────────────────────────────────────────────────────────────
 // Any slider or checkbox change schedules a debounced snapshot (300 ms).
-// Ctrl+Z / Cmd+Z pops and restores the previous snapshot.
+// Ctrl+Z / Cmd+Z restores the most recently captured undo snapshot.
 
 const _undoStack = [];
 const UNDO_MAX   = 10;
@@ -1362,7 +1543,7 @@ function _configureGraphics(g) {
 
 // Reuse p5.Graphics objects across window resizes. JavaScript resize callbacks
 // cannot run concurrently with draw(), so resizing the existing backing stores
-// avoids the old eight-surface transient (four old + four new) without exposing
+// avoids holding both complete buffer sets at once during reallocation without exposing
 // partially swapped references. A single-buffer replacement remains as fallback.
 function _ensureGraphics(g, w, h) {
   if (!g) return _configureGraphics(createGraphics(w, h));
@@ -1427,7 +1608,7 @@ function _pushToRing() {
 }
 
 // Each call to pumpVideoFrames() generates a new session token.
-// The old pump chain checks its captured token on every tick and
+// Each decode callback checks its captured session token on every tick and
 // terminates if it no longer matches — ensuring only one active pump exists.
 let _pumpSession = 0;
 let _vfc = 0; // increments once per decoded video frame — used to stabilise scanline ring selection
@@ -1559,7 +1740,7 @@ function _installBackgroundRenderHeartbeat() {
 // ─── p5 setup / resize ───────────────────────────────────────────────────────
 
 // ─── FPS counter ──────────────────────────────────────────────────────────────
-// Updated once per second using a manual frame counter rather than p5's
+// Refreshed once per second using a manual frame counter rather than p5's
 // frameRate() so it reflects real render performance, not a smoothed average.
 let _fpsFrames = 0, _fpsLastMs = 0;
 
@@ -2052,9 +2233,9 @@ function _updateLumaStencilStatus(forcedText = '') {
   if (typeof _syncCorruptContextUI === 'function') _syncCorruptContextUI();
 }
 
-// CORRUPT RATE is a semantic performance control layered over the exact legacy
-// SPEED × FINE × MULT² contract. The logarithmic knob preserves useful
-// low-speed resolution while still spanning the complete legacy 0..5000 range.
+// CORRUPT RATE presents the internal SPEED × FINE × MULT² stack as one
+// performance control. The logarithmic mapping preserves useful low-speed
+// resolution while still spanning the complete internal range.
 let _syncingCorruptRate = false;
 function _legacyCorruptEffectiveRate() {
   const speed = Number(els.glitchSpeed?.value ?? 0) || 0;
@@ -2145,7 +2326,7 @@ function hookSliders() {
     els[id]?.addEventListener('input', () => { updateLabels(); snapshotForUndo(); });
   });
 
-  // HISTORY is the public control. The legacy hidden `quality` ID remains for
+  // HISTORY is the public control. The hidden `quality` ID remains for
   // older presets but no longer tunes mirror JPEG/FPS.
   const syncHistoryFromLegacyQuality = () => {
     if (!els.quality || !els.historyFrames) return;
@@ -2264,7 +2445,7 @@ function hookSliders() {
   });
   syncSolarizeModeUI();
 
-  // Pass 53: make HUFF Classic's existing three-source image-feed model visible
+  // Reflect the active source in HUFF Classic's three-source image-feed model.
   // without changing the render graph. Corrupt, Scanlines, and Luma/Composite
   // are the primary live-image entry points; Symmetry and Solarize remain
   // downstream processors. This is UI awareness only.
@@ -2566,11 +2747,12 @@ function hookPresets() {
   // built-in preset without tying it to localStorage or an external file.
   _classicDefaultPreset = Object.freeze({ ...capturePreset() });
   refreshPresetList();
+  void refreshRepositoryPresetCatalog();
 
-  // Dropdown recall covers built-ins, legacy migration entries, and user JSON files
+  // Dropdown recall covers built-ins, repository/folder presets, imported localStorage entries, and user JSON files.
   // loaded into this session. SAVE and LOAD still always mean local file dialogs.
-  _$('presetBuiltinLoadBtn')?.addEventListener('click', recallPresetSelection);
-  _$('presetList')?.addEventListener('dblclick', recallPresetSelection);
+  _$('presetBuiltinLoadBtn')?.addEventListener('click', () => { void recallPresetSelection(); });
+  _$('presetList')?.addEventListener('dblclick', () => { void recallPresetSelection(); });
 
   _$('presetSaveBtn')?.addEventListener('click', () => { void savePresetToFile(); });
   _$('presetLoadBtn')?.addEventListener('click', () => { void loadPresetViaFileDialog(); });
@@ -2601,7 +2783,7 @@ function _keyboardEventTargetsEditableControl(e) {
 
 function hookKeyboard() {
   window.addEventListener('keydown', e => {
-    // Pass 55: P is deliberately no longer a global shortcut. Preset names and
+    // P is not a global shortcut because preset names and text inputs may use it.
     // other text fields must be able to consume ordinary letters without HUFF
     // changing application state. While focus is in an editable control, all
     // remaining app-global shortcuts defer to normal text/control behavior.
@@ -2854,8 +3036,8 @@ function onFile(ev) {
   const file  = input.files?.[0]; if (!file) return;
   queueMicrotask(() => { try { input.value = ''; } catch {} });
 
-  // Preserve the stable Pass 12R decoder and scheduler. Only retire ownership
-  // of the previous source and invalidate callbacks that may arrive later.
+  // Preserve the decoder and scheduler; only retire ownership
+  // of the retired source and invalidate callbacks that may arrive later.
   const replacingSource = !!videoEl;
   _capabilityInstrumentation?.count('fileLoads');
   if (replacingSource) _capabilityInstrumentation?.count('sourceReplacements');
@@ -3016,7 +3198,7 @@ function enableTransport(en, { seekable = en, live = false } = {}) {
   if (!seekable) _resetSeekGestureState({ resetDisplay: true });
 }
 
-// ─── Pass 37 CORRUPT update-policy gate ──────────────────────────────────────
+// ─── CORRUPT update-policy gate ──────────────────────────────────────────────
 // Fairlight treats freeze/sample/strobe behavior as update policies applied to
 // image memory. Magic DaVE's MultiGrab separates frozen time from live time.
 // HUFF adapts those ideas only to the CORRUPT layer: the rest of the pipeline,
@@ -3088,7 +3270,7 @@ function _shouldApplyGlitchThisRender(state) {
     gate.lastContinuousSpeed = speed;
     gate.continuousAccumulator = 0;
 
-    // Pass 40W layering repair: CONTINUOUS describes layer presence, not a
+    // CONTINUOUS describes layer presence rather than an intermittent draw gate.
     // sample/hold compositor gate. Corrupt is therefore redrawn every render so
     // SCAN TOP / CORRUPT TOP remain stable when both effects are active. SPEED
     // controls geometry, motion, cluster evolution, and historical-age choice.
@@ -3142,7 +3324,7 @@ function _shouldApplyGlitchThisRender(state) {
     gate.lastCycle = cycle;
 
     // Always render once when entering MULTIGRAB so the hold begins with a
-    // visible Corrupt state instead of an empty/non-updated layer.
+    // visible Corrupt state instead of an empty layer.
     if (enteringMode || timingChanged || inLiveWindow) {
       gate.updates++;
       return true;
@@ -3161,8 +3343,8 @@ function _shouldApplyGlitchThisRender(state) {
 
 // ─── draw loop ────────────────────────────────────────────────────────────────
 
-// ─── Pass 39M Feedback merge: transform-only strobe ─────────────────────────
-// IMPORTANT: this gate never touches PERSISTENCE. The established Pass 38
+// ─── Feedback merge: transform-only strobe ──────────────────────────────────
+// This gate never touches PERSISTENCE. The persistent-buffer decay stage
 // persistent-decay stage remains independent and executes at its original
 // cadence. Only the existing snapshot/transform/redraw Feedback operation is
 // optionally sampled by decoded-frame interval.
@@ -3219,7 +3401,7 @@ function _emitGlitchGroup(state, density, glitchPriority, lumaMix) {
   const targetedCorruptLuma = !!state.lumaKeyOn && lumaMix > 0 && lumaTarget === 'corrupt';
   if (targetedCorruptLuma) {
     // Prime the bounded luminance source once before the Corrupt hot loop. Tile
-    // sampling then stays CPU-local and adds no mask upload/full-resolution pass.
+    // sampling then stays CPU-local and adds no mask upload or full-resolution render layer.
     window.preparePipelineLumaObjectSource?.(_vfc, state.lumaKeySource, state.lumaKeyAB, !!state.lumaKeyInvert, state.lumaKeyGain, state.lumaKeyCleanup, state.lumaKeyDensity, lumaMix);
   }
 
@@ -3228,7 +3410,7 @@ function _emitGlitchGroup(state, density, glitchPriority, lumaMix) {
     applyGlitch(density, Math.trunc(state.glitchBaseX), Math.trunc(state.glitchBaseY), glitchPriority, state);
   }
 
-  // COMPOSITE is the legacy Luma behavior. Targeted CORRUPT/SCAN modes do not
+  // COMPOSITE applies the luma result to the full composition. Targeted CORRUPT/SCAN modes do not
   // also paint the clean key patch, so a user can unambiguously choose which
   // front-stage effect the key is processing.
   if (state.lumaKeyOn && lumaMix > 0 && lumaTarget === 'composite') {
@@ -3432,8 +3614,8 @@ function _presentCleanFrame(curCanvas) {
 }
 
 
-// ─── Pass 30 validated serial recipe switching ─────────────────────────────
-// CLASSIC is the exact Pass 22 route. CRISP FINISH moves only the existing
+// ─── Validated serial recipe switching ─────────────────────────────────────
+// CLASSIC is the baseline serial route. CRISP FINISH moves only the existing
 // Glitch/Luma/Scanline ordered group into the validated final-overlays zone.
 // Both plans compile once and use the same three full-resolution buffers.
 const _pipelineRuntime = window.HuffPipelineRuntime;
@@ -3457,9 +3639,9 @@ const _pipelineFrame = Object.seal({
   deferredGlobalMix: false,
 });
 
-// Pass 46: profiler-only wall-clock timing around the actual serial pipeline
-// stages. Unlike the legacy function wrapper list, these samples are attached
-// where the recipe executes, so they expose the combined cost of each stage
+// Profiler-only wall-clock timing around the actual serial pipeline
+// stages. Samples are attached where each recipe stage executes so they expose
+// the combined cost of the stage
 // (including Canvas2D synchronization) without changing runtime behavior while
 // the profiler is hidden.
 const _pipelineStageTelemetry = window.__huffPipelineStageTelemetry || Object.create(null);
@@ -3510,7 +3692,7 @@ function _runScanlineFrontGroup(frame) {
     String(s.lumaKeyTarget || 'composite') === 'scan'
   ) {
     // Prepare once before the panel loop. FIELD mode samples this bounded plane
-    // per panel, avoiding the old COMPOSITE handoff and its mask upload.
+    // per panel, avoiding a full COMPOSITE mask upload.
     window.preparePipelineLumaObjectSource?.(_vfc, s.lumaKeySource, s.lumaKeyAB, !!s.lumaKeyInvert, s.lumaKeyGain, s.lumaKeyCleanup, s.lumaKeyDensity, frame.lumaMix);
   }
   applyScanlines(frame.density, frame.scanAngleArg, frame.scanPriority, s);
@@ -3534,10 +3716,9 @@ function _runFrontStagePriority(frame) {
 
 function _canFuseGlobalMixIntoSolarize(frame, position) {
   if (!frame.activity.solarize || !frame.activity.globalMix) return false;
-  // Pass 58: the fusion proof below was written for the two original routes,
-  // which keep Feedback -> Flow -> Symmetry -> Solarize in that relative order.
-  // New recipes intentionally reorder those stages, so they execute Global Mix
-  // as its explicit serial step rather than using the old shortcut.
+  // Global Mix fusion is enabled only for routes whose stage ordering proves
+  // a safe relationship between Global Mix and Feedback -> Flow -> Symmetry ->
+  // Solarize. Other recipes execute Global Mix as an explicit serial stage.
   if (frame.recipeId !== _pipelineRuntime.CLASSIC_RECIPE_ID
       && frame.recipeId !== _pipelineRuntime.CRISP_FINISH_RECIPE_ID) return false;
   // FINAL belongs after Solarize and therefore cannot be fused into its input.
@@ -3581,9 +3762,9 @@ function _runFeedbackStage(frame) {
   const startedAt = _pipelineStageProfileStart();
   const s = frame.state;
 
-  // Exact Pass 38 Feedback transform. The only new condition is the optional
-  // transform-only strobe gate. With FB STROBE off this executes identically
-  // to Pass 38; PERSISTENCE remains a separate, untouched pipeline stage.
+  // Feedback applies RETURN, X/Y translation, Z scale, and rotation to the
+  // persistent image. FB STROBE gates only this transform; PERSISTENCE remains
+  // a separate decay stage.
   if (_feedbackHasVisibleEffect(s) && _shouldApplyFeedbackTransformThisRender(s)) {
     const fb = s.feedback;
     const fx = s.fbX;
@@ -3649,7 +3830,7 @@ function _symmetryShouldReadCleanLiveSource(frame) {
 
   // Symmetry is a stateless spatial transform. With no enabled image-producing
   // stage ahead of it, its source must be the current clean frame rather than the
-  // persistent gBuf left from the previous render. Solarize is downstream, so an
+  // persistent gBuf from the prior render. Solarize is downstream, so an
   // active Solarize does not block this direct-live ownership path.
   return !(
     activity.glitch || activity.scanlines || activity.luma ||
@@ -3811,13 +3992,13 @@ function draw() {
 
   // Preserve phase progression even when the corresponding stage is currently
   // neutral. Re-enabling an effect therefore resumes at the same temporal point
-  // as the pre-optimization renderer.
+  // as if every stage were continuously active.
   // FIELD RATE controls the internal corruption field. RANDOM SPEED owns the
   // RANDOM Corrupt clock; CLUSTER SPEED owns the CLUSTER Corrupt clock. Only the
   // active mode advances autonomous Corrupt phase/XYZ motion.
   // Hidden FINE/MULT aliases remain at 1 for
-  // normal UI/preset use, but the exact legacy multiplication path stays alive
-  // for older compatibility state that still targets those stable IDs.
+  // normal UI/preset use, while imported presets can still address those stable
+  // control IDs directly.
   const legacyMul = Number(s.glitchSpeedMul) || 0;
   const density = Math.max(0, (Number(s.glitchSpeed) || 0) * (Number(s.glitchSpeedFine) || 0) * legacyMul * legacyMul);
   const corruptSpeed = Math.max(0, Math.min(4, Number.isFinite(Number(s.corruptSpeed)) ? Number(s.corruptSpeed) : 1));
@@ -3835,7 +4016,7 @@ function draw() {
   // layer from the compositor. At 1x this follows decoded source frames; below
   // 1x the selected delay changes more slowly; at 0x it stays fixed. The source
   // video inside a fixed-delay patch remains live, matching Scan's stable-panel
-  // behavior and avoiding the one-frame flash caused by the old render gate.
+  // behavior while keeping the layer continuously present in the compositor.
   if (_corruptSourceLastVfc < 0) {
     _corruptSourceLastVfc = _vfc;
     _corruptSourceClock = _vfc;
@@ -3870,7 +4051,7 @@ function draw() {
   // a steady translation of the ordered blind plane along its own band axis.
   // It no longer drives the wobble/noise phases. A dedicated LFO provides the
   // optional sine-wave plane wobble. FIELD keeps its established phase-driven
-  // collage motion so this pass does not redesign FIELD.
+  // collage motion and uses its own phase-driven movement.
   const scanSpeed = Math.max(0, Number(s.scanSpeed) || 0);
   const scanDt = Math.max(0, Math.min(0.05, (Number(deltaTime) || 16.6667) / 1000));
   const scanFieldMode = String(s.scanPanelLayout || 'bands') === 'field';
@@ -3941,8 +4122,8 @@ function draw() {
   }
   s.__scanMagnetPosition = _scanMagnetMotion.position;
 
-  // BANDS/FIELD use the explicit ANGLE control only. The legacy left/right
-  // continuous spin controls were removed from Scanlines.
+  // BANDS/FIELD use the explicit ANGLE control only; continuous spin is not part
+  // of the Scanlines control surface.
   const scanAngleArg = null;
 
   const activity = _resolveFrameActivity(s);
@@ -3974,7 +4155,7 @@ function draw() {
   pipelinePlan.executePersistent(_pipelineFrame);
 
   // Paint order remains the exact Classic layer-priority model. The validated
-  // Pass 48 priority plan is deliberately stable and binary.
+  // Front-stage priority is deliberately stable and binary.
   _pipelineFrame.frontStageActive = activity.scanlines || activity.glitch || activity.luma;
   _pipelineFrame.layerPriority = s.layerPriority || 'scan';
   _pipelineFrame.density = density;
@@ -3994,7 +4175,7 @@ function drawWaiting() {
   push();
   noStroke(); fill(255, 20); rect(0, 0, width, height);
   fill(220); textAlign(CENTER, CENTER); textSize(14);
-  text('Load a video or start a camera  ·  Ctrl+Z: undo', width / 2, height / 2);
+  text('Load a video or start camera', width / 2, height / 2);
   pop();
 }
 
@@ -4336,9 +4517,10 @@ window.addEventListener('beforeunload', _shutdownMediaLifecycle, { once:true });
   }
   initMirrorTransport();
 
-  // The mirror is an operator preview, not the canonical render clock. Keep its
-  // cadence and JPEG quality independently bounded exactly as in the prior path.
-  const STREAM_FPS_CAP = 30;
+  // The mirror is the Web Classic presentation output. Keep its transport cadence
+  // at the 60 Hz render target; the one-frame-in-flight gate still drops work
+  // rather than queueing frames if encoding or decoding cannot keep up.
+  const STREAM_FPS_CAP = 60;
   const STREAM_JPEG_Q = 0.97;
   const STREAM_PERIOD = 1000 / STREAM_FPS_CAP;
   function streamJpegQ() { return STREAM_JPEG_Q; }
@@ -4533,7 +4715,7 @@ window.addEventListener('beforeunload', _shutdownMediaLifecycle, { once:true });
 
 // ─── Performance profiler — toggle with the backtick ` key ────────────────────
 // Measures the REAL per-frame cost of each effect on THIS machine with THIS
-// footage, so optimization is driven by numbers, not guesses. Renders to a fixed
+// footage, so performance tuning uses measured frame cost. Renders to a fixed
 // DOM overlay (NOT the canvas), so it never reaches the canvas mirror feed.
 // While hidden it costs one boolean check per wrapped call — safe to leave in.
 (function () {

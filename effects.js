@@ -1,49 +1,22 @@
 // effects.js
-// Enhancement notes:
-//  - All frameRing accesses updated to FrameRing API: frameRing.fromEnd(n)
-//    replaces frameRing[frameRing.length - 1 - n]. O(1) in both cases, but
-//    fromEnd() is explicit and works correctly without an array reference.
-//  - applyFlowWarp computes and draws each tile in one pass, with static grid
-//    geometry cached by render size + cell size.
-//  - Solarize uses cached channel lookup tables; pipeline luma masks are rebuilt
-//    only when the decoded source frame or key parameters change.
-//  - applyGlitch does not re-seed random — draw() seeds once per frame.
-//  - Cluster physics centers use p5 seeded random() for reproducibility.
-//  - Symmetry uses native Canvas2D clipping/transforms instead of p5 wrappers.
-//  - Solarize and luma-key scratch canvases resize in place.
-//  - Pass 45 uses a bounded WebGL1 colour accelerator for LUMA QUANTIZE Solarize when available, with exact CPU fallback.
-//  - Pass 46 extends that same bounded accelerator to legacy THRESHOLD Solarize.
-//  - Pass 47 adds a self-calibrating bounded WebGL1 LIVE/COMPOSITE Luma patch path,
-//    a parity-safe CPU fallback LUT, and aspect/pixel-budgeted Luma workspaces.
-//  - Scanline placement reuses typed band buffers, cached angle geometry, and
-//    cached per-band noise seeds; identical static states reuse prepared bands.
-//  - Glitch tile placement reuses typed target/grid buffers and persistent
-//    Float64 cluster offsets instead of allocating arrays, Maps, and objects
-//    every frame.
-//  - Pass 11 neutral Solarize states return before scratch allocation/readback;
-//    the draw dispatcher also skips neutral Flow/Feedback/Symmetry/Mix stages.
-//  - Pass 14 exact-size canvas copies avoid Canvas2D scaling setup, and the
-//    cluster-physics updater is reused instead of recreated inside applyGlitch.
-//  - Pass 16 processes Solarize pixels through a little-endian Uint32 path,
-//    keeps the byte path as fallback, and presents the cached 640px result
-//    directly instead of maintaining a second full-resolution cache canvas.
-//  - Pass 17 builds the Pipeline Luma Key clean patch directly in one bounded
-//    scratch canvas, removing the separate mask canvas, duplicate clean copy,
-//    and destination-in composition while preserving the same alpha gate.
-//  - Pass 18 keeps Glitch blits on the cached Canvas2D context, reuses prepared
-//    smear offsets, and resolves temporal-ring slots once per ring generation
-//    instead of repeating helper/context/ring lookups for every tile draw.
-//  - Pass 20 removes p5 map() dispatch from active Scanline/Glitch/persistence
-//    hot paths and adds profiler-only Scanline/Flow draw-count telemetry.
-//  - Pass 21 caches Flow noise-coordinate products, per-tile source clip bounds,
-//    and radial swirl sin/cos values in persistent typed workspaces.
-//  - Pass 22 specializes Scanline band preparation by neutral shift/drift state,
-//    caches phase/focus scalars, and uses a direct horizontal blit path.
-
+// Visual processing primitives used by the HUFF Classic render pipeline.
+//
+// Performance model:
+//  - FrameRing exposes recent decoded frames through O(1) fromEnd() lookups.
+//  - Flow, Scanlines, and Corrupt keep reusable typed workspaces for geometry,
+//    noise coordinates, clip bounds, motion state, and target placement.
+//  - Solarize uses bounded working canvases, lookup tables, and a WebGL1 colour
+//    accelerator when available, with deterministic CPU fallback.
+//  - Pipeline Luma Key caches source luminance separately from key shaping so
+//    UI edits can reuse the current decoded frame instead of rereading it.
+//  - Canvas2D contexts and scratch canvases are retained and resized in place.
+//  - Neutral effect states return early so bypassed stages avoid unnecessary
+//    allocation, readback, compositing, and draw dispatch.
+//
 // ─── Temporal ring drawing ───────────────────────────────────────────────────
 // FrameRing stores reusable canvas snapshots, so historical frames remain
-// directly drawable. This avoids the old getImageData() readback on capture and
-// the later putImageData() upload/cache needed before every temporal sample.
+// directly drawable. Capture therefore avoids getImageData() readback and
+// temporal sampling avoids putImageData() uploads.
 
 function copyCanvasFrame(ctx, source, width, height) {
   if (!ctx || !source || width <= 0 || height <= 0) return;
@@ -77,18 +50,15 @@ for (let i = 0; i < 256; i++) {
 }
 
 
-// ─── Pass 45 Classic bounded GPU colour accelerator ─────────────────────────
+// ─── Bounded GPU colour accelerator ─────────────────────────────────────────
 // HUFF Classic remains the Tauri v1 + p5.js / Canvas2D application. This is a
 // deliberately narrow WebGL 1 accelerator used only for Solarize colour work,
 // the bounded colour operation that still forced a synchronous Canvas2D CPU
-// readback on every render. Pipeline Luma Key deliberately remains on its
-// parity-proven CPU path; a WebGL luma prototype was rejected because browser
-// compositing tests showed materially different alpha/RGB results.
-// It is NOT wgpu, does not replace the Classic renderer, and never owns the
-// full-resolution instrument framebuffer. Input is first staged at the same
-// <=640px working size used by the accepted CPU paths, then the result is drawn
-// back into the existing Canvas2D pipeline. If WebGL cannot initialize, the
-// exact Pass 44 CPU implementations remain the automatic fallback.
+// readback on every render. Pipeline Luma Key uses its CPU implementation to
+// preserve the application's byte-domain alpha/RGB equations. The accelerator
+// never owns the full-resolution framebuffer: input is staged at a <=640px
+// working size, processed, then drawn back into the Canvas2D pipeline. If WebGL
+// cannot initialize, the matching CPU implementation is used automatically.
 let _classicGpuStageCanvas = null, _classicGpuStageCtx = null;
 let _classicGpu = null;
 let _classicGpuTried = false;
@@ -268,10 +238,10 @@ function _initClassicGpu() {
     const chromaPoster = _linkClassicGpuProgram(gl, vertexSource, chromaPosterFragment,
       ['uSource','uSteps','uSoft','uAmount','uPhase']);
 
-    // Pass 47 LIVE/COMPOSITE Luma patch. The shader reproduces the established
+    // LIVE/COMPOSITE Luma patch. The shader reproduces the application key
     // byte-domain matte math, including Clip/Gain, Invert and INDIGO-inspired
     // Cleanup/Density shaping. uAlphaMode is selected by a one-time runtime
-    // parity calibration through the actual WebGL -> Canvas2D handoff.
+    // runtime calibration through the actual WebGL -> Canvas2D handoff.
     const lumaPatchFragment = `
       precision highp float;
       varying vec2 vUv;
@@ -996,7 +966,7 @@ function ensureClusterTileCapacity(center, required) {
   center.tileRadii  = radii;
 }
 
-// Reused cluster-physics updater. Pass 13S recreated this function and its
+// Reused cluster-physics updater. Keeping this outside the draw loop avoids
 // closure on every glitch frame even though the implementation and captured
 // state were stable. Positional arguments avoid replacing that closure with a
 // per-frame options object. Random/noise call order and equations are unchanged.
@@ -1030,7 +1000,7 @@ function updateClusterPhysics(
   if (speed <= 0) return _cluPhysics;
 
   // Master SPEED advances both the organic steering field and direct XYZ travel.
-  // At SPEED 1 the legacy organic equations retain their established cadence.
+  // SPEED 1 uses the nominal cadence of the organic steering equations.
   _cluPhysT += cluSteer * 0.004 * speed;
 
   if (cluPulse > 0) {
@@ -1235,8 +1205,8 @@ class ScanlineBandWorkspace {
     this.negativeHalfWidth = -this.halfWidth;
     this.negativeHalfDim = -this.dim / 2;
     this.rotatePattern = Math.abs(this.angleRad) > 0.001;
-    // With an exact zero angle, the old pair of translations cancelled to the
-    // incoming transform. Draw directly and restore only the alpha we modify.
+    // With an exact zero angle, draw directly without rotation and restore only
+    // the alpha modified by this stage.
     this.directHorizontal = angleDeg === 0;
     this.geometryRebuilt = true;
     this.cacheValid = false;
@@ -1280,8 +1250,8 @@ class ScanlineBandWorkspace {
     const shiftSpan = shiftRange - (-shiftRange);
     const noShift = shiftScale === 0 && scanSkew === 0;
     const noFastJitter = driftAmt === 0;
-    // These expressions were previously identical inside every band iteration.
-    // Keep their original left-to-right arithmetic, but resolve them once.
+    // Resolve band-independent phase expressions once while preserving their
+    // left-to-right arithmetic.
     const slowPhase = phY * 0.25 * driftAmt;
     const fastPhase = phY * 1.8 * driftAmt;
     const shiftPhase = phX * 0.5;
@@ -1296,7 +1266,7 @@ class ScanlineBandWorkspace {
     const crossLengths = this.crossLength;
     let count = 0;
 
-    // Select the neutral/dynamic variants once per Scanline pass rather than
+    // Select the neutral/dynamic variants once per Scanline render rather than
     // re-testing drift and shift state for every requested band.
     if (noFastJitter) {
       if (noShift) {
@@ -1592,7 +1562,7 @@ function _scanlineProfileFrame(bandCount) {
 
 // Deterministic per-panel seeds for FIELD layout. These are intentionally
 // independent of p5 random()/noise() state so switching layouts does not disturb
-// Corrupt, Flow, or the established ScanlineBandWorkspace sequence. Pass 40V
+// Corrupt, Flow, or the ScanlineBandWorkspace sequence. The luma plane
 // caches them instead of recomputing six integer hashes per panel per render.
 function _scanPanelFieldSeed01(index, salt) {
   let x = (((index + 1) * 0x9e3779b1) ^ salt) >>> 0;
@@ -1864,7 +1834,7 @@ function applyScanlines(density, angleOverride = null, scanPriority = 1.0, state
     return;
   }
 
-  // ── FIELD: preserve the accepted Pass 40U collage behavior ───────────────
+  // ── FIELD: distributed scan-panel collage ────────────────────────────────
   const fieldSpreadX = Math.max(0, Math.min(1, Number(rs.scanFieldSpreadX) || 0));
   const fieldSpreadY = Math.max(0, Math.min(1, Number(rs.scanFieldSpreadY) || 0));
   const fieldSpreadZ = Math.max(0, Math.min(1, Number(rs.scanFieldSpreadZ) || 0));
@@ -2037,7 +2007,7 @@ function applyScanlines(density, angleOverride = null, scanPriority = 1.0, state
 }
 
 
-// ─── CORRUPT (legacy applyGlitch runtime name retained for compatibility) ─────
+// ─── CORRUPT (implemented by the applyGlitch runtime entry point) ─────────────
 // Note: randomSeed is set by draw() once per frame. No re-seeding here.
 
 // ─── CORRUPT region eligibility ─────────────────────────────────────────────
@@ -2137,12 +2107,12 @@ function applyGlitch(density = 1, baseDX = 0, baseDY = 0, glitchPriority = 1.0, 
   const cluMoveZ     = Number(rs.cluMoveZ) || 0;
   // Recalibrated travel: exponential so the slow, watchable range spreads across
   // the lower half of the SPEED slider instead of bunching at the bottom, and the
-  // top is calmer than the old linear px/frame.
+  // top remains controllable by using a non-linear pixels-per-frame response.
   const cluTravel    = Math.pow(Math.max(0, cluSpeed) / 10, 1.7) * 7;
 
   // ── Spatial index — O(1) gap enforcement ──────────────────────────────────
   // Reuse typed target buffers and a linked-cell index. Candidate acceptance and
-  // insertion order remain the same as the previous Array/Map implementation.
+  // insertion order is stable across frames.
   const targets = _glitchTargets;
   targets.begin(count, width, height, gap);
 
@@ -2159,7 +2129,7 @@ function applyGlitch(density = 1, baseDX = 0, baseDY = 0, glitchPriority = 1.0, 
   const cluPulse    = rs.cluPulse;
 
   // ── Cluster center physics ─────────────────────────────────────────────────
-  // Updated by a module-level helper so normal glitch frames do not allocate a
+  // Filled by a module-level helper so normal Corrupt frames do not allocate a
   // new closure. The call remains at the same point in the seeded random stream.
 
   // ── Tile placement ─────────────────────────────────────────────────────────
@@ -2181,7 +2151,7 @@ function applyGlitch(density = 1, baseDX = 0, baseDY = 0, glitchPriority = 1.0, 
     const effSpread = Math.max(1, cluSpread * cluBreatheF);
     const effMin    = cluMinSpread * cluBreatheF;
     // CLUSTER SPEED also time-scales internal shape evolution. At 0 the cluster
-    // constellation freezes; at 1 this is exact Pass 38 cadence; higher values
+    // constellation freezes; at 1 it follows the nominal motion cadence; higher values
     // make low-coherence clusters boil more aggressively.
     const reroll    = Math.min(1, (1 - cluCohere) * masterSpeed);
 
@@ -2283,7 +2253,7 @@ function applyGlitch(density = 1, baseDX = 0, baseDY = 0, glitchPriority = 1.0, 
     let dstX, dstY, dstW = w, dstH = h, zScale = 1;
     const neutralXYZ = motionX === 0 && motionY === 0 && z === 0;
     if (neutralXYZ) {
-      // Exact legacy destination path for neutral XYZ settings.
+      // Direct destination path for neutral XYZ settings.
       dstX = Math.max(0, Math.min(width  - w, cx + baseDX));
       dstY = Math.max(0, Math.min(height - h, cy + baseDY));
     } else if (z === 0) {
@@ -2303,7 +2273,7 @@ function applyGlitch(density = 1, baseDX = 0, baseDY = 0, glitchPriority = 1.0, 
       dstY = projectedCenterY - dstH * 0.5;
     }
 
-    // Pass 40W: historical age selection follows Corrupt's speed-scaled decoded
+    // Historical age selection follows Corrupt's speed-scaled decoded
     // source clock, not the live _vfc directly. This is the layering half of the
     // CONTINUOUS repair: Corrupt can be redrawn every render (so Scan cannot
     // erase it between slow updates) while RANDOM/CLUSTER SPEED still controls
@@ -2585,7 +2555,7 @@ function applyFlowWarp(src, dst, strength = 6, scale = 80, pulse = 0, implode = 
   const turbulenceTimeX = t * 1.3;
   const turbulenceTimeY = t * 0.9;
 
-  // Resolve reusable typed arrays once per pass rather than repeatedly walking
+  // Resolve reusable typed arrays once per render rather than repeatedly walking
   // workspace properties inside the per-tile loop.
   const count = _flowGrid.count;
   const xs = _flowGrid.x;
@@ -2629,8 +2599,7 @@ function applyFlowWarp(src, dst, strength = 6, scale = 80, pulse = 0, implode = 
       dx2 = rx; dy2 = ry;
     }
 
-    // The previous displacement arrays were Float32Array-backed. Preserve that
-    // quantization exactly before flooring so the visual tile selection does
+    // Quantize displacement through Float32 before flooring so tile selection does
     // not shift at floating-point boundaries.
     dx2 = Math.fround(dx2);
     dy2 = Math.fround(dy2);
@@ -2862,8 +2831,8 @@ function _presentSolarizeCache(ctx, width, height) {
   try {
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'copy';
-    // Match the default scaling state of the removed full-resolution cache
-    // canvas. The old second exact-size copy did not perform any extra filtering.
+    // Use the default canvas scaling state; this presentation copy adds no extra
+    // filtering configuration.
     ctx.imageSmoothingEnabled = true;
     if (hasQuality) ctx.imageSmoothingQuality = 'low';
     if (_solCanvas.width === width && _solCanvas.height === height) {
@@ -2879,7 +2848,7 @@ function _presentSolarizeCache(ctx, width, height) {
   }
 }
 
-// Pass 43: Solarize-local temporal slew. This is deliberately NOT a frame-rate
+// Solarize-local temporal slew. This is deliberately not a frame-rate
 // gate or sample/hold. The current processed Solarize image remains a live
 // target and is continuously leaked into one bounded low-resolution history
 // canvas. The coefficient is time-normalized to a 60 Hz reference so the
@@ -2992,10 +2961,10 @@ function _posterizeChromaPixelsBytes(pix, levelPct, softPct, phaseDeg, amount) {
   }
 }
 
-// ── Pass 44 cadence boundary ────────────────────────────────────────────────
+// ── Solarize cadence boundary ───────────────────────────────────────────────
 // Solarize now transforms every render call. The older adaptive 2nd/3rd-frame
 // reuse guard is intentionally removed: overload mitigation must not alter the
-// temporal cadence of the image. Pass 44 instead removes redundant work around
+// temporal cadence of the image. Redundant work around
 // Luma/Global Mix and conditionally fuses a safe Global Mix into this already
 // bounded scratch domain.
 let _solLastMode = 'threshold';
@@ -3026,14 +2995,14 @@ function applySolarize(buf, thresh = 0.5, amount = 1.0, solR = 1.0, solG = 1.0, 
   const sw = Math.max(1, Math.round(BW * scale));
   const sh = Math.max(1, Math.round(BH * scale));
 
-  // Pass 46 gives both Solarize modes first refusal on the same bounded GPU
+  // Both Solarize modes try the same bounded GPU colour path before CPU readback.
   // path. This happens before the CPU-readback scratch is touched, so a working
   // accelerator removes willReadFrequently staging, synchronous pixel readback,
   // JavaScript pixel traversal and putImageData from THRESHOLD as well as the
   // already-accelerated LUMA QUANTIZE mode.
   const now = performance.now();
   const profile = window.__huffProfilerActive === true;
-  // Pass 52A: a terminal colour stage needs a live image source when it is
+  // A terminal colour stage needs a live image source when it is
   // the only active processing stage. The persistent gBuf is intentionally not
   // refreshed every frame during the active Classic pipeline; using it as the
   // source for solo Solarize therefore re-processed stale/decayed history.
@@ -3106,7 +3075,7 @@ function applySolarize(buf, thresh = 0.5, amount = 1.0, solR = 1.0, solG = 1.0, 
     _solOutputH = BH;
   }
 
-  // Every-frame Solarize processing; Pass 44 no longer changes temporal cadence.
+  // Solarize processes every render frame; no cadence gate is applied.
   const activeMode = lumaQuantize ? 'luma-quantize' : (chromaPosterize ? 'chroma-posterize' : 'threshold');
   if (activeMode !== _solLastMode) _solLastMode = activeMode;
 
@@ -3178,7 +3147,7 @@ function applySolarize(buf, thresh = 0.5, amount = 1.0, solR = 1.0, solG = 1.0, 
 // ─── Symmetry ─────────────────────────────────────────────────────────────────
 // Expanded spatial mirror instrument with independent axes, source direction,
 // wet/dry mix, true four-way QUAD mode, and independent whole-image flips.
-// The legacy applySymmetry(src, dst, mode, pos) signature remains accepted.
+// applySymmetry accepts both the compact mode/position signature and the full options object.
 
 let _symBaseCanvas = null, _symBaseCtx = null;
 let _symQuadACanvas = null, _symQuadACtx = null;
@@ -3284,11 +3253,11 @@ function applySymmetry(src, dst, modeOrOptions = 'v', legacyPos = 0.5) {
 }
 
 // ─── Pipeline Luma Key ────────────────────────────────────────────────────────
-// Pass 40V interaction/performance repair:
+// Pipeline Luma Key behavior and caching:
 //   - LIVE luminance extraction is cached separately from key shaping. Changing
 //     INVERT / CLIP / GAIN / CLEANUP / DENSITY no longer forces another source
 //     getImageData() when the decoded source frame has not changed.
-//   - INVERT preserves the accepted Pass 36/40U polarity while no longer forcing
+//   - INVERT preserves the application matte polarity without forcing
 //     a redundant LIVE source readback on same-frame key-shaping edits.
 //   - COMPOSITE preserves the established clean-patch overlay behavior.
 //   - CORRUPT and SCAN targets use the same bounded luminance plane as an
@@ -3302,7 +3271,7 @@ let _plkCanvas = null, _plkCtx = null;
 let _plkStencilMaskCanvas = null, _plkStencilMaskCtx = null;
 let _plkStencilMaskImageData = null;
 
-// Pass 47 LIVE/COMPOSITE GPU patch cache. The WebGL result is copied into this
+// LIVE/COMPOSITE GPU patch cache. The WebGL result is copied into this
 // bounded Canvas2D surface once per decoded source frame / key-shape change so
 // Solarize may safely reuse the shared WebGL accelerator later in the pipeline.
 let _plkGpuPatchCanvas = null, _plkGpuPatchCtx = null;
@@ -3314,7 +3283,7 @@ let _plkGpuPatchCleanup = NaN;
 let _plkGpuPatchDensity = NaN;
 
 // LIVE source luminance is independent of key shaping. This separation is the
-// important Pass 40V handoff fix: UI key edits can reuse the current decoded
+// UI key edits can reuse the current decoded
 // frame's luminance instead of synchronously reading the source canvas again.
 let _plkLiveLuma = null;
 let _plkLiveImageData = null;
@@ -3324,7 +3293,7 @@ let _plkLiveLumaW = 0, _plkLiveLumaH = 0;
 
 // Targeted CORRUPT/SCAN keying only needs object-level luminance eligibility.
 // Keep that readback on its own smaller scratch surface so a dense Scan FIELD
-// does not force the 640px COMPOSITE key handoff. This is bounded CPU scratch,
+// does not force the 640px COMPOSITE key handoff. This uses bounded CPU scratch,
 // not a full-resolution render layer.
 let _plkObjectCanvas = null, _plkObjectCtx = null;
 let _plkObjectLiveLuma = null;
@@ -3369,7 +3338,7 @@ let _plkShapeCleanup = NaN;
 let _plkShapeDensity = NaN;
 let _plkShapeIdentity = true;
 
-// Pass 47 collapses Clip/Gain/Invert/Cleanup/Density into one final 256-entry
+// Clip/Gain/Invert/Cleanup/Density are collapsed into one final 256-entry
 // luma->alpha table for CPU fallback and object sampling.
 const _plkFinalKeyLut = new Uint8Array(256);
 let _plkFinalThresh = NaN;
@@ -3465,7 +3434,7 @@ function _ensurePipelineFinalKeyLut(thresh, invert, safeGain, cleanup, density) 
 
 function _pipelineLumaMaskByte(luma, threshold, invert, safeGain, shapeLut) {
   const roll = Math.max(0, Math.min(1, ((luma - threshold) * safeGain) / 64));
-  // Preserve the accepted Pass 36/40U matte polarity exactly: normal keeps the
+  // Preserve the application matte polarity: normal keeps the
   // darker side (1-roll); INVERT selects the complementary brighter side (roll).
   let maskAlpha = (((invert ? roll : (1 - roll)) * 255) + 0.5) | 0;
   if (shapeLut) maskAlpha = shapeLut[maskAlpha];
@@ -3580,8 +3549,8 @@ function _captureLumaBytesFromImageData(data, target, alphaTarget = null) {
 function _captureLiveLumaAndPatchFromImageData(
   data, lumaTarget, alphaTarget, keyLut
 ) {
-  // Pass 45 merged LIVE/COMPOSITE path: calculate the cached luma byte and the
-  // final keyed alpha in one traversal of the readback. Pass 44 performed the
+  // LIVE/COMPOSITE path calculates the cached luma byte and the
+  // final keyed alpha in one traversal of the readback, avoiding consecutive
   // same exact operations in two consecutive loops. RGB bytes are retained
   // verbatim and original source alpha is cached before replacement.
   if (_solLittleEndian) {
@@ -4238,7 +4207,7 @@ function applyPipelineLumaKey(
     }
   }
 
-  // Automatic parity-safe CPU fallback: the established Pass 45 path remains
+  // Automatic CPU fallback keeps the same key-shaping equations when GPU output is unavailable.
   // intact whenever WebGL is absent, context-lost, or rejected by calibration.
   const planeInfo = liveCleanSource
     ? _ensureLivePipelineLuma(sourceFrameSerial, profile, {

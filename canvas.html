@@ -3,14 +3,9 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Canvas Viewer</title>
-  <style>
-    html,body{ margin:0; width:100vw; height:100vh; background:#000; overflow:hidden; }
-    #mirror{ position:fixed; inset:0; width:100vw; height:100vh; display:block; background:#000; }
-    #mirror:fullscreen, #mirror:-webkit-full-screen{ width:100vw; height:100vh; object-fit:fill; background:#000; }
-    * { user-select:none; }
+  <title>canvas</title>
+      <link rel="stylesheet" href="css/canvas.min.css">
 
-  </style>
 </head>
 <body>
   <canvas id="mirror" aria-label="HUFF canvas output"></canvas>
@@ -20,7 +15,7 @@
       return q.get(name);
     }
 
-    // Pure-web experiment: the mirror window talks directly to the main HUFF
+    // The detached canvas window receives frames directly from the main HUFF
     // page through BroadcastChannel. No localhost WebSocket relay is required.
     const MIRROR_CHANNEL_NAME = 'huff-canvas-mirror-v1';
     const autofs = qs('autofs') === '1';
@@ -38,9 +33,8 @@
 
     function isFullscreen(){ return !!(document.fullscreenElement || document.webkitFullscreenElement); }
     async function togglePopupFullscreen(){
-      // Document Picture-in-Picture deliberately cannot enter Fullscreen.
-      // The standalone FULL path can: target the CANVAS ELEMENT itself so the
-      // GUI document is never eligible to become fullscreen.
+      // Fullscreen targets the canvas element in this detached output document.
+      // The main HUFF control document is never used as the fullscreen target.
       if (embeddedInPip) return;
       if (isFullscreen()) {
         const ex = document.exitFullscreen || document.webkitExitFullscreen;
@@ -62,12 +56,9 @@
       }
     }
 
-    // Standalone FULL experiment:
-    // - HUFF GUI opens this normal popup.
-    // - Browser chrome may remain while windowed (browser security policy).
-    // - One click anywhere on the canvas enters true fullscreen.
-    // - F toggles true fullscreen. Esc exits through the browser normally.
-    // The PiP CANVAS/MAX mode stays separate and never calls Fullscreen API.
+    // The HUFF GUI opens this page as the dedicated output window. Browser
+    // chrome may remain while windowed. A canvas click or F key can enter true
+    // fullscreen on the canvas element; Escape exits through the browser.
     if (!embeddedInPip) {
       if (fullscreenMode) {
         cvs.addEventListener('click', () => { if (!isFullscreen()) void togglePopupFullscreen(); });

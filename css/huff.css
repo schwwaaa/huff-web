@@ -1,0 +1,2395 @@
+/* ===== block-1 ===== */
+
+
+/*
+        ███████████████████████████████████████████████████
+        █  HUFF v2.0 :: AOL WAREZ / PUNTER AESTHETIC     █
+        █  circa 1997 :: Win95 gray + phosphor green      █
+        █  "AOL Hell" "TOE" "Punter" "Phreaker" vibes     █
+        ███████████████████████████████████████████████████
+        */
+
+@keyframes blink {
+    0%,
+    49% {
+        opacity: 1
+    }
+    50%,
+    100% {
+        opacity: 0
+    }
+}
+
+@keyframes cursor-blink {
+    0%,
+    49% {
+        border-right-color: #00FF00
+    }
+    50%,
+    100% {
+        border-right-color: transparent
+    }
+}
+
+@keyframes marquee-scroll {
+    0% {
+        transform: translateX(100%);
+    }
+    100% {
+        transform: translateX(-100%);
+    }
+}
+
+@keyframes green-pulse {
+    0%,
+    100% {
+        text-shadow: 0 0 4px #00FF00, 0 0 10px #00FF00
+    }
+    50% {
+        text-shadow: 0 0 2px #00CC00
+    }
+}
+
+ :root {
+    /* Win95 chrome */
+    --win-bg: #C0C0C0;
+    --win-light: #FFFFFF;
+    --win-mid: #808080;
+    --win-dark: #404040;
+    --title-bg: #ff4647;
+    --title-text: #FFFFFF;
+    /* Terminal */
+    --term-bg: #000000;
+    --term-green: #00FF00;
+    --term-dgreen: #00CC00;
+    --term-red: #FF0000;
+    --term-yel: #FFFF00;
+    --param-value: #8B1E2D;
+    --term-cyan: #00FFFF;
+    --term-mag: #FF00FF;
+    --ui-text: #000000;
+    --ui-field: #E8E8E8;
+    color-scheme: dark;
+}
+
+html,
+body {
+    margin: 0;
+    height: 100%;
+    background: var(--term-bg);
+    color: var(--ui-text);
+    font-family: 'VT323', 'Courier New', monospace;
+    overflow: hidden;
+    font-size: 14px;
+}
+
+
+/* Phosphor scanline texture over everything */
+
+body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0) 0px, rgba(0, 0, 0, 0) 2px, rgba(0, 255, 0, 0.015) 2px, rgba(0, 255, 0, 0.015) 3px);
+}
+
+canvas {
+    position: fixed;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+}
+
+#huff-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background: url('../icon-name.jpg') center/cover no-repeat;
+    opacity: .04;
+    filter: grayscale(1);
+    pointer-events: none;
+}
+
+
+/* ═══════════════════════════════════════════════
+           MAIN PANEL — Win95 window with title bar
+        ═══════════════════════════════════════════════ */
+
+header {
+    position: fixed;
+    top: 6px;
+    left: 6px;
+    right: 6px;
+    z-index: 10;
+    background: var(--win-bg);
+    border-top: 2px solid var(--win-light);
+    border-left: 2px solid var(--win-light);
+    border-bottom: 2px solid var(--win-dark);
+    border-right: 2px solid var(--win-dark);
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    max-height: calc(100vh - 18px);
+    overflow-y: auto;
+}
+
+header::-webkit-scrollbar {
+    width: 16px;
+    background: var(--win-bg);
+}
+
+header::-webkit-scrollbar-thumb {
+    background: var(--win-bg);
+    border-top: 2px solid var(--win-light);
+    border-left: 2px solid var(--win-light);
+    border-bottom: 2px solid var(--win-dark);
+    border-right: 2px solid var(--win-dark);
+}
+
+header::-webkit-scrollbar-track {
+    background: var(--win-mid);
+}
+
+
+/* Win95 title bar injected via a wrapper — we fake it on topbar */
+
+.topbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    padding: 3px 4px 3px 5px;
+    background: var(--win-bg);
+    border-bottom: 1px solid var(--win-mid);
+}
+
+
+/* Title bar strip at very top */
+
+
+/* header::before {
+            content: '[MAIN CONTROL]';
+            display: block;
+            background: linear-gradient(90deg, var(--title-bg) 0%, #ff4647 100%);
+            color: var(--title-text);
+            font-family: 'VT323', monospace;
+            font-size: 14px;
+            padding: 2px 6px;
+            letter-spacing: .05em;
+            white-space: nowrap;
+            overflow: hidden;
+            border-bottom: 1px solid var(--win-dark);
+        } */
+
+.topbar-title {
+    font-family: 'VT323', monospace;
+    font-size: 15px;
+    font-weight: normal;
+    letter-spacing: .08em;
+    color: var(--term-bg);
+    text-transform: uppercase;
+    flex-shrink: 0;
+    background: var(--win-bg);
+    border-top: 1px solid var(--win-light);
+    border-left: 1px solid var(--win-light);
+    border-bottom: 1px solid var(--win-dark);
+    border-right: 1px solid var(--win-dark);
+    /* padding: 1px 6px; */
+}
+
+.topbar-sep {
+    width: 1px;
+    height: 14px;
+    background: var(--win-mid);
+    border-right: 1px solid var(--win-light);
+    flex-shrink: 0;
+}
+
+
+/* ═══════════════════════════════════════════════
+           TRANSPORT ROW — seek bar + time display
+        ═══════════════════════════════════════════════ */
+
+.transport-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 5px 3px;
+    background: var(--win-bg);
+    border-bottom: 1px solid var(--win-mid);
+}
+
+#seekBar {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1;
+    height: 4px;
+    min-width: 80px;
+    background: var(--win-mid);
+    border-top: 1px solid var(--win-dark);
+    border-left: 1px solid var(--win-dark);
+    outline: none;
+    cursor: pointer;
+}
+
+#seekBar::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 11px;
+    height: 14px;
+    background: var(--win-bg);
+    border-top: 2px solid var(--win-light);
+    border-left: 2px solid var(--win-light);
+    border-bottom: 2px solid var(--win-dark);
+    border-right: 2px solid var(--win-dark);
+}
+
+#seekBar::-moz-range-thumb {
+    width: 11px;
+    height: 14px;
+    background: var(--win-bg);
+    border: none;
+}
+
+#timeDisplay {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: white;
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding: 1px 4px;
+    background: var(--term-bg);
+    border-top: 1px solid var(--win-dark);
+    border-left: 1px solid var(--win-dark);
+    border-bottom: 1px solid var(--win-light);
+    border-right: 1px solid var(--win-light);
+    min-width: 80px;
+    text-align: center;
+}
+
+
+/* ═══════════════════════════════════════════════
+           GROUPS — raised bevel boxes
+        ═══════════════════════════════════════════════ */
+
+.groups {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: flex-start;
+    padding: 4px 5px;
+    background: var(--win-bg);
+}
+
+.group {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    background: var(--win-bg);
+    border-top: 2px solid var(--win-light);
+    border-left: 2px solid var(--win-light);
+    border-bottom: 2px solid var(--win-dark);
+    border-right: 2px solid var(--win-dark);
+    flex-shrink: 0;
+    overflow: hidden;
+    width: fit-content;
+    max-width: 100%;
+}
+
+.group:hover {
+    border-top-color: var(--win-light);
+    border-left-color: var(--win-light);
+}
+
+
+/* Group label = mini title bar */
+
+.group-label {
+    font-family: 'VT323', monospace;
+    font-size: 12px;
+    font-weight: normal;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--title-text);
+    background: linear-gradient(90deg, var(--title-bg) 0%, #ff4647 100%);
+    padding: 1px 5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.group-label:hover {
+    background: linear-gradient(90deg, #ff4647 0%, #1090E0 100%);
+}
+
+.group-label::after {
+    content: '▾';
+    font-size: 10px;
+    opacity: .9;
+    transition: transform .1s;
+}
+
+.group.collapsed .group-label::after {
+    transform: rotate(-90deg);
+}
+
+.group-body {
+    padding: 3px 5px 4px;
+    border-top: 1px solid var(--win-mid);
+    background: var(--win-bg);
+}
+
+.group.collapsed .group-body {
+    display: none;
+}
+
+.group-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    align-items: center;
+}
+
+.corrupt-section {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    align-items: center;
+    padding-top: 3px;
+    margin-top: 3px;
+    border-top: 1px dotted var(--win-dark);
+}
+
+.corrupt-section:first-child {
+    border-top: 0;
+    margin-top: 0;
+    padding-top: 0;
+}
+
+.corrupt-section-title {
+    font-family: 'VT323', monospace;
+    font-size: 10px;
+    letter-spacing: .1em;
+    color: black;
+    min-width: 58px;
+    padding: 1px 3px;
+    text-transform: uppercase;
+    user-select: none;
+}
+
+.corrupt-hidden {
+    display: none !important;
+}
+
+.solarize-mode-hidden {
+    display: none !important;
+}
+
+.corrupt-status {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--ui-text);
+    padding: 1px 4px;
+    white-space: nowrap;
+}
+
+.corrupt-status.ready {
+    color: var(--ui-text);
+    font-weight: bold;
+    text-shadow: none;
+}
+
+.corrupt-status.warn {
+    color: var(--term-yel);
+}
+
+.pipeline-awareness {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    margin-top: 3px;
+    padding-top: 3px;
+    border-top: 1px dotted var(--win-dark);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+}
+
+.pipeline-awareness-label {
+    color: rgba(0, 0, 0, .58);
+    letter-spacing: .06em;
+    white-space: nowrap;
+}
+
+.pipeline-feed {
+    color: rgba(0, 0, 0, .62);
+    background: #c5c1b9;
+    border-top: 1px solid #808080;
+    border-left: 1px solid #808080;
+    border-right: 1px solid #fff;
+    border-bottom: 1px solid #fff;
+    padding: 1px 4px;
+    white-space: nowrap;
+}
+
+.pipeline-feed.active {
+    color: #000;
+    background: #fff;
+    font-weight: bold;
+}
+
+.pipeline-feed-summary {
+    color: #000;
+    background: #d4d0c8;
+    border: 1px solid #808080;
+    padding: 1px 4px;
+    white-space: nowrap;
+}
+
+.pipeline-feed-summary.warn {
+    color: #000;
+    background: #ffe36e;
+    font-weight: bold;
+}
+
+.pipeline-role {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: rgba(0, 0, 0, .58);
+    white-space: nowrap;
+}
+
+.pipeline-stage-state {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: #000;
+    background: #d4d0c8;
+    border: 1px solid #808080;
+    padding: 1px 4px;
+    white-space: nowrap;
+}
+
+.pipeline-stage-state.warn {
+    background: #ffe36e;
+    font-weight: bold;
+}
+
+.pipeline-stage-state.ready {
+    background: #fff;
+    font-weight: bold;
+}
+
+.pipeline-diagram {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    margin-top: 4px;
+    padding: 3px 4px;
+    background: #c5c1b9;
+    border-top: 1px solid #808080;
+    border-left: 1px solid #808080;
+    border-right: 1px solid #fff;
+    border-bottom: 1px solid #fff;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    min-height: 18px;
+}
+
+.pipeline-diagram-stage {
+    color: rgba(0, 0, 0, .72);
+    background: #d4d0c8;
+    border: 1px solid #808080;
+    padding: 1px 4px;
+    white-space: nowrap;
+}
+
+.pipeline-diagram-stage.active {
+    color: #000;
+    background: #fff;
+    font-weight: bold;
+}
+
+.pipeline-diagram-arrow {
+    color: rgba(0, 0, 0, .52);
+    padding: 0 1px;
+    white-space: nowrap;
+}
+
+
+/* ═══════════════════════════════════════════════
+           CTRL CHIPS — inset terminal boxes
+        ═══════════════════════════════════════════════ */
+
+.ctrl {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 5px;
+    background: var(--win-bg);
+    border-top: 1px solid var(--win-dark);
+    border-left: 1px solid var(--win-dark);
+    border-bottom: 1px solid var(--win-light);
+    border-right: 1px solid var(--win-light);
+}
+
+.ctrl:hover {
+    border-top-color: var(--win-mid);
+    border-left-color: var(--win-mid);
+}
+
+.ctrl label {
+    font-family: 'VT323', monospace;
+    font-size: 11px;
+    color: var(--ui-text);
+    white-space: nowrap;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    user-select: none;
+}
+
+.ctrl .val {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--param-value);
+    min-width: 24px;
+    text-align: right;
+}
+
+
+/* ═══════════════════════════════════════════════
+           INPUTS
+        ═══════════════════════════════════════════════ */
+
+input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 120px;
+    height: 4px;
+    background: var(--win-mid);
+    border-top: 1px solid var(--win-dark);
+    border-left: 1px solid var(--win-dark);
+    outline: none;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 11px;
+    height: 14px;
+    background: var(--win-bg);
+    border-top: 2px solid var(--win-light);
+    border-left: 2px solid var(--win-light);
+    border-bottom: 2px solid var(--win-dark);
+    border-right: 2px solid var(--win-dark);
+}
+
+input[type=range]::-moz-range-thumb {
+    width: 11px;
+    height: 14px;
+    background: var(--win-bg);
+    border: none;
+}
+
+input[type=number] {
+    width: 60px;
+    background: var(--ui-field);
+    border-top: 1px solid var(--win-dark);
+    border-left: 1px solid var(--win-dark);
+    border-bottom: 1px solid var(--win-light);
+    border-right: 1px solid var(--win-light);
+    color: var(--ui-text);
+    padding: 1px 3px;
+    font-size: 12px;
+    font-family: 'Share Tech Mono', monospace;
+}
+
+select {
+    background: var(--ui-field);
+    border-top: 1px solid var(--win-dark);
+    border-left: 1px solid var(--win-dark);
+    border-bottom: 1px solid var(--win-light);
+    border-right: 1px solid var(--win-light);
+    color: var(--ui-text);
+    padding: 1px 2px;
+    font-size: 12px;
+    font-family: 'VT323', monospace;
+    cursor: pointer;
+}
+
+input[type=checkbox] {
+    accent-color: var(--term-green);
+    width: 12px;
+    height: 12px;
+    cursor: pointer;
+}
+
+
+/* ═══════════════════════════════════════════════
+           BUTTONS — classic Win95 raised bevel
+        ═══════════════════════════════════════════════ */
+
+button {
+    cursor: pointer;
+    font-family: 'VT323', monospace;
+    font-size: 13px;
+    font-weight: normal;
+    letter-spacing: .06em;
+    padding: 2px 8px;
+    background: var(--win-bg);
+    color: var(--term-bg);
+    border-top: 2px solid var(--win-light);
+    border-left: 2px solid var(--win-light);
+    border-bottom: 2px solid var(--win-dark);
+    border-right: 2px solid var(--win-dark);
+    white-space: nowrap;
+    text-transform: uppercase;
+    transition: none;
+}
+
+button:hover {
+    background: #D4D0C8;
+}
+
+button:active {
+    border-top-color: var(--win-dark);
+    border-left-color: var(--win-dark);
+    border-bottom-color: var(--win-light);
+    border-right-color: var(--win-light);
+    transform: translate(1px, 1px);
+}
+
+button:disabled {
+    opacity: .4;
+    cursor: default;
+}
+
+
+/* Primary "danger" button — black bg, green text */
+
+.btn-red {
+    background: var(--win-bg);
+    color: var(--ui-text);
+    border-top-color: var(--win-light);
+    border-left-color: var(--win-light);
+    font-weight: normal;
+}
+
+.btn-red:hover {
+    background: #D4D0C8;
+    color: var(--ui-text);
+}
+
+
+/* Dim secondary */
+
+.btn-dim {
+    background: var(--win-bg);
+    color: #404040;
+}
+
+.btn-dim:hover {
+    color: var(--term-bg);
+}
+
+
+/* ═══════════════════════════════════════════════
+           STATUS PILLS — inset terminal readouts
+        ═══════════════════════════════════════════════ */
+
+.pill {
+    font-family: 'VT323', monospace;
+    font-size: 12px;
+    padding: 1px 6px;
+    background: var(--win-bg);
+    border-top: 1px solid var(--win-dark);
+    border-left: 1px solid var(--win-dark);
+    border-bottom: 1px solid var(--win-light);
+    border-right: 1px solid var(--win-light);
+    color: var(--ui-text);
+    white-space: nowrap;
+    flex-shrink: 0;
+    letter-spacing: .04em;
+}
+
+#status {
+    color: var(--ui-text);
+}
+
+
+/* ═══════════════════════════════════════════════
+           MODAL OVERLAYS
+        ═══════════════════════════════════════════════ */
+
+#aboutOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, .10);
+    align-items: center;
+    justify-content: center;
+}
+
+#aboutOverlay.open {
+    display: flex;
+}
+
+
+/* ═══════════════════════════════════════════════
+           MODAL BOXES — Win95 dialog windows
+        ═══════════════════════════════════════════════ */
+
+#aboutBox {
+    position: relative;
+    background: var(--win-bg);
+    border-top: 3px solid var(--win-light);
+    border-left: 3px solid var(--win-light);
+    border-bottom: 3px solid var(--win-dark);
+    border-right: 3px solid var(--win-dark);
+    font-family: 'VT323', monospace;
+    padding: 0;
+    overflow: hidden;
+    box-shadow: 10px 10px 0 rgba(0, 0, 0, .28), 14px 14px 26px rgba(0, 0, 0, .28);
+}
+
+
+/* Title bar on each modal */
+
+#aboutBox::before {
+    /* content: '■  ABOUT HUFF'; */
+}
+
+#aboutBox::before {
+    display: block;
+    background: linear-gradient(90deg, var(--title-bg) 0%, #ff4647 100%);
+    color: var(--title-text);
+    font-family: 'VT323', monospace;
+    font-size: 14px;
+    padding: 3px 8px;
+    letter-spacing: .07em;
+    border-bottom: 1px solid var(--win-dark);
+}
+
+
+/* ── About ── */
+
+#aboutBox {
+    max-width: 440px;
+    width: 90%;
+}
+
+#aboutBox>* {
+    padding: 0 18px;
+}
+
+#aboutBox>*:first-child {
+    padding-top: 0;
+}
+
+
+/* override padding for the pseudo-el title */
+
+#aboutBox .a-icon {
+    width: 64px;
+    height: 64px;
+    padding: 0;
+    box-sizing: border-box;
+    background: url('../icon-name.jpg') center/contain no-repeat;
+    margin: 12px 0 8px 14px;
+    border-top: 1px solid var(--win-dark);
+    border-left: 1px solid var(--win-dark);
+    border-bottom: 1px solid var(--win-light);
+    border-right: 1px solid var(--win-light);
+    flex-shrink: 0;
+}
+
+#aboutBox h1 {
+    font-family: 'VT323', monospace;
+    font-size: 28px;
+    font-weight: normal;
+    letter-spacing: .14em;
+    color: var(--ui-text);
+    margin: 12px 0 2px;
+    text-transform: uppercase;
+    text-shadow: none;
+}
+
+#aboutBox .build {
+    font-size: 12px;
+    letter-spacing: .1em;
+    color: #606060;
+    margin-bottom: 10px;
+    font-family: 'Share Tech Mono', monospace;
+}
+
+#aboutBox p {
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--term-bg);
+    margin: 0 0 10px;
+    padding: 0 18px;
+}
+
+#aboutBox .links {
+    font-size: 12px;
+    color: #404040;
+    padding: 0 18px 16px;
+}
+
+#aboutBox .links a {
+    color: var(--title-bg);
+    text-decoration: underline;
+}
+
+.topbar-logo-button {
+    border: 0;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    display: block;
+}
+
+.topbar-logo-button:focus-visible {
+    outline: 1px dotted #000;
+    outline-offset: 2px;
+}
+
+#aboutClose {
+    position: absolute;
+    top: 3px;
+    right: 5px;
+    background: var(--win-bg);
+    border: none;
+    border-top: 1px solid var(--win-light);
+    border-left: 1px solid var(--win-light);
+    border-bottom: 1px solid var(--win-dark);
+    border-right: 1px solid var(--win-dark);
+    font-size: 12px;
+    color: var(--term-bg);
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1.3;
+    font-family: 'VT323', monospace;
+}
+
+#aboutClose:hover {
+    background: #D4D0C8;
+}
+
+#aboutClose:active {
+    border-top-color: var(--win-dark);
+    border-left-color: var(--win-dark);
+    border-bottom-color: var(--win-light);
+    border-right-color: var(--win-light);
+}
+
+
+/* ── groups inside modal content pads ── */
+
+
+/* file input */
+
+input[type=file] {
+    font-size: 11px;
+    color: var(--ui-text);
+    max-width: 155px;
+    font-family: 'VT323', monospace;
+}
+
+
+/* ===== huff-connected-groups-v1 ===== */
+
+
+/*
+         * HUFF connected-groups V1
+         * Layout-only correction: preserve original styling and controls,
+         * remove the exposed gray gutters between control groups.
+         */
+
+.groups {
+    gap: 0;
+    padding: 0;
+    align-items: stretch;
+}
+
+.groups>.group {
+    flex-grow: 1;
+    width: auto;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+
+/* ===== huff-source-cleanup-v1 ===== */
+
+
+/*
+         * SOURCE cleanup only, plus globally uniform dropdown geometry.
+         * No element order, parameter semantics, or runtime behavior changes.
+         */
+
+
+/* ── SOURCE: give controls breathing room ───────────────── */
+
+#sourceGroup .group-body {
+    padding: 6px 8px 7px;
+}
+
+#sourceGroup .transport-row {
+    gap: 8px;
+    padding: 5px 7px;
+}
+
+#sourceGroup .group-row {
+    gap: 6px;
+    row-gap: 7px;
+}
+
+#sourceGroup .ctrl {
+    gap: 6px;
+    min-height: 30px;
+    box-sizing: border-box;
+    padding: 3px 7px;
+}
+
+#sourceGroup .ctrl label,
+#sourceGroup .transport-row>label {
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+}
+
+
+/* ── SOURCE: action buttons are one exact geometry ─────── */
+
+#sourceGroup button {
+    height: 30px !important;
+    min-height: 30px !important;
+    box-sizing: border-box !important;
+    padding: 2px 9px !important;
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 13px !important;
+    font-weight: normal !important;
+    line-height: 20px !important;
+}
+
+
+/* Native file chooser participates in the same 30px control row. */
+
+#sourceGroup input[type="file"] {
+    height: 30px;
+    min-height: 30px;
+    box-sizing: border-box;
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 12px !important;
+    line-height: 24px;
+}
+
+#sourceGroup input[type="file"]::file-selector-button,
+#sourceGroup input[type="file"]::-webkit-file-upload-button {
+    height: 30px;
+    box-sizing: border-box;
+    margin: 0 7px 0 0;
+    padding: 2px 9px;
+    font-family: 'VT323', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 20px;
+}
+
+
+/* ── SOURCE: one slider visual system ──────────────────── */
+
+#sourceGroup input[type="range"] {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    height: 6px !important;
+    box-sizing: border-box !important;
+    background: var(--win-mid) !important;
+    border-top: 1px solid var(--win-dark) !important;
+    border-left: 1px solid var(--win-dark) !important;
+    border-bottom: 1px solid var(--win-light) !important;
+    border-right: 1px solid var(--win-light) !important;
+    border-radius: 0 !important;
+    outline: none !important;
+    margin: 0 !important;
+}
+
+#sourceGroup input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px !important;
+    background: var(--win-mid) !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+}
+
+#sourceGroup input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    width: 12px !important;
+    height: 16px !important;
+    margin-top: -6px;
+    box-sizing: border-box !important;
+    background: var(--win-bg) !important;
+    border-top: 2px solid var(--win-light) !important;
+    border-left: 2px solid var(--win-light) !important;
+    border-bottom: 2px solid var(--win-dark) !important;
+    border-right: 2px solid var(--win-dark) !important;
+    border-radius: 0 !important;
+}
+
+#sourceGroup input[type="range"]::-moz-range-track {
+    height: 4px !important;
+    background: var(--win-mid) !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+}
+
+#sourceGroup input[type="range"]::-moz-range-thumb {
+    width: 12px !important;
+    height: 16px !important;
+    box-sizing: border-box !important;
+    background: var(--win-bg) !important;
+    border-top: 2px solid var(--win-light) !important;
+    border-left: 2px solid var(--win-light) !important;
+    border-bottom: 2px solid var(--win-dark) !important;
+    border-right: 2px solid var(--win-dark) !important;
+    border-radius: 0 !important;
+}
+
+
+/* Seek keeps its responsive width; Base Mix and Volume use same fixed throw. */
+
+#sourceGroup #seekBar {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 180px !important;
+}
+
+#sourceGroup #baseMix,
+#sourceGroup #volumeSlider {
+    width: 150px !important;
+    flex: 0 0 150px !important;
+}
+
+
+/* Hidden preset-compatibility slider is not part of the visible control surface. */
+
+#sourceGroup #quality {
+    display: none !important;
+}
+
+
+/* ── SOURCE: SRC / WS are readouts, not panels inside a panel ─ */
+
+#sourceGroup .ctrl:has(>#sourceInfo) {
+    min-height: 0;
+    padding: 0;
+    gap: 6px;
+    background: transparent;
+    border: 0;
+}
+
+#sourceGroup #sourceInfo,
+#sourceGroup #status {
+    min-height: 30px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+}
+
+
+/* ── ALL DROPDOWNS: consistent fit inside their outlines ── */
+
+select {
+    height: 26px !important;
+    min-height: 26px !important;
+    box-sizing: border-box !important;
+    padding: 1px 24px 1px 6px !important;
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 12px !important;
+    line-height: 20px !important;
+    vertical-align: middle !important;
+}
+
+
+/* ===== huff-source-emphasis-transport-v1 ===== */
+
+
+/*
+         * Exact scope:
+         * 1) emphasize CAMERA / RATE / LOOP in Source
+         * 2) let the video transport seek slider consume flexible row width
+         */
+
+#sourceGroup .source-emphasis-label {
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 14px !important;
+    font-weight: normal !important;
+    line-height: 1 !important;
+    letter-spacing: .08em !important;
+    color: var(--ui-text) !important;
+    opacity: 1 !important;
+    text-transform: uppercase;
+}
+
+
+/* Give LOOP a slightly larger hit target without changing behavior. */
+
+#sourceGroup #loopToggle {
+    width: 16px !important;
+    height: 16px !important;
+}
+
+
+/*
+         * Transport playback position:
+         * stretch into all available horizontal space and keep resizing
+         * with the Source panel / app window.
+         */
+
+#sourceGroup .transport-row:has(#seekBar) {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#sourceGroup #seekBar {
+    flex: 1 1 320px !important;
+    width: auto !important;
+    min-width: 240px !important;
+    max-width: none !important;
+}
+
+
+/* The transport row reserves flexible width for the seek bar. */
+
+#sourceGroup .transport-row:has(#seekBar)>div[style*="flex:1"] {
+    display: none !important;
+}
+
+
+/* ===== huff-source-boxing-v1 ===== */
+
+
+/* Source-only design decision:
+           transport controls use the same boxed language as Base Video / Base Mix. */
+
+#sourceGroup .source-box-row {
+    border-bottom: 0;
+    background: transparent;
+    padding-left: 0;
+    padding-right: 0;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+#sourceGroup .source-box {
+    min-height: 30px;
+    box-sizing: border-box;
+    background: var(--win-bg);
+    border-top: 1px solid var(--win-dark);
+    border-left: 1px solid var(--win-dark);
+    border-bottom: 1px solid var(--win-light);
+    border-right: 1px solid var(--win-light);
+    padding: 3px 7px;
+    gap: 6px;
+}
+
+#sourceGroup .source-box>label {
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 12px !important;
+    color: var(--ui-text) !important;
+    opacity: 1 !important;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+#sourceGroup .source-file-box {
+    flex: 0 1 auto;
+}
+
+#sourceGroup .source-seek-box {
+    flex: 1 1 420px;
+    min-width: 320px;
+}
+
+#sourceGroup .source-seek-box #seekBar {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 240px !important;
+    max-width: none !important;
+}
+
+#sourceGroup .source-seek-box #timeDisplay {
+    flex: 0 0 auto;
+}
+
+
+/* ===== huff-presets-cleanup-v1 ===== */
+
+
+/*
+         * PRESETS cleanup only:
+         * same boxed visual language established in SOURCE.
+         */
+
+#presetsGroup .group-body {
+    padding: 6px 8px 7px;
+}
+
+#presetsGroup .preset-box-row {
+    gap: 6px;
+    row-gap: 7px;
+    align-items: center;
+}
+
+#presetsGroup .preset-box {
+    min-height: 30px;
+    box-sizing: border-box;
+    gap: 6px;
+    padding: 3px 7px;
+}
+
+#presetsGroup .preset-box>label {
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+    color: var(--ui-text) !important;
+    opacity: 1 !important;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+#presetsGroup button {
+    height: 30px !important;
+    min-height: 30px !important;
+    box-sizing: border-box !important;
+    padding: 2px 9px !important;
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 13px !important;
+    font-weight: normal !important;
+    line-height: 20px !important;
+}
+
+#presetsGroup select,
+#presetsGroup input[type="text"] {
+    height: 26px !important;
+    min-height: 26px !important;
+    box-sizing: border-box !important;
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 12px !important;
+    line-height: 20px !important;
+    border-radius: 0 !important;
+}
+
+#presetsGroup #presetList {
+    width: 190px;
+    max-width: 190px;
+    background: var(--ui-field) !important;
+    color: var(--ui-text) !important;
+    border-top: 1px solid var(--win-dark) !important;
+    border-left: 1px solid var(--win-dark) !important;
+    border-bottom: 1px solid var(--win-light) !important;
+    border-right: 1px solid var(--win-light) !important;
+    padding: 1px 24px 1px 6px !important;
+}
+
+#presetsGroup #presetName {
+    width: 150px;
+    background: var(--ui-field) !important;
+    color: var(--ui-text) !important;
+    border-top: 1px solid var(--win-dark) !important;
+    border-left: 1px solid var(--win-dark) !important;
+    border-bottom: 1px solid var(--win-light) !important;
+    border-right: 1px solid var(--win-light) !important;
+    padding: 2px 6px !important;
+    outline: none !important;
+}
+
+#presetsGroup .preset-recall-box,
+#presetsGroup .preset-file-box,
+#presetsGroup .preset-reset-box {
+    flex: 0 0 auto;
+}
+
+
+/* ===== huff-symmetry-expansion-v1 ===== */
+
+#symmetryGroup .group-body {
+    padding: 6px 8px 7px;
+}
+
+#symmetryGroup .symmetry-box-row {
+    gap: 6px;
+    row-gap: 7px;
+    align-items: center;
+}
+
+#symmetryGroup .symmetry-box {
+    min-height: 30px;
+    box-sizing: border-box;
+    gap: 6px;
+    padding: 3px 7px;
+}
+
+#symmetryGroup .symmetry-box>label {
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+    color: var(--ui-text) !important;
+    opacity: 1 !important;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+#symmetryGroup select {
+    height: 26px !important;
+    min-height: 26px !important;
+    box-sizing: border-box !important;
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 12px !important;
+    line-height: 20px !important;
+}
+
+#symmetryGroup input[type="range"]:not(#symPos) {
+    width: 150px !important;
+    flex: 0 0 150px !important;
+}
+
+#symmetryGroup input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+}
+
+
+/* ===== huff-global-mix-cleanup-v1 ===== */
+
+
+/*
+         * GLOBAL MIX cleanup only.
+         * Same boxed control language established in Source / Presets / Symmetry.
+         */
+
+#globalMixGroup .group-body {
+    padding: 6px 8px 7px;
+}
+
+#globalMixGroup .global-mix-box-row {
+    gap: 6px;
+    row-gap: 7px;
+    align-items: center;
+}
+
+#globalMixGroup .global-mix-box {
+    min-height: 30px;
+    box-sizing: border-box;
+    gap: 6px;
+    padding: 3px 7px;
+}
+
+#globalMixGroup .global-mix-box>label {
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+    color: var(--ui-text) !important;
+    opacity: 1 !important;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+#globalMixGroup input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+}
+
+#globalMixGroup #globalMixAmt {
+    width: 150px !important;
+    flex: 0 0 150px !important;
+}
+
+#globalMixGroup select {
+    height: 26px !important;
+    min-height: 26px !important;
+    box-sizing: border-box !important;
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 12px !important;
+    line-height: 20px !important;
+    padding: 1px 24px 1px 6px !important;
+}
+
+#globalMixGroup #globalMixBlend {
+    min-width: 140px;
+}
+
+#globalMixGroup #globalMixCurve {
+    min-width: 100px;
+}
+
+#globalMixGroup #globalMixPos {
+    min-width: 120px;
+}
+
+
+/* ===== huff-feedback-cleanup-v1 ===== */
+
+
+/*
+         * FEEDBACK cleanup only.
+         * Same boxed visual language established in Source / Presets / Symmetry / Global Mix.
+         * No runtime or parameter behavior changes.
+         */
+
+#feedbackGroup .group-body {
+    padding: 6px 8px 7px;
+}
+
+#feedbackGroup .corrupt-section {
+    gap: 6px;
+    row-gap: 7px;
+    padding-top: 6px;
+    margin-top: 6px;
+    border-top: 1px solid var(--win-mid);
+}
+
+#feedbackGroup .corrupt-section:first-child {
+    border-top: 0;
+    margin-top: 0;
+    padding-top: 0;
+}
+
+#feedbackGroup .ctrl {
+    min-height: 30px;
+    box-sizing: border-box;
+    gap: 6px;
+    padding: 3px 7px;
+}
+
+#feedbackGroup .ctrl>label {
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+    color: var(--ui-text) !important;
+    opacity: 1 !important;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+#feedbackGroup input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+}
+
+#feedbackGroup input[type="range"] {
+    width: 150px !important;
+    flex: 0 0 150px !important;
+}
+
+#feedbackGroup select {
+    height: 26px !important;
+    min-height: 26px !important;
+    box-sizing: border-box !important;
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 12px !important;
+    line-height: 20px !important;
+    padding: 1px 24px 1px 6px !important;
+}
+
+#feedbackGroup #feedbackMotionRange {
+    min-width: 105px;
+}
+
+#feedbackGroup button {
+    height: 30px !important;
+    min-height: 30px !important;
+    box-sizing: border-box !important;
+    padding: 2px 9px !important;
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 13px !important;
+    font-weight: normal !important;
+    line-height: 20px !important;
+}
+
+#feedbackGroup .val {
+    min-width: 38px;
+}
+
+
+/* ===== huff-corrupt-cleanup-v1 ===== */
+
+
+/* CORRUPT cleanup only: same boxed language as prior cleaned sections. */
+
+#corruptGroup .group-body {
+    padding: 6px 8px 7px;
+}
+
+#corruptGroup .corrupt-section {
+    gap: 6px;
+    row-gap: 7px;
+    padding-top: 7px;
+    margin-top: 7px;
+    border-top: 1px solid var(--win-mid);
+}
+
+#corruptGroup .corrupt-section:first-child {
+    border-top: 0;
+    margin-top: 0;
+    padding-top: 0;
+}
+
+#corruptGroup .corrupt-section-title {
+    min-width: 76px;
+    box-sizing: border-box;
+    padding: 2px 6px;
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 12px !important;
+    line-height: 18px;
+    letter-spacing: .08em;
+    color: var(--ui-text);
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+#corruptGroup .ctrl {
+    min-height: 30px;
+    box-sizing: border-box;
+    gap: 6px;
+    padding: 3px 7px;
+}
+
+#corruptGroup .ctrl>label {
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+    color: var(--ui-text) !important;
+    opacity: 1 !important;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+#corruptGroup input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+}
+
+#corruptGroup input[type="range"] {
+    width: 150px !important;
+    flex: 0 0 150px !important;
+}
+
+#corruptGroup select {
+    height: 26px !important;
+    min-height: 26px !important;
+    box-sizing: border-box !important;
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 12px !important;
+    line-height: 20px !important;
+    padding: 1px 24px 1px 6px !important;
+}
+
+#corruptGroup button {
+    height: 30px !important;
+    min-height: 30px !important;
+    box-sizing: border-box !important;
+    padding: 2px 9px !important;
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 13px !important;
+    font-weight: normal !important;
+    line-height: 20px !important;
+}
+
+#corruptGroup .val {
+    min-width: 42px;
+}
+
+#corruptGroup #corruptUpdateMode {
+    min-width: 122px;
+}
+
+#corruptGroup #corruptMaskMode,
+#corruptGroup #corruptMaskSide,
+#corruptGroup #cluBounds {
+    min-width: 92px;
+}
+
+#corruptGroup .corrupt-hidden {
+    display: none !important;
+}
+
+
+/* ===== huff-luma-cleanup-v1 ===== */
+
+
+/* LUMA KEY cleanup only. No runtime or parameter changes. */
+
+#lumaKeyGroup .group-body {
+    padding: 6px 8px 7px;
+}
+
+#lumaKeyGroup .group-row {
+    gap: 6px;
+    row-gap: 7px;
+    align-items: center;
+}
+
+#lumaKeyGroup .ctrl {
+    min-height: 30px;
+    box-sizing: border-box;
+    gap: 6px;
+    padding: 3px 7px;
+    flex: 0 0 auto;
+    min-width: 0;
+    max-width: 100%;
+}
+
+#lumaKeyGroup .ctrl>label {
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+    color: var(--ui-text) !important;
+    opacity: 1 !important;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+#lumaKeyGroup input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+}
+
+#lumaKeyGroup input[type="range"] {
+    width: 150px !important;
+    max-width: 150px !important;
+    min-width: 0 !important;
+    flex: 0 0 150px !important;
+}
+
+#lumaKeyGroup select {
+    height: 26px !important;
+    min-height: 26px !important;
+    box-sizing: border-box !important;
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 12px !important;
+    line-height: 20px !important;
+    padding: 1px 24px 1px 6px !important;
+}
+
+#lumaKeyGroup button {
+    height: 30px !important;
+    min-height: 30px !important;
+    box-sizing: border-box !important;
+    padding: 2px 9px !important;
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 13px !important;
+    font-weight: normal !important;
+    line-height: 20px !important;
+}
+
+#lumaKeyGroup .val {
+    min-width: 38px;
+}
+
+#lumaKeyGroup #lumaKeyTarget {
+    min-width: 112px;
+}
+
+#lumaKeyGroup #lumaKeySource {
+    min-width: 88px;
+}
+
+#lumaKeyGroup #lumaKeyFade {
+    min-width: 112px;
+}
+
+
+/* Bound Clip / Cleanup / Density instead of flex-growing to 100%. */
+
+#lumaKeyGroup .luma-key-ab-box,
+#lumaKeyGroup .luma-key-shape-box {
+    flex: 0 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+}
+
+#lumaKeyGroup .luma-key-ab-box input[type="range"],
+#lumaKeyGroup .luma-key-shape-box input[type="range"] {
+    width: 150px !important;
+    max-width: 150px !important;
+    flex: 0 0 150px !important;
+}
+
+#lumaKeyGroup .group-row>span:not(.val) {
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    color: var(--ui-text) !important;
+    opacity: .7 !important;
+    letter-spacing: .05em;
+}
+
+#lumaKeyGroup #lumaKeyStencilState {
+    font-family: 'Share Tech Mono', monospace !important;
+    font-size: 10px !important;
+    color: var(--ui-text) !important;
+    opacity: .65;
+    white-space: nowrap;
+}
+
+
+/* ===== huff-scanline-scale-v1 ===== */
+
+
+/*
+         * HUFF compact scale V1
+         *
+         * Use the existing Scanlines section as the size/spacing reference.
+         * This only reduces the cleaned sections that had been enlarged:
+         * Source, Presets, Symmetry, Global Mix, Feedback, Corrupt, Luma Key.
+         *
+         * Pipeline, Scanlines, Solarize and Flow already use the compact
+         * baseline and are intentionally not resized here.
+         */
+
+
+/* ── Shared compact geometry ───────────────────────────── */
+
+#sourceGroup .group-body,
+#presetsGroup .group-body,
+#symmetryGroup .group-body,
+#globalMixGroup .group-body,
+#feedbackGroup .group-body,
+#corruptGroup .group-body,
+#lumaKeyGroup .group-body {
+    padding: 3px 5px 4px !important;
+}
+
+#sourceGroup .group-row,
+#presetsGroup .group-row,
+#symmetryGroup .group-row,
+#globalMixGroup .group-row,
+#lumaKeyGroup .group-row {
+    gap: 3px !important;
+    row-gap: 3px !important;
+}
+
+#sourceGroup .ctrl,
+#presetsGroup .ctrl,
+#symmetryGroup .ctrl,
+#globalMixGroup .ctrl,
+#feedbackGroup .ctrl,
+#corruptGroup .ctrl,
+#lumaKeyGroup .ctrl {
+    min-height: 0 !important;
+    gap: 4px !important;
+    padding: 1px 5px !important;
+}
+
+#sourceGroup .ctrl>label,
+#presetsGroup .ctrl>label,
+#symmetryGroup .ctrl>label,
+#globalMixGroup .ctrl>label,
+#feedbackGroup .ctrl>label,
+#corruptGroup .ctrl>label,
+#lumaKeyGroup .ctrl>label {
+    font-size: 11px !important;
+    line-height: 1 !important;
+    letter-spacing: .06em !important;
+}
+
+#sourceGroup input[type="checkbox"],
+#symmetryGroup input[type="checkbox"],
+#globalMixGroup input[type="checkbox"],
+#feedbackGroup input[type="checkbox"],
+#corruptGroup input[type="checkbox"],
+#lumaKeyGroup input[type="checkbox"] {
+    width: 12px !important;
+    height: 12px !important;
+}
+
+
+/* Match the existing Scanlines slider throw. */
+
+#sourceGroup #baseMix,
+#sourceGroup #volumeSlider,
+#symmetryGroup input[type="range"]:not(#symPos),
+#globalMixGroup #globalMixAmt,
+#feedbackGroup input[type="range"],
+#corruptGroup input[type="range"],
+#lumaKeyGroup input[type="range"],
+#lumaKeyGroup .luma-key-ab-box input[type="range"],
+#lumaKeyGroup .luma-key-shape-box input[type="range"] {
+    width: 120px !important;
+    max-width: 120px !important;
+    flex: 0 0 120px !important;
+}
+
+
+/* Keep the transport position slider responsive. */
+
+#sourceGroup #seekBar {
+    width: auto !important;
+    max-width: none !important;
+    min-width: 240px !important;
+    flex: 1 1 320px !important;
+}
+
+
+/* Compact menu height/padding to the existing Scanlines scale. */
+
+#sourceGroup select,
+#presetsGroup select,
+#symmetryGroup select,
+#globalMixGroup select,
+#feedbackGroup select,
+#corruptGroup select,
+#lumaKeyGroup select {
+    height: 20px !important;
+    min-height: 20px !important;
+    padding: 0 18px 0 4px !important;
+    font-size: 12px !important;
+    line-height: 18px !important;
+}
+
+
+/* Compact action buttons without changing their established font. */
+
+#sourceGroup button,
+#presetsGroup button,
+#feedbackGroup button,
+#corruptGroup button,
+#lumaKeyGroup button {
+    height: 23px !important;
+    min-height: 23px !important;
+    padding: 1px 7px !important;
+    font-size: 13px !important;
+    line-height: 17px !important;
+}
+
+
+/* ── Source-specific compacting ───────────────────────── */
+
+#sourceGroup .transport-row {
+    gap: 4px !important;
+    padding: 2px 0 3px !important;
+}
+
+#sourceGroup .source-box-row {
+    gap: 3px !important;
+    row-gap: 3px !important;
+}
+
+#sourceGroup .source-box {
+    min-height: 0 !important;
+    padding: 1px 5px !important;
+    gap: 4px !important;
+}
+
+#sourceGroup .source-box>label,
+#sourceGroup .source-emphasis-label {
+    font-size: 11px !important;
+    letter-spacing: .06em !important;
+}
+
+#sourceGroup input[type="file"] {
+    height: 23px !important;
+    min-height: 23px !important;
+    font-size: 11px !important;
+    line-height: 19px !important;
+}
+
+#sourceGroup input[type="file"]::file-selector-button,
+#sourceGroup input[type="file"]::-webkit-file-upload-button {
+    height: 23px !important;
+    margin-right: 5px !important;
+    padding: 1px 7px !important;
+    font-size: 12px !important;
+    line-height: 17px !important;
+}
+
+#sourceGroup #sourceInfo,
+#sourceGroup #status {
+    min-height: 20px !important;
+    padding: 1px 5px !important;
+}
+
+#sourceGroup .ctrl:has(>#sourceInfo) {
+    gap: 3px !important;
+    padding: 0 !important;
+}
+
+
+/* ── Presets compacting ───────────────────────────────── */
+
+#presetsGroup .preset-box-row {
+    gap: 3px !important;
+    row-gap: 3px !important;
+}
+
+#presetsGroup .preset-box {
+    min-height: 0 !important;
+    gap: 4px !important;
+    padding: 1px 5px !important;
+}
+
+#presetsGroup select,
+#presetsGroup input[type="text"] {
+    height: 20px !important;
+    min-height: 20px !important;
+    font-size: 11px !important;
+    line-height: 18px !important;
+}
+
+#presetsGroup #presetName {
+    padding: 1px 4px !important;
+}
+
+
+/* ── Symmetry / Global Mix compacting ─────────────────── */
+
+#symmetryGroup .symmetry-box-row,
+#globalMixGroup .global-mix-box-row {
+    gap: 3px !important;
+    row-gap: 3px !important;
+}
+
+#symmetryGroup .symmetry-box,
+#globalMixGroup .global-mix-box {
+    min-height: 0 !important;
+    gap: 4px !important;
+    padding: 1px 5px !important;
+}
+
+
+/* ── Feedback / Corrupt compact subsections ───────────── */
+
+#feedbackGroup .corrupt-section,
+#corruptGroup .corrupt-section {
+    gap: 3px !important;
+    row-gap: 3px !important;
+    padding-top: 3px !important;
+    margin-top: 3px !important;
+}
+
+#feedbackGroup .corrupt-section:first-child,
+#corruptGroup .corrupt-section:first-child {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
+#corruptGroup .corrupt-section-title {
+    min-width: 58px !important;
+    padding: 1px 3px !important;
+    font-size: 10px !important;
+    line-height: 1 !important;
+    letter-spacing: .1em !important;
+}
+
+#feedbackGroup .val,
+#corruptGroup .val,
+#lumaKeyGroup .val {
+    min-width: 24px !important;
+}
+
+
+/* ── Compact Luma layout with bounded control overflow ─────── */
+
+#lumaKeyGroup .luma-key-ab-box,
+#lumaKeyGroup .luma-key-shape-box {
+    flex: 0 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+}
+
+#lumaKeyGroup .group-row>span:not(.val) {
+    font-size: 10px !important;
+}
+
+#lumaKeyGroup #lumaKeyStencilState {
+    font-size: 9px !important;
+}
+
+
+/* ===== huff-index7-source-feedback-alignment-v1 ===== */
+
+
+/*
+         * Exact scope on the user's index(7).html:
+         * 1) Base Mix + Volume get a larger throw related to the transport slider.
+         * 2) Feedback CLEAR + RESET MOTION use the compact Scanlines action-button scale.
+         */
+
+
+/*
+         * Transport remains the flexible/responsive slider.
+         * Base Mix and Volume use the transport slider's 240px minimum as their
+         * fixed visual reference so they no longer look undersized beside it.
+         * All other effect sliders remain at the compact 120px scale.
+         */
+
+#sourceGroup #baseMix,
+#sourceGroup #volumeSlider {
+    width: 240px !important;
+    max-width: 240px !important;
+    min-width: 240px !important;
+    flex: 0 0 240px !important;
+}
+
+
+/*
+         * Match the compact Scanlines reset-button treatment while keeping both
+         * Feedback actions on one exact height so they align in the Core row.
+         */
+
+#feedbackGroup #clearBufBtn,
+#feedbackGroup #resetMotionBtn {
+    height: 23px !important;
+    min-height: 23px !important;
+    box-sizing: border-box !important;
+    padding: 2px 7px !important;
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 9px !important;
+    font-weight: normal !important;
+    line-height: 13px !important;
+    align-self: center;
+}
+
+
+/* ===== huff-control-geometry-contract-v1 ===== */
+
+
+/*
+         * HUFF CONTROL GEOMETRY CONTRACT V1
+         *
+         * Scanlines remains the compact visual reference.
+         *
+         * MAIN UI CONTRACT:
+         * - every boxed control chip is exactly 24px high
+         * - every normal field inside a chip is 20px high
+         * - every normal slider uses the same 120px throw
+         * - every slider uses the same 4px track / 11x14 thumb geometry
+         * - direct action buttons align to the same 24px control-chip height
+         *
+         * SOURCE hierarchy exceptions:
+         * - BASE MIX and VOL remain larger at 240px
+         * - transport SEEK remains flexible/responsive
+         *
+         * This block is intentionally scoped to #controlsForm so non-control UI layouts are not altered.
+         */
+
+ :root {
+    --huff-ctrl-h: 24px;
+    --huff-field-h: 20px;
+    --huff-slider-w: 120px;
+    --huff-source-slider-w: 240px;
+    --huff-range-track-h: 4px;
+    --huff-range-thumb-w: 11px;
+    --huff-range-thumb-h: 14px;
+}
+
+
+/* ── One exact outer box height across the main instrument ── */
+
+#controlsForm .ctrl {
+    height: var(--huff-ctrl-h) !important;
+    min-height: var(--huff-ctrl-h) !important;
+    max-height: var(--huff-ctrl-h) !important;
+    box-sizing: border-box !important;
+    padding: 1px 5px !important;
+    gap: 4px !important;
+    align-items: center !important;
+}
+
+
+/*
+         * Box subclasses inherited from earlier cleanup passes.
+         * Explicitly lock them to the same contract rather than allowing their
+         * competing min-height rules to change the control geometry.
+         */
+
+#controlsForm .source-box,
+#controlsForm .preset-box,
+#controlsForm .symmetry-box,
+#controlsForm .global-mix-box,
+#controlsForm .luma-key-ab-box,
+#controlsForm .luma-key-shape-box {
+    height: var(--huff-ctrl-h) !important;
+    min-height: var(--huff-ctrl-h) !important;
+    max-height: var(--huff-ctrl-h) !important;
+    box-sizing: border-box !important;
+    padding-top: 1px !important;
+    padding-bottom: 1px !important;
+}
+
+
+/* ── Labels / values stay compact and vertically centered ── */
+
+#controlsForm .ctrl>label,
+#controlsForm .source-box>label,
+#controlsForm .preset-box>label,
+#controlsForm .symmetry-box>label,
+#controlsForm .global-mix-box>label {
+    font-family: 'VT323', 'Courier New', monospace !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    letter-spacing: .06em !important;
+}
+
+#controlsForm .val {
+    line-height: 1 !important;
+    min-width: 24px !important;
+}
+
+
+/* ── One exact range visual geometry everywhere in main UI ── */
+
+#controlsForm input[type="range"] {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    width: var(--huff-slider-w) !important;
+    min-width: var(--huff-slider-w) !important;
+    max-width: var(--huff-slider-w) !important;
+    flex: 0 0 var(--huff-slider-w) !important;
+    height: var(--huff-range-track-h) !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    background: var(--win-mid) !important;
+    border-top: 1px solid var(--win-dark) !important;
+    border-left: 1px solid var(--win-dark) !important;
+    border-bottom: 0 !important;
+    border-right: 0 !important;
+    border-radius: 0 !important;
+    outline: none !important;
+}
+
+#controlsForm input[type="range"]::-webkit-slider-runnable-track {
+    height: var(--huff-range-track-h) !important;
+    background: var(--win-mid) !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+}
+
+#controlsForm input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    width: var(--huff-range-thumb-w) !important;
+    height: var(--huff-range-thumb-h) !important;
+    margin-top: -5px !important;
+    box-sizing: border-box !important;
+    background: var(--win-bg) !important;
+    border-top: 2px solid var(--win-light) !important;
+    border-left: 2px solid var(--win-light) !important;
+    border-bottom: 2px solid var(--win-dark) !important;
+    border-right: 2px solid var(--win-dark) !important;
+    border-radius: 0 !important;
+}
+
+#controlsForm input[type="range"]::-moz-range-track {
+    height: var(--huff-range-track-h) !important;
+    background: var(--win-mid) !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+}
+
+#controlsForm input[type="range"]::-moz-range-thumb {
+    width: var(--huff-range-thumb-w) !important;
+    height: var(--huff-range-thumb-h) !important;
+    box-sizing: border-box !important;
+    background: var(--win-bg) !important;
+    border-top: 2px solid var(--win-light) !important;
+    border-left: 2px solid var(--win-light) !important;
+    border-bottom: 2px solid var(--win-dark) !important;
+    border-right: 2px solid var(--win-dark) !important;
+    border-radius: 0 !important;
+}
+
+
+/* ── One field height for selects / numbers / text ── */
+
+#controlsForm select,
+#controlsForm input[type="number"],
+#controlsForm input[type="text"] {
+    height: var(--huff-field-h) !important;
+    min-height: var(--huff-field-h) !important;
+    max-height: var(--huff-field-h) !important;
+    box-sizing: border-box !important;
+    line-height: 18px !important;
+}
+
+#controlsForm select {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+#controlsForm input[type="checkbox"] {
+    width: 12px !important;
+    height: 12px !important;
+    flex: 0 0 12px !important;
+}
+
+
+/*
+         * Buttons INSIDE a boxed chip must fit inside the 24px chip.
+         * This covers Source transport controls, Presets, Luma CAPTURE,
+         * Scanline angle buttons, etc.
+         */
+
+#controlsForm .ctrl>button {
+    height: var(--huff-field-h) !important;
+    min-height: var(--huff-field-h) !important;
+    max-height: var(--huff-field-h) !important;
+    box-sizing: border-box !important;
+    padding: 1px 6px !important;
+    line-height: 14px !important;
+}
+
+
+/*
+         * Standalone row actions (CLEAR, RESET MOTION, RESET XYZ, etc.) align
+         * to the complete 24px chip height.
+         */
+
+#controlsForm .group-row>button,
+#controlsForm .corrupt-section>button {
+    height: var(--huff-ctrl-h) !important;
+    min-height: var(--huff-ctrl-h) !important;
+    max-height: var(--huff-ctrl-h) !important;
+    box-sizing: border-box !important;
+    padding: 2px 7px !important;
+    line-height: 14px !important;
+    align-self: center !important;
+}
+
+
+/* ── SOURCE: all three rows obey the same 24px box height ── */
+
+#sourceGroup .source-box {
+    height: var(--huff-ctrl-h) !important;
+    min-height: var(--huff-ctrl-h) !important;
+    max-height: var(--huff-ctrl-h) !important;
+}
+
+#sourceGroup input[type="file"] {
+    height: var(--huff-field-h) !important;
+    min-height: var(--huff-field-h) !important;
+    max-height: var(--huff-field-h) !important;
+    box-sizing: border-box !important;
+    line-height: 16px !important;
+}
+
+#sourceGroup input[type="file"]::file-selector-button,
+#sourceGroup input[type="file"]::-webkit-file-upload-button {
+    height: var(--huff-field-h) !important;
+    min-height: var(--huff-field-h) !important;
+    max-height: var(--huff-field-h) !important;
+    box-sizing: border-box !important;
+    margin-right: 5px !important;
+    padding: 1px 6px !important;
+    line-height: 14px !important;
+}
+
+#sourceGroup #timeDisplay {
+    height: var(--huff-field-h) !important;
+    min-height: var(--huff-field-h) !important;
+    box-sizing: border-box !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+
+/*
+         * Large Source sliders remain a deliberate hierarchy, but BASE MIX and
+         * VOL now share the exact same range geometry as every other slider.
+         */
+
+#sourceGroup #baseMix,
+#sourceGroup #volumeSlider {
+    width: var(--huff-source-slider-w) !important;
+    min-width: var(--huff-source-slider-w) !important;
+    max-width: var(--huff-source-slider-w) !important;
+    flex: 0 0 var(--huff-source-slider-w) !important;
+}
+
+
+/*
+         * Transport is the one flexible range control.
+         * Track/thumb height remains identical to every other slider.
+         */
+
+#sourceGroup #seekBar {
+    width: auto !important;
+    min-width: var(--huff-source-slider-w) !important;
+    max-width: none !important;
+    flex: 1 1 320px !important;
+}
+
+
+/*
+         * Source readouts intentionally remain readouts rather than another
+         * nested chip, but their visible pills use the same 20px inner height.
+         */
+
+#sourceGroup #sourceInfo,
+#sourceGroup #status {
+    height: var(--huff-field-h) !important;
+    min-height: var(--huff-field-h) !important;
+    max-height: var(--huff-field-h) !important;
+    box-sizing: border-box !important;
+    padding-top: 1px !important;
+    padding-bottom: 1px !important;
+}
+
+
+/* Keep preset-compatibility sliders outside the visible control surface. */
+
+#controlsForm input[type="range"][aria-hidden="true"] {
+    display: none !important;
+}
+
+
+/* ===== huff-scan-angle-long-throw-v2 ===== */
+
+
+/*
+         * Proven HUFF long-throw ANGLE treatment.
+         * ANGLE has 721 reachable values (-180..180 in 0.5° increments),
+         * so it intentionally receives more physical travel than normal sliders.
+         */
+
+#controlsForm #scanAngle {
+    width: 720px !important;
+    min-width: 360px !important;
+    max-width: calc(100vw - 360px) !important;
+    flex: 1 1 720px !important;
+}
+
+
+/* ===== huff-live-camera-transport-v1 ===== */
+
+
+/*
+         * A live MediaStream is not seekable transport.
+         * Keep the transport box visible for layout consistency but visibly disable it.
+         */
+
+#sourceGroup #seekBar:disabled {
+    opacity: .35 !important;
+    cursor: not-allowed !important;
+}
+
+#sourceGroup .source-seek-box:has(#seekBar:disabled) {
+    opacity: .62;
+}
