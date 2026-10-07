@@ -1,0 +1,3841 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>huff</title>
+    <link rel="icon" href="../src-tauri/icons/icon.png">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+    <style>
+        /*
+        ███████████████████████████████████████████████████
+        █  HUFF v2.0 :: AOL WAREZ / PUNTER AESTHETIC     █
+        █  circa 1997 :: Win95 gray + phosphor green      █
+        █  "AOL Hell" "TOE" "Punter" "Phreaker" vibes     █
+        ███████████████████████████████████████████████████
+        */
+
+        @keyframes blink {
+
+            0%,
+            49% {
+                opacity: 1
+            }
+
+            50%,
+            100% {
+                opacity: 0
+            }
+        }
+
+        @keyframes cursor-blink {
+
+            0%,
+            49% {
+                border-right-color: #00FF00
+            }
+
+            50%,
+            100% {
+                border-right-color: transparent
+            }
+        }
+
+        @keyframes marquee-scroll {
+            0% {
+                transform: translateX(100%);
+            }
+
+            100% {
+                transform: translateX(-100%);
+            }
+        }
+
+        @keyframes green-pulse {
+
+            0%,
+            100% {
+                text-shadow: 0 0 4px #00FF00, 0 0 10px #00FF00
+            }
+
+            50% {
+                text-shadow: 0 0 2px #00CC00
+            }
+        }
+
+        :root {
+            /* Win95 chrome */
+            --win-bg: #C0C0C0;
+            --win-light: #FFFFFF;
+            --win-mid: #808080;
+            --win-dark: #404040;
+            --title-bg: #ff4647;
+            --title-text: #FFFFFF;
+            /* Terminal */
+            --term-bg: #000000;
+            --term-green: #00FF00;
+            --term-dgreen: #00CC00;
+            --term-red: #FF0000;
+            --term-yel: #FFFF00;
+            --param-value: #8B1E2D;
+            --term-cyan: #00FFFF;
+            --term-mag: #FF00FF;
+            --ui-text: #000000;
+            --ui-field: #E8E8E8;
+            color-scheme: dark;
+        }
+
+        html,
+        body {
+            margin: 0;
+            height: 100%;
+            background: var(--term-bg);
+            color: var(--ui-text);
+            font-family: 'VT323', 'Courier New', monospace;
+            overflow: hidden;
+            font-size: 14px;
+        }
+
+        /* Phosphor scanline texture over everything */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            pointer-events: none;
+            background: repeating-linear-gradient(0deg,
+                    rgba(0, 0, 0, 0) 0px,
+                    rgba(0, 0, 0, 0) 2px,
+                    rgba(0, 255, 0, 0.015) 2px,
+                    rgba(0, 255, 0, 0.015) 3px);
+        }
+
+        canvas {
+            position: fixed;
+            inset: 0;
+            width: 100% !important;
+            height: 100% !important;
+            display: block;
+        }
+
+        #huff-bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background: url('icon-name.jpg') center/cover no-repeat;
+            opacity: .04;
+            filter: grayscale(1);
+            pointer-events: none;
+        }
+
+        /* ═══════════════════════════════════════════════
+           MAIN PANEL — Win95 window with title bar
+        ═══════════════════════════════════════════════ */
+        header {
+            position: fixed;
+            top: 6px;
+            left: 6px;
+            right: 6px;
+            z-index: 10;
+            background: var(--win-bg);
+            border-top: 2px solid var(--win-light);
+            border-left: 2px solid var(--win-light);
+            border-bottom: 2px solid var(--win-dark);
+            border-right: 2px solid var(--win-dark);
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            max-height: calc(100vh - 18px);
+            overflow-y: auto;
+        }
+
+        header::-webkit-scrollbar {
+            width: 16px;
+            background: var(--win-bg);
+        }
+
+        header::-webkit-scrollbar-thumb {
+            background: var(--win-bg);
+            border-top: 2px solid var(--win-light);
+            border-left: 2px solid var(--win-light);
+            border-bottom: 2px solid var(--win-dark);
+            border-right: 2px solid var(--win-dark);
+        }
+
+        header::-webkit-scrollbar-track {
+            background: var(--win-mid);
+        }
+
+        /* Win95 title bar injected via a wrapper — we fake it on topbar */
+        .topbar {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+            padding: 3px 4px 3px 5px;
+            background: var(--win-bg);
+            border-bottom: 1px solid var(--win-mid);
+        }
+
+        /* Title bar strip at very top */
+        /* header::before {
+            content: '[MAIN CONTROL]';
+            display: block;
+            background: linear-gradient(90deg, var(--title-bg) 0%, #ff4647 100%);
+            color: var(--title-text);
+            font-family: 'VT323', monospace;
+            font-size: 14px;
+            padding: 2px 6px;
+            letter-spacing: .05em;
+            white-space: nowrap;
+            overflow: hidden;
+            border-bottom: 1px solid var(--win-dark);
+        } */
+
+        .topbar-title {
+            font-family: 'VT323', monospace;
+            font-size: 15px;
+            font-weight: normal;
+            letter-spacing: .08em;
+            color: var(--term-bg);
+            text-transform: uppercase;
+            flex-shrink: 0;
+            background: var(--win-bg);
+            border-top: 1px solid var(--win-light);
+            border-left: 1px solid var(--win-light);
+            border-bottom: 1px solid var(--win-dark);
+            border-right: 1px solid var(--win-dark);
+            padding: 1px 6px;
+        }
+
+        .topbar-sep {
+            width: 1px;
+            height: 14px;
+            background: var(--win-mid);
+            border-right: 1px solid var(--win-light);
+            flex-shrink: 0;
+        }
+
+        /* ═══════════════════════════════════════════════
+           TRANSPORT ROW — seek bar + time display
+        ═══════════════════════════════════════════════ */
+        .transport-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 2px 5px 3px;
+            background: var(--win-bg);
+            border-bottom: 1px solid var(--win-mid);
+        }
+
+        #seekBar {
+            -webkit-appearance: none;
+            appearance: none;
+            flex: 1;
+            height: 4px;
+            min-width: 80px;
+            background: var(--win-mid);
+            border-top: 1px solid var(--win-dark);
+            border-left: 1px solid var(--win-dark);
+            outline: none;
+            cursor: pointer;
+        }
+
+        #seekBar::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 11px;
+            height: 14px;
+            background: var(--win-bg);
+            border-top: 2px solid var(--win-light);
+            border-left: 2px solid var(--win-light);
+            border-bottom: 2px solid var(--win-dark);
+            border-right: 2px solid var(--win-dark);
+        }
+
+        #seekBar::-moz-range-thumb {
+            width: 11px;
+            height: 14px;
+            background: var(--win-bg);
+            border: none;
+        }
+
+        #timeDisplay {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            color: white;
+            white-space: nowrap;
+            flex-shrink: 0;
+            padding: 1px 4px;
+            background: var(--term-bg);
+            border-top: 1px solid var(--win-dark);
+            border-left: 1px solid var(--win-dark);
+            border-bottom: 1px solid var(--win-light);
+            border-right: 1px solid var(--win-light);
+            min-width: 80px;
+            text-align: center;
+        }
+
+        /* ═══════════════════════════════════════════════
+           GROUPS — raised bevel boxes
+        ═══════════════════════════════════════════════ */
+        .groups {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            align-items: flex-start;
+            padding: 4px 5px;
+            background: var(--win-bg);
+        }
+
+        .group {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            background: var(--win-bg);
+            border-top: 2px solid var(--win-light);
+            border-left: 2px solid var(--win-light);
+            border-bottom: 2px solid var(--win-dark);
+            border-right: 2px solid var(--win-dark);
+            flex-shrink: 0;
+            overflow: hidden;
+            width: fit-content;
+            max-width: 100%;
+        }
+
+        .group:hover {
+            border-top-color: var(--win-light);
+            border-left-color: var(--win-light);
+        }
+
+        /* Group label = mini title bar */
+        .group-label {
+            font-family: 'VT323', monospace;
+            font-size: 12px;
+            font-weight: normal;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            color: var(--title-text);
+            background: linear-gradient(90deg, var(--title-bg) 0%, #ff4647 100%);
+            padding: 1px 5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .group-label:hover {
+            background: linear-gradient(90deg, #ff4647 0%, #1090E0 100%);
+        }
+
+        .group-label::after {
+            content: '▾';
+            font-size: 10px;
+            opacity: .9;
+            transition: transform .1s;
+        }
+
+        .group.collapsed .group-label::after {
+            transform: rotate(-90deg);
+        }
+
+        .group-body {
+            padding: 3px 5px 4px;
+            border-top: 1px solid var(--win-mid);
+            background: var(--win-bg);
+        }
+
+        .group.collapsed .group-body {
+            display: none;
+        }
+
+        .group-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+            align-items: center;
+        }
+
+        .corrupt-section {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+            align-items: center;
+            padding-top: 3px;
+            margin-top: 3px;
+            border-top: 1px dotted var(--win-dark);
+        }
+
+        .corrupt-section:first-child {
+            border-top: 0;
+            margin-top: 0;
+            padding-top: 0;
+        }
+
+        .corrupt-section-title {
+            font-family: 'VT323', monospace;
+            font-size: 10px;
+            letter-spacing: .1em;
+            color: black;
+            min-width: 58px;
+            padding: 1px 3px;
+            text-transform: uppercase;
+            user-select: none;
+        }
+
+        .corrupt-hidden {
+            display: none !important;
+        }
+
+        .solarize-mode-hidden {
+            display: none !important;
+        }
+
+        .corrupt-status {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 10px;
+            color: var(--ui-text);
+            padding: 1px 4px;
+            white-space: nowrap;
+        }
+
+        .corrupt-status.ready {
+            color: var(--ui-text);
+            font-weight: bold;
+            text-shadow: none;
+        }
+
+        .corrupt-status.warn {
+            color: var(--term-yel);
+        }
+
+        .pipeline-awareness {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 4px;
+            margin-top: 3px;
+            padding-top: 3px;
+            border-top: 1px dotted var(--win-dark);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 9px;
+        }
+
+        .pipeline-awareness-label {
+            color: rgba(0, 0, 0, .58);
+            letter-spacing: .06em;
+            white-space: nowrap;
+        }
+
+        .pipeline-feed {
+            color: rgba(0, 0, 0, .62);
+            background: #c5c1b9;
+            border-top: 1px solid #808080;
+            border-left: 1px solid #808080;
+            border-right: 1px solid #fff;
+            border-bottom: 1px solid #fff;
+            padding: 1px 4px;
+            white-space: nowrap;
+        }
+
+        .pipeline-feed.active {
+            color: #000;
+            background: #fff;
+            font-weight: bold;
+        }
+
+        .pipeline-feed-summary {
+            color: #000;
+            background: #d4d0c8;
+            border: 1px solid #808080;
+            padding: 1px 4px;
+            white-space: nowrap;
+        }
+
+        .pipeline-feed-summary.warn {
+            color: #000;
+            background: #ffe36e;
+            font-weight: bold;
+        }
+
+        .pipeline-role {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 9px;
+            color: rgba(0, 0, 0, .58);
+            white-space: nowrap;
+        }
+
+        .pipeline-stage-state {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 9px;
+            color: #000;
+            background: #d4d0c8;
+            border: 1px solid #808080;
+            padding: 1px 4px;
+            white-space: nowrap;
+        }
+
+        .pipeline-stage-state.warn {
+            background: #ffe36e;
+            font-weight: bold;
+        }
+
+        .pipeline-stage-state.ready {
+            background: #fff;
+            font-weight: bold;
+        }
+
+        .pipeline-diagram {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 2px;
+            margin-top: 4px;
+            padding: 3px 4px;
+            background: #c5c1b9;
+            border-top: 1px solid #808080;
+            border-left: 1px solid #808080;
+            border-right: 1px solid #fff;
+            border-bottom: 1px solid #fff;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 9px;
+            min-height: 18px;
+        }
+
+        .pipeline-diagram-stage {
+            color: rgba(0, 0, 0, .72);
+            background: #d4d0c8;
+            border: 1px solid #808080;
+            padding: 1px 4px;
+            white-space: nowrap;
+        }
+
+        .pipeline-diagram-stage.active {
+            color: #000;
+            background: #fff;
+            font-weight: bold;
+        }
+
+        .pipeline-diagram-arrow {
+            color: rgba(0, 0, 0, .52);
+            padding: 0 1px;
+            white-space: nowrap;
+        }
+
+        /* ═══════════════════════════════════════════════
+           CTRL CHIPS — inset terminal boxes
+        ═══════════════════════════════════════════════ */
+        .ctrl {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 1px 5px;
+            background: var(--win-bg);
+            border-top: 1px solid var(--win-dark);
+            border-left: 1px solid var(--win-dark);
+            border-bottom: 1px solid var(--win-light);
+            border-right: 1px solid var(--win-light);
+        }
+
+        .ctrl:hover {
+            border-top-color: var(--win-mid);
+            border-left-color: var(--win-mid);
+        }
+
+        .ctrl label {
+            font-family: 'VT323', monospace;
+            font-size: 11px;
+            color: var(--ui-text);
+            white-space: nowrap;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            user-select: none;
+        }
+
+        .ctrl .val {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            color: var(--param-value);
+            min-width: 24px;
+            text-align: right;
+        }
+
+
+        /* ═══════════════════════════════════════════════
+           INPUTS
+        ═══════════════════════════════════════════════ */
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 120px;
+            height: 4px;
+            background: var(--win-mid);
+            border-top: 1px solid var(--win-dark);
+            border-left: 1px solid var(--win-dark);
+            outline: none;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 11px;
+            height: 14px;
+            background: var(--win-bg);
+            border-top: 2px solid var(--win-light);
+            border-left: 2px solid var(--win-light);
+            border-bottom: 2px solid var(--win-dark);
+            border-right: 2px solid var(--win-dark);
+        }
+
+        input[type=range]::-moz-range-thumb {
+            width: 11px;
+            height: 14px;
+            background: var(--win-bg);
+            border: none;
+        }
+
+        input[type=number] {
+            width: 60px;
+            background: var(--ui-field);
+            border-top: 1px solid var(--win-dark);
+            border-left: 1px solid var(--win-dark);
+            border-bottom: 1px solid var(--win-light);
+            border-right: 1px solid var(--win-light);
+            color: var(--ui-text);
+            padding: 1px 3px;
+            font-size: 12px;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        select {
+            background: var(--ui-field);
+            border-top: 1px solid var(--win-dark);
+            border-left: 1px solid var(--win-dark);
+            border-bottom: 1px solid var(--win-light);
+            border-right: 1px solid var(--win-light);
+            color: var(--ui-text);
+            padding: 1px 2px;
+            font-size: 12px;
+            font-family: 'VT323', monospace;
+            cursor: pointer;
+        }
+
+        input[type=checkbox] {
+            accent-color: var(--term-green);
+            width: 12px;
+            height: 12px;
+            cursor: pointer;
+        }
+
+        /* ═══════════════════════════════════════════════
+           BUTTONS — classic Win95 raised bevel
+        ═══════════════════════════════════════════════ */
+        button {
+            cursor: pointer;
+            font-family: 'VT323', monospace;
+            font-size: 13px;
+            font-weight: normal;
+            letter-spacing: .06em;
+            padding: 2px 8px;
+            background: var(--win-bg);
+            color: var(--term-bg);
+            border-top: 2px solid var(--win-light);
+            border-left: 2px solid var(--win-light);
+            border-bottom: 2px solid var(--win-dark);
+            border-right: 2px solid var(--win-dark);
+            white-space: nowrap;
+            text-transform: uppercase;
+            transition: none;
+        }
+
+        button:hover {
+            background: #D4D0C8;
+        }
+
+        button:active {
+            border-top-color: var(--win-dark);
+            border-left-color: var(--win-dark);
+            border-bottom-color: var(--win-light);
+            border-right-color: var(--win-light);
+            transform: translate(1px, 1px);
+        }
+
+        button:disabled {
+            opacity: .4;
+            cursor: default;
+        }
+
+        /* Primary "danger" button — black bg, green text */
+        .btn-red {
+            background: var(--win-bg);
+            color: var(--ui-text);
+            border-top-color: var(--win-light);
+            border-left-color: var(--win-light);
+            font-weight: normal;
+        }
+
+        .btn-red:hover {
+            background: #D4D0C8;
+            color: var(--ui-text);
+        }
+
+        /* Dim secondary */
+        .btn-dim {
+            background: var(--win-bg);
+            color: #404040;
+        }
+
+        .btn-dim:hover {
+            color: var(--term-bg);
+        }
+
+
+        /* ═══════════════════════════════════════════════
+           STATUS PILLS — inset terminal readouts
+        ═══════════════════════════════════════════════ */
+        .pill {
+            font-family: 'VT323', monospace;
+            font-size: 12px;
+            padding: 1px 6px;
+            background: var(--win-bg);
+            border-top: 1px solid var(--win-dark);
+            border-left: 1px solid var(--win-dark);
+            border-bottom: 1px solid var(--win-light);
+            border-right: 1px solid var(--win-light);
+            color: var(--ui-text);
+            white-space: nowrap;
+            flex-shrink: 0;
+            letter-spacing: .04em;
+        }
+
+        #status {
+            color: var(--ui-text);
+        }
+
+
+        /* ═══════════════════════════════════════════════
+           MODAL OVERLAYS
+        ═══════════════════════════════════════════════ */
+        #aboutOverlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            background: rgba(0, 0, 0, .10);
+            align-items: center;
+            justify-content: center;
+        }
+
+        #aboutOverlay.open {
+            display: flex;
+        }
+
+        /* ═══════════════════════════════════════════════
+           MODAL BOXES — Win95 dialog windows
+        ═══════════════════════════════════════════════ */
+        #aboutBox {
+            position: relative;
+            background: var(--win-bg);
+            border-top: 3px solid var(--win-light);
+            border-left: 3px solid var(--win-light);
+            border-bottom: 3px solid var(--win-dark);
+            border-right: 3px solid var(--win-dark);
+            font-family: 'VT323', monospace;
+            padding: 0;
+            overflow: hidden;
+            box-shadow: 10px 10px 0 rgba(0,0,0,.28), 14px 14px 26px rgba(0,0,0,.28);
+        }
+
+        /* Title bar on each modal */
+        #aboutBox::before {
+            content: '■  ABOUT HUFF';
+        }
+
+
+        #aboutBox::before {
+            display: block;
+            background: linear-gradient(90deg, var(--title-bg) 0%, #ff4647 100%);
+            color: var(--title-text);
+            font-family: 'VT323', monospace;
+            font-size: 14px;
+            padding: 3px 8px;
+            letter-spacing: .07em;
+            border-bottom: 1px solid var(--win-dark);
+        }
+
+        /* ── About ── */
+        #aboutBox {
+            max-width: 440px;
+            width: 90%;
+        }
+
+        #aboutBox>* {
+            padding: 0 18px;
+        }
+
+        #aboutBox>*:first-child {
+            padding-top: 0;
+        }
+
+        /* override padding for the pseudo-el title */
+        #aboutBox .a-icon {
+            float: right;
+            width: 64px;
+            height: 64px;
+            background: url('icon-name.jpg') center/cover no-repeat;
+            margin: 12px 0 8px 14px;
+            border-top: 1px solid var(--win-dark);
+            border-left: 1px solid var(--win-dark);
+            border-bottom: 1px solid var(--win-light);
+            border-right: 1px solid var(--win-light);
+            flex-shrink: 0;
+        }
+
+        #aboutBox h1 {
+            font-family: 'VT323', monospace;
+            font-size: 28px;
+            font-weight: normal;
+            letter-spacing: .14em;
+            color: var(--ui-text);
+            margin: 12px 0 2px;
+            text-transform: uppercase;
+            text-shadow: none;
+        }
+
+        #aboutBox .build {
+            font-size: 12px;
+            letter-spacing: .1em;
+            color: #606060;
+            margin-bottom: 10px;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        #aboutBox p {
+            font-size: 13px;
+            line-height: 1.55;
+            color: var(--term-bg);
+            margin: 0 0 10px;
+            padding: 0 18px;
+        }
+
+        #aboutBox .links {
+            font-size: 12px;
+            color: #404040;
+            padding: 0 18px 16px;
+        }
+
+        #aboutBox .links a {
+            color: var(--title-bg);
+            text-decoration: underline;
+        }
+
+        .topbar-logo-button {
+            border: 0;
+            padding: 0;
+            margin: 0;
+            background: transparent;
+            cursor: pointer;
+            width: 24px;
+            height: 24px;
+            display: block;
+        }
+
+        .topbar-logo-button:focus-visible {
+            outline: 1px dotted #000;
+            outline-offset: 2px;
+        }
+
+        #aboutClose {
+            position: absolute;
+            top: 3px;
+            right: 5px;
+            background: var(--win-bg);
+            border: none;
+            border-top: 1px solid var(--win-light);
+            border-left: 1px solid var(--win-light);
+            border-bottom: 1px solid var(--win-dark);
+            border-right: 1px solid var(--win-dark);
+            font-size: 12px;
+            color: var(--term-bg);
+            cursor: pointer;
+            padding: 0 4px;
+            line-height: 1.3;
+            font-family: 'VT323', monospace;
+        }
+
+        #aboutClose:hover {
+            background: #D4D0C8;
+        }
+
+        #aboutClose:active {
+            border-top-color: var(--win-dark);
+            border-left-color: var(--win-dark);
+            border-bottom-color: var(--win-light);
+            border-right-color: var(--win-light);
+        }
+
+
+        /* ── groups inside modal content pads ── */
+
+
+        /* file input */
+        input[type=file] {
+            font-size: 11px;
+            color: var(--ui-text);
+            max-width: 155px;
+            font-family: 'VT323', monospace;
+        }
+    </style>
+
+    <!-- keep form defaults; block Enter submitting -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('controlsForm');
+            if (!form) return;
+            form.reset();
+            form.addEventListener('submit', e => e.preventDefault());
+            form.addEventListener('keydown', e => {
+                if (e.key === 'Enter' && (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement)) {
+                    e.preventDefault(); e.target.blur();
+                }
+            });
+        });
+    </script>
+
+    <script>
+        function __getWSURL__(port = 8787) {
+            const fallback = `ws://127.0.0.1:${port}`;
+            if (typeof window !== 'undefined' && typeof window.WS_MIRROR_URL === 'string' && window.WS_MIRROR_URL.length > 0)
+                return window.WS_MIRROR_URL;
+            return fallback;
+        }
+    </script>
+    <style id="huff-connected-groups-v1">
+        /*
+         * HUFF connected-groups V1
+         * Layout-only correction: preserve original styling and controls,
+         * remove the exposed gray gutters between control groups.
+         */
+        .groups {
+            gap: 0;
+            padding: 0;
+            align-items: stretch;
+        }
+
+        .groups>.group {
+            flex-grow: 1;
+            width: auto;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+    </style>
+
+
+    <style id="huff-source-cleanup-v1">
+        /*
+         * SOURCE cleanup only, plus globally uniform dropdown geometry.
+         * No element order, parameter semantics, or runtime behavior changes.
+         */
+
+        /* ── SOURCE: give controls breathing room ───────────────── */
+        #sourceGroup .group-body {
+            padding: 6px 8px 7px;
+        }
+
+        #sourceGroup .transport-row {
+            gap: 8px;
+            padding: 5px 7px;
+        }
+
+        #sourceGroup .group-row {
+            gap: 6px;
+            row-gap: 7px;
+        }
+
+        #sourceGroup .ctrl {
+            gap: 6px;
+            min-height: 30px;
+            box-sizing: border-box;
+            padding: 3px 7px;
+        }
+
+        #sourceGroup .ctrl label,
+        #sourceGroup .transport-row>label {
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 12px !important;
+            line-height: 1 !important;
+        }
+
+        /* ── SOURCE: action buttons are one exact geometry ─────── */
+        #sourceGroup button {
+            height: 30px !important;
+            min-height: 30px !important;
+            box-sizing: border-box !important;
+            padding: 2px 9px !important;
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 13px !important;
+            font-weight: normal !important;
+            line-height: 20px !important;
+        }
+
+        /* Native file chooser participates in the same 30px control row. */
+        #sourceGroup input[type="file"] {
+            height: 30px;
+            min-height: 30px;
+            box-sizing: border-box;
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 12px !important;
+            line-height: 24px;
+        }
+
+        #sourceGroup input[type="file"]::file-selector-button,
+        #sourceGroup input[type="file"]::-webkit-file-upload-button {
+            height: 30px;
+            box-sizing: border-box;
+            margin: 0 7px 0 0;
+            padding: 2px 9px;
+            font-family: 'VT323', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 20px;
+        }
+
+        /* ── SOURCE: one slider visual system ──────────────────── */
+        #sourceGroup input[type="range"] {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            height: 6px !important;
+            box-sizing: border-box !important;
+            background: var(--win-mid) !important;
+            border-top: 1px solid var(--win-dark) !important;
+            border-left: 1px solid var(--win-dark) !important;
+            border-bottom: 1px solid var(--win-light) !important;
+            border-right: 1px solid var(--win-light) !important;
+            border-radius: 0 !important;
+            outline: none !important;
+            margin: 0 !important;
+        }
+
+        #sourceGroup input[type="range"]::-webkit-slider-runnable-track {
+            height: 4px !important;
+            background: var(--win-mid) !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+        }
+
+        #sourceGroup input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            width: 12px !important;
+            height: 16px !important;
+            margin-top: -6px;
+            box-sizing: border-box !important;
+            background: var(--win-bg) !important;
+            border-top: 2px solid var(--win-light) !important;
+            border-left: 2px solid var(--win-light) !important;
+            border-bottom: 2px solid var(--win-dark) !important;
+            border-right: 2px solid var(--win-dark) !important;
+            border-radius: 0 !important;
+        }
+
+        #sourceGroup input[type="range"]::-moz-range-track {
+            height: 4px !important;
+            background: var(--win-mid) !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+        }
+
+        #sourceGroup input[type="range"]::-moz-range-thumb {
+            width: 12px !important;
+            height: 16px !important;
+            box-sizing: border-box !important;
+            background: var(--win-bg) !important;
+            border-top: 2px solid var(--win-light) !important;
+            border-left: 2px solid var(--win-light) !important;
+            border-bottom: 2px solid var(--win-dark) !important;
+            border-right: 2px solid var(--win-dark) !important;
+            border-radius: 0 !important;
+        }
+
+        /* Seek keeps its responsive width; Base Mix and Volume use same fixed throw. */
+        #sourceGroup #seekBar {
+            flex: 1 1 auto !important;
+            width: auto !important;
+            min-width: 180px !important;
+        }
+
+        #sourceGroup #baseMix,
+        #sourceGroup #volumeSlider {
+            width: 150px !important;
+            flex: 0 0 150px !important;
+        }
+
+        /* Hidden compatibility slider stays hidden. */
+        #sourceGroup #quality {
+            display: none !important;
+        }
+
+        /* ── SOURCE: SRC / WS are readouts, not panels inside a panel ─ */
+        #sourceGroup .ctrl:has(> #sourceInfo) {
+            min-height: 0;
+            padding: 0;
+            gap: 6px;
+            background: transparent;
+            border: 0;
+        }
+
+        #sourceGroup #sourceInfo,
+        #sourceGroup #status {
+            min-height: 30px;
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 8px;
+        }
+
+        /* ── ALL DROPDOWNS: consistent fit inside their outlines ── */
+        select {
+            height: 26px !important;
+            min-height: 26px !important;
+            box-sizing: border-box !important;
+            padding: 1px 24px 1px 6px !important;
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 12px !important;
+            line-height: 20px !important;
+            vertical-align: middle !important;
+        }
+    </style>
+
+
+    <style id="huff-source-emphasis-transport-v1">
+        /*
+         * Exact scope:
+         * 1) emphasize CAMERA / RATE / LOOP in Source
+         * 2) let the video transport seek slider consume flexible row width
+         */
+
+        #sourceGroup .source-emphasis-label {
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 14px !important;
+            font-weight: normal !important;
+            line-height: 1 !important;
+            letter-spacing: .08em !important;
+            color: var(--ui-text) !important;
+            opacity: 1 !important;
+            text-transform: uppercase;
+        }
+
+        /* Give LOOP a slightly larger hit target without changing behavior. */
+        #sourceGroup #loopToggle {
+            width: 16px !important;
+            height: 16px !important;
+        }
+
+        /*
+         * Transport playback position:
+         * stretch into all available horizontal space and keep resizing
+         * with the Source panel / app window.
+         */
+        #sourceGroup .transport-row:has(#seekBar) {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        #sourceGroup #seekBar {
+            flex: 1 1 320px !important;
+            width: auto !important;
+            min-width: 240px !important;
+            max-width: none !important;
+        }
+
+        /* The old trailing flex spacer competed with the seek bar for width. */
+        #sourceGroup .transport-row:has(#seekBar)>div[style*="flex:1"] {
+            display: none !important;
+        }
+    </style>
+
+
+    <style id="huff-source-boxing-v1">
+        /* Source-only design decision:
+           transport controls use the same boxed language as Base Video / Base Mix. */
+
+        #sourceGroup .source-box-row {
+            border-bottom: 0;
+            background: transparent;
+            padding-left: 0;
+            padding-right: 0;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        #sourceGroup .source-box {
+            min-height: 30px;
+            box-sizing: border-box;
+            background: var(--win-bg);
+            border-top: 1px solid var(--win-dark);
+            border-left: 1px solid var(--win-dark);
+            border-bottom: 1px solid var(--win-light);
+            border-right: 1px solid var(--win-light);
+            padding: 3px 7px;
+            gap: 6px;
+        }
+
+        #sourceGroup .source-box>label {
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 12px !important;
+            color: var(--ui-text) !important;
+            opacity: 1 !important;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
+
+        #sourceGroup .source-file-box {
+            flex: 0 1 auto;
+        }
+
+        #sourceGroup .source-seek-box {
+            flex: 1 1 420px;
+            min-width: 320px;
+        }
+
+        #sourceGroup .source-seek-box #seekBar {
+            flex: 1 1 auto !important;
+            width: auto !important;
+            min-width: 240px !important;
+            max-width: none !important;
+        }
+
+        #sourceGroup .source-seek-box #timeDisplay {
+            flex: 0 0 auto;
+        }
+    </style>
+
+
+    <style id="huff-presets-cleanup-v1">
+        /*
+         * PRESETS cleanup only:
+         * same boxed visual language established in SOURCE.
+         */
+
+        #presetsGroup .group-body {
+            padding: 6px 8px 7px;
+        }
+
+        #presetsGroup .preset-box-row {
+            gap: 6px;
+            row-gap: 7px;
+            align-items: center;
+        }
+
+        #presetsGroup .preset-box {
+            min-height: 30px;
+            box-sizing: border-box;
+            gap: 6px;
+            padding: 3px 7px;
+        }
+
+        #presetsGroup .preset-box>label {
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 12px !important;
+            line-height: 1 !important;
+            color: var(--ui-text) !important;
+            opacity: 1 !important;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
+
+        #presetsGroup button {
+            height: 30px !important;
+            min-height: 30px !important;
+            box-sizing: border-box !important;
+            padding: 2px 9px !important;
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 13px !important;
+            font-weight: normal !important;
+            line-height: 20px !important;
+        }
+
+        #presetsGroup select,
+        #presetsGroup input[type="text"] {
+            height: 26px !important;
+            min-height: 26px !important;
+            box-sizing: border-box !important;
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 12px !important;
+            line-height: 20px !important;
+            border-radius: 0 !important;
+        }
+
+        #presetsGroup #presetList {
+            width: 190px;
+            max-width: 190px;
+            background: var(--ui-field) !important;
+            color: var(--ui-text) !important;
+            border-top: 1px solid var(--win-dark) !important;
+            border-left: 1px solid var(--win-dark) !important;
+            border-bottom: 1px solid var(--win-light) !important;
+            border-right: 1px solid var(--win-light) !important;
+            padding: 1px 24px 1px 6px !important;
+        }
+
+        #presetsGroup #presetName {
+            width: 150px;
+            background: var(--ui-field) !important;
+            color: var(--ui-text) !important;
+            border-top: 1px solid var(--win-dark) !important;
+            border-left: 1px solid var(--win-dark) !important;
+            border-bottom: 1px solid var(--win-light) !important;
+            border-right: 1px solid var(--win-light) !important;
+            padding: 2px 6px !important;
+            outline: none !important;
+        }
+
+        #presetsGroup .preset-recall-box,
+        #presetsGroup .preset-file-box,
+        #presetsGroup .preset-reset-box {
+            flex: 0 0 auto;
+        }
+    </style>
+
+
+    <style id="huff-symmetry-expansion-v1">
+        #symmetryGroup .group-body {
+            padding: 6px 8px 7px;
+        }
+
+        #symmetryGroup .symmetry-box-row {
+            gap: 6px;
+            row-gap: 7px;
+            align-items: center;
+        }
+
+        #symmetryGroup .symmetry-box {
+            min-height: 30px;
+            box-sizing: border-box;
+            gap: 6px;
+            padding: 3px 7px;
+        }
+
+        #symmetryGroup .symmetry-box>label {
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 12px !important;
+            line-height: 1 !important;
+            color: var(--ui-text) !important;
+            opacity: 1 !important;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
+
+        #symmetryGroup select {
+            height: 26px !important;
+            min-height: 26px !important;
+            box-sizing: border-box !important;
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 12px !important;
+            line-height: 20px !important;
+        }
+
+        #symmetryGroup input[type="range"]:not(#symPos) {
+            width: 150px !important;
+            flex: 0 0 150px !important;
+        }
+
+        #symmetryGroup input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+        }
+    </style>
+
+
+    <style id="huff-global-mix-cleanup-v1">
+        /*
+         * GLOBAL MIX cleanup only.
+         * Same boxed control language established in Source / Presets / Symmetry.
+         */
+
+        #globalMixGroup .group-body {
+            padding: 6px 8px 7px;
+        }
+
+        #globalMixGroup .global-mix-box-row {
+            gap: 6px;
+            row-gap: 7px;
+            align-items: center;
+        }
+
+        #globalMixGroup .global-mix-box {
+            min-height: 30px;
+            box-sizing: border-box;
+            gap: 6px;
+            padding: 3px 7px;
+        }
+
+        #globalMixGroup .global-mix-box>label {
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 12px !important;
+            line-height: 1 !important;
+            color: var(--ui-text) !important;
+            opacity: 1 !important;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
+
+        #globalMixGroup input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+        }
+
+        #globalMixGroup #globalMixAmt {
+            width: 150px !important;
+            flex: 0 0 150px !important;
+        }
+
+        #globalMixGroup select {
+            height: 26px !important;
+            min-height: 26px !important;
+            box-sizing: border-box !important;
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 12px !important;
+            line-height: 20px !important;
+            padding: 1px 24px 1px 6px !important;
+        }
+
+        #globalMixGroup #globalMixBlend {
+            min-width: 140px;
+        }
+
+        #globalMixGroup #globalMixCurve {
+            min-width: 100px;
+        }
+
+        #globalMixGroup #globalMixPos {
+            min-width: 120px;
+        }
+    </style>
+
+
+    <style id="huff-feedback-cleanup-v1">
+        /*
+         * FEEDBACK cleanup only.
+         * Same boxed visual language established in Source / Presets / Symmetry / Global Mix.
+         * No runtime or parameter behavior changes.
+         */
+
+        #feedbackGroup .group-body {
+            padding: 6px 8px 7px;
+        }
+
+        #feedbackGroup .corrupt-section {
+            gap: 6px;
+            row-gap: 7px;
+            padding-top: 6px;
+            margin-top: 6px;
+            border-top: 1px solid var(--win-mid);
+        }
+
+        #feedbackGroup .corrupt-section:first-child {
+            border-top: 0;
+            margin-top: 0;
+            padding-top: 0;
+        }
+
+        #feedbackGroup .ctrl {
+            min-height: 30px;
+            box-sizing: border-box;
+            gap: 6px;
+            padding: 3px 7px;
+        }
+
+        #feedbackGroup .ctrl>label {
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 12px !important;
+            line-height: 1 !important;
+            color: var(--ui-text) !important;
+            opacity: 1 !important;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
+
+        #feedbackGroup input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+        }
+
+        #feedbackGroup input[type="range"] {
+            width: 150px !important;
+            flex: 0 0 150px !important;
+        }
+
+        #feedbackGroup select {
+            height: 26px !important;
+            min-height: 26px !important;
+            box-sizing: border-box !important;
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 12px !important;
+            line-height: 20px !important;
+            padding: 1px 24px 1px 6px !important;
+        }
+
+        #feedbackGroup #feedbackMotionRange {
+            min-width: 105px;
+        }
+
+        #feedbackGroup button {
+            height: 30px !important;
+            min-height: 30px !important;
+            box-sizing: border-box !important;
+            padding: 2px 9px !important;
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 13px !important;
+            font-weight: normal !important;
+            line-height: 20px !important;
+        }
+
+        #feedbackGroup .val {
+            min-width: 38px;
+        }
+    </style>
+
+
+    <style id="huff-corrupt-cleanup-v1">
+        /* CORRUPT cleanup only: same boxed language as prior cleaned sections. */
+
+        #corruptGroup .group-body {
+            padding: 6px 8px 7px;
+        }
+
+        #corruptGroup .corrupt-section {
+            gap: 6px;
+            row-gap: 7px;
+            padding-top: 7px;
+            margin-top: 7px;
+            border-top: 1px solid var(--win-mid);
+        }
+
+        #corruptGroup .corrupt-section:first-child {
+            border-top: 0;
+            margin-top: 0;
+            padding-top: 0;
+        }
+
+        #corruptGroup .corrupt-section-title {
+            min-width: 76px;
+            box-sizing: border-box;
+            padding: 2px 6px;
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 12px !important;
+            line-height: 18px;
+            letter-spacing: .08em;
+            color: var(--ui-text);
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        #corruptGroup .ctrl {
+            min-height: 30px;
+            box-sizing: border-box;
+            gap: 6px;
+            padding: 3px 7px;
+        }
+
+        #corruptGroup .ctrl>label {
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 12px !important;
+            line-height: 1 !important;
+            color: var(--ui-text) !important;
+            opacity: 1 !important;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
+
+        #corruptGroup input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+        }
+
+        #corruptGroup input[type="range"] {
+            width: 150px !important;
+            flex: 0 0 150px !important;
+        }
+
+        #corruptGroup select {
+            height: 26px !important;
+            min-height: 26px !important;
+            box-sizing: border-box !important;
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 12px !important;
+            line-height: 20px !important;
+            padding: 1px 24px 1px 6px !important;
+        }
+
+        #corruptGroup button {
+            height: 30px !important;
+            min-height: 30px !important;
+            box-sizing: border-box !important;
+            padding: 2px 9px !important;
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 13px !important;
+            font-weight: normal !important;
+            line-height: 20px !important;
+        }
+
+        #corruptGroup .val {
+            min-width: 42px;
+        }
+
+        #corruptGroup #corruptUpdateMode {
+            min-width: 122px;
+        }
+
+        #corruptGroup #corruptMaskMode,
+        #corruptGroup #corruptMaskSide,
+        #corruptGroup #cluBounds {
+            min-width: 92px;
+        }
+
+        #corruptGroup .corrupt-hidden {
+            display: none !important;
+        }
+    </style>
+
+
+    <style id="huff-luma-cleanup-v1">
+        /* LUMA KEY cleanup only. No runtime or parameter changes. */
+
+        #lumaKeyGroup .group-body {
+            padding: 6px 8px 7px;
+        }
+
+        #lumaKeyGroup .group-row {
+            gap: 6px;
+            row-gap: 7px;
+            align-items: center;
+        }
+
+        #lumaKeyGroup .ctrl {
+            min-height: 30px;
+            box-sizing: border-box;
+            gap: 6px;
+            padding: 3px 7px;
+            flex: 0 0 auto;
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        #lumaKeyGroup .ctrl>label {
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 12px !important;
+            line-height: 1 !important;
+            color: var(--ui-text) !important;
+            opacity: 1 !important;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
+
+        #lumaKeyGroup input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+        }
+
+        #lumaKeyGroup input[type="range"] {
+            width: 150px !important;
+            max-width: 150px !important;
+            min-width: 0 !important;
+            flex: 0 0 150px !important;
+        }
+
+        #lumaKeyGroup select {
+            height: 26px !important;
+            min-height: 26px !important;
+            box-sizing: border-box !important;
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 12px !important;
+            line-height: 20px !important;
+            padding: 1px 24px 1px 6px !important;
+        }
+
+        #lumaKeyGroup button {
+            height: 30px !important;
+            min-height: 30px !important;
+            box-sizing: border-box !important;
+            padding: 2px 9px !important;
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 13px !important;
+            font-weight: normal !important;
+            line-height: 20px !important;
+        }
+
+        #lumaKeyGroup .val {
+            min-width: 38px;
+        }
+
+        #lumaKeyGroup #lumaKeyTarget {
+            min-width: 112px;
+        }
+
+        #lumaKeyGroup #lumaKeySource {
+            min-width: 88px;
+        }
+
+        #lumaKeyGroup #lumaKeyFade {
+            min-width: 112px;
+        }
+
+        /* Bound Clip / Cleanup / Density instead of flex-growing to 100%. */
+        #lumaKeyGroup .luma-key-ab-box,
+        #lumaKeyGroup .luma-key-shape-box {
+            flex: 0 1 auto !important;
+            width: auto !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+        }
+
+        #lumaKeyGroup .luma-key-ab-box input[type="range"],
+        #lumaKeyGroup .luma-key-shape-box input[type="range"] {
+            width: 150px !important;
+            max-width: 150px !important;
+            flex: 0 0 150px !important;
+        }
+
+        #lumaKeyGroup .group-row>span:not(.val) {
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 11px !important;
+            line-height: 1 !important;
+            color: var(--ui-text) !important;
+            opacity: .7 !important;
+            letter-spacing: .05em;
+        }
+
+        #lumaKeyGroup #lumaKeyStencilState {
+            font-family: 'Share Tech Mono', monospace !important;
+            font-size: 10px !important;
+            color: var(--ui-text) !important;
+            opacity: .65;
+            white-space: nowrap;
+        }
+    </style>
+
+
+    <style id="huff-scanline-scale-v1">
+        /*
+         * HUFF compact scale V1
+         *
+         * Use the existing Scanlines section as the size/spacing reference.
+         * This only reduces the cleaned sections that had been enlarged:
+         * Source, Presets, Symmetry, Global Mix, Feedback, Corrupt, Luma Key.
+         *
+         * Pipeline, Scanlines, Solarize and Flow already use the compact
+         * baseline and are intentionally not resized here.
+         */
+
+        /* ── Shared compact geometry ───────────────────────────── */
+        #sourceGroup .group-body,
+        #presetsGroup .group-body,
+        #symmetryGroup .group-body,
+        #globalMixGroup .group-body,
+        #feedbackGroup .group-body,
+        #corruptGroup .group-body,
+        #lumaKeyGroup .group-body {
+            padding: 3px 5px 4px !important;
+        }
+
+        #sourceGroup .group-row,
+        #presetsGroup .group-row,
+        #symmetryGroup .group-row,
+        #globalMixGroup .group-row,
+        #lumaKeyGroup .group-row {
+            gap: 3px !important;
+            row-gap: 3px !important;
+        }
+
+        #sourceGroup .ctrl,
+        #presetsGroup .ctrl,
+        #symmetryGroup .ctrl,
+        #globalMixGroup .ctrl,
+        #feedbackGroup .ctrl,
+        #corruptGroup .ctrl,
+        #lumaKeyGroup .ctrl {
+            min-height: 0 !important;
+            gap: 4px !important;
+            padding: 1px 5px !important;
+        }
+
+        #sourceGroup .ctrl>label,
+        #presetsGroup .ctrl>label,
+        #symmetryGroup .ctrl>label,
+        #globalMixGroup .ctrl>label,
+        #feedbackGroup .ctrl>label,
+        #corruptGroup .ctrl>label,
+        #lumaKeyGroup .ctrl>label {
+            font-size: 11px !important;
+            line-height: 1 !important;
+            letter-spacing: .06em !important;
+        }
+
+        #sourceGroup input[type="checkbox"],
+        #symmetryGroup input[type="checkbox"],
+        #globalMixGroup input[type="checkbox"],
+        #feedbackGroup input[type="checkbox"],
+        #corruptGroup input[type="checkbox"],
+        #lumaKeyGroup input[type="checkbox"] {
+            width: 12px !important;
+            height: 12px !important;
+        }
+
+        /* Match the existing Scanlines slider throw. */
+        #sourceGroup #baseMix,
+        #sourceGroup #volumeSlider,
+        #symmetryGroup input[type="range"]:not(#symPos),
+        #globalMixGroup #globalMixAmt,
+        #feedbackGroup input[type="range"],
+        #corruptGroup input[type="range"],
+        #lumaKeyGroup input[type="range"],
+        #lumaKeyGroup .luma-key-ab-box input[type="range"],
+        #lumaKeyGroup .luma-key-shape-box input[type="range"] {
+            width: 120px !important;
+            max-width: 120px !important;
+            flex: 0 0 120px !important;
+        }
+
+        /* Keep the transport position slider responsive. */
+        #sourceGroup #seekBar {
+            width: auto !important;
+            max-width: none !important;
+            min-width: 240px !important;
+            flex: 1 1 320px !important;
+        }
+
+        /* Compact menu height/padding to the existing Scanlines scale. */
+        #sourceGroup select,
+        #presetsGroup select,
+        #symmetryGroup select,
+        #globalMixGroup select,
+        #feedbackGroup select,
+        #corruptGroup select,
+        #lumaKeyGroup select {
+            height: 20px !important;
+            min-height: 20px !important;
+            padding: 0 18px 0 4px !important;
+            font-size: 12px !important;
+            line-height: 18px !important;
+        }
+
+        /* Compact action buttons without changing their established font. */
+        #sourceGroup button,
+        #presetsGroup button,
+        #feedbackGroup button,
+        #corruptGroup button,
+        #lumaKeyGroup button {
+            height: 23px !important;
+            min-height: 23px !important;
+            padding: 1px 7px !important;
+            font-size: 13px !important;
+            line-height: 17px !important;
+        }
+
+        /* ── Source-specific compacting ───────────────────────── */
+        #sourceGroup .transport-row {
+            gap: 4px !important;
+            padding: 2px 0 3px !important;
+        }
+
+        #sourceGroup .source-box-row {
+            gap: 3px !important;
+            row-gap: 3px !important;
+        }
+
+        #sourceGroup .source-box {
+            min-height: 0 !important;
+            padding: 1px 5px !important;
+            gap: 4px !important;
+        }
+
+        #sourceGroup .source-box>label,
+        #sourceGroup .source-emphasis-label {
+            font-size: 11px !important;
+            letter-spacing: .06em !important;
+        }
+
+        #sourceGroup input[type="file"] {
+            height: 23px !important;
+            min-height: 23px !important;
+            font-size: 11px !important;
+            line-height: 19px !important;
+        }
+
+        #sourceGroup input[type="file"]::file-selector-button,
+        #sourceGroup input[type="file"]::-webkit-file-upload-button {
+            height: 23px !important;
+            margin-right: 5px !important;
+            padding: 1px 7px !important;
+            font-size: 12px !important;
+            line-height: 17px !important;
+        }
+
+        #sourceGroup #sourceInfo,
+        #sourceGroup #status {
+            min-height: 20px !important;
+            padding: 1px 5px !important;
+        }
+
+        #sourceGroup .ctrl:has(> #sourceInfo) {
+            gap: 3px !important;
+            padding: 0 !important;
+        }
+
+        /* ── Presets compacting ───────────────────────────────── */
+        #presetsGroup .preset-box-row {
+            gap: 3px !important;
+            row-gap: 3px !important;
+        }
+
+        #presetsGroup .preset-box {
+            min-height: 0 !important;
+            gap: 4px !important;
+            padding: 1px 5px !important;
+        }
+
+        #presetsGroup select,
+        #presetsGroup input[type="text"] {
+            height: 20px !important;
+            min-height: 20px !important;
+            font-size: 11px !important;
+            line-height: 18px !important;
+        }
+
+        #presetsGroup #presetName {
+            padding: 1px 4px !important;
+        }
+
+        /* ── Symmetry / Global Mix compacting ─────────────────── */
+        #symmetryGroup .symmetry-box-row,
+        #globalMixGroup .global-mix-box-row {
+            gap: 3px !important;
+            row-gap: 3px !important;
+        }
+
+        #symmetryGroup .symmetry-box,
+        #globalMixGroup .global-mix-box {
+            min-height: 0 !important;
+            gap: 4px !important;
+            padding: 1px 5px !important;
+        }
+
+        /* ── Feedback / Corrupt compact subsections ───────────── */
+        #feedbackGroup .corrupt-section,
+        #corruptGroup .corrupt-section {
+            gap: 3px !important;
+            row-gap: 3px !important;
+            padding-top: 3px !important;
+            margin-top: 3px !important;
+        }
+
+        #feedbackGroup .corrupt-section:first-child,
+        #corruptGroup .corrupt-section:first-child {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+        }
+
+        #corruptGroup .corrupt-section-title {
+            min-width: 58px !important;
+            padding: 1px 3px !important;
+            font-size: 10px !important;
+            line-height: 1 !important;
+            letter-spacing: .1em !important;
+        }
+
+        #feedbackGroup .val,
+        #corruptGroup .val,
+        #lumaKeyGroup .val {
+            min-width: 24px !important;
+        }
+
+        /* ── Luma compacting while retaining overflow fix ─────── */
+        #lumaKeyGroup .luma-key-ab-box,
+        #lumaKeyGroup .luma-key-shape-box {
+            flex: 0 1 auto !important;
+            width: auto !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+        }
+
+        #lumaKeyGroup .group-row>span:not(.val) {
+            font-size: 10px !important;
+        }
+
+        #lumaKeyGroup #lumaKeyStencilState {
+            font-size: 9px !important;
+        }
+    </style>
+
+
+    <style id="huff-index7-source-feedback-alignment-v1">
+        /*
+         * Exact scope on the user's index(7).html:
+         * 1) Base Mix + Volume get a larger throw related to the transport slider.
+         * 2) Feedback CLEAR + RESET MOTION use the compact Scanlines action-button scale.
+         */
+
+        /*
+         * Transport remains the flexible/responsive slider.
+         * Base Mix and Volume use the transport slider's 240px minimum as their
+         * fixed visual reference so they no longer look undersized beside it.
+         * All other effect sliders remain at the compact 120px scale.
+         */
+        #sourceGroup #baseMix,
+        #sourceGroup #volumeSlider {
+            width: 240px !important;
+            max-width: 240px !important;
+            min-width: 240px !important;
+            flex: 0 0 240px !important;
+        }
+
+        /*
+         * Match the compact Scanlines reset-button treatment while keeping both
+         * Feedback actions on one exact height so they align in the Core row.
+         */
+        #feedbackGroup #clearBufBtn,
+        #feedbackGroup #resetMotionBtn {
+            height: 23px !important;
+            min-height: 23px !important;
+            box-sizing: border-box !important;
+            padding: 2px 7px !important;
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 9px !important;
+            font-weight: normal !important;
+            line-height: 13px !important;
+            align-self: center;
+        }
+    </style>
+
+
+    <style id="huff-control-geometry-contract-v1">
+        /*
+         * HUFF CONTROL GEOMETRY CONTRACT V1
+         *
+         * Scanlines remains the compact visual reference.
+         *
+         * MAIN UI CONTRACT:
+         * - every boxed control chip is exactly 24px high
+         * - every normal field inside a chip is 20px high
+         * - every normal slider uses the same 120px throw
+         * - every slider uses the same 4px track / 11x14 thumb geometry
+         * - direct action buttons align to the same 24px control-chip height
+         *
+         * SOURCE hierarchy exceptions:
+         * - BASE MIX and VOL remain larger at 240px
+         * - transport SEEK remains flexible/responsive
+         *
+         * This block is intentionally scoped to #controlsForm so non-control UI layouts are not altered.
+         */
+
+        :root {
+            --huff-ctrl-h: 24px;
+            --huff-field-h: 20px;
+            --huff-slider-w: 120px;
+            --huff-source-slider-w: 240px;
+            --huff-range-track-h: 4px;
+            --huff-range-thumb-w: 11px;
+            --huff-range-thumb-h: 14px;
+        }
+
+        /* ── One exact outer box height across the main instrument ── */
+        #controlsForm .ctrl {
+            height: var(--huff-ctrl-h) !important;
+            min-height: var(--huff-ctrl-h) !important;
+            max-height: var(--huff-ctrl-h) !important;
+            box-sizing: border-box !important;
+            padding: 1px 5px !important;
+            gap: 4px !important;
+            align-items: center !important;
+        }
+
+        /*
+         * Box subclasses inherited from earlier cleanup passes.
+         * Explicitly lock them to the same contract rather than allowing their
+         * old 30px/min-height rules to win.
+         */
+        #controlsForm .source-box,
+        #controlsForm .preset-box,
+        #controlsForm .symmetry-box,
+        #controlsForm .global-mix-box,
+        #controlsForm .luma-key-ab-box,
+        #controlsForm .luma-key-shape-box {
+            height: var(--huff-ctrl-h) !important;
+            min-height: var(--huff-ctrl-h) !important;
+            max-height: var(--huff-ctrl-h) !important;
+            box-sizing: border-box !important;
+            padding-top: 1px !important;
+            padding-bottom: 1px !important;
+        }
+
+        /* ── Labels / values stay compact and vertically centered ── */
+        #controlsForm .ctrl > label,
+        #controlsForm .source-box > label,
+        #controlsForm .preset-box > label,
+        #controlsForm .symmetry-box > label,
+        #controlsForm .global-mix-box > label {
+            font-family: 'VT323', 'Courier New', monospace !important;
+            font-size: 11px !important;
+            line-height: 1 !important;
+            letter-spacing: .06em !important;
+        }
+
+        #controlsForm .val {
+            line-height: 1 !important;
+            min-width: 24px !important;
+        }
+
+        /* ── One exact range visual geometry everywhere in main UI ── */
+        #controlsForm input[type="range"] {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            width: var(--huff-slider-w) !important;
+            min-width: var(--huff-slider-w) !important;
+            max-width: var(--huff-slider-w) !important;
+            flex: 0 0 var(--huff-slider-w) !important;
+            height: var(--huff-range-track-h) !important;
+            box-sizing: border-box !important;
+            margin: 0 !important;
+            background: var(--win-mid) !important;
+            border-top: 1px solid var(--win-dark) !important;
+            border-left: 1px solid var(--win-dark) !important;
+            border-bottom: 0 !important;
+            border-right: 0 !important;
+            border-radius: 0 !important;
+            outline: none !important;
+        }
+
+        #controlsForm input[type="range"]::-webkit-slider-runnable-track {
+            height: var(--huff-range-track-h) !important;
+            background: var(--win-mid) !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+        }
+
+        #controlsForm input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            width: var(--huff-range-thumb-w) !important;
+            height: var(--huff-range-thumb-h) !important;
+            margin-top: -5px !important;
+            box-sizing: border-box !important;
+            background: var(--win-bg) !important;
+            border-top: 2px solid var(--win-light) !important;
+            border-left: 2px solid var(--win-light) !important;
+            border-bottom: 2px solid var(--win-dark) !important;
+            border-right: 2px solid var(--win-dark) !important;
+            border-radius: 0 !important;
+        }
+
+        #controlsForm input[type="range"]::-moz-range-track {
+            height: var(--huff-range-track-h) !important;
+            background: var(--win-mid) !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+        }
+
+        #controlsForm input[type="range"]::-moz-range-thumb {
+            width: var(--huff-range-thumb-w) !important;
+            height: var(--huff-range-thumb-h) !important;
+            box-sizing: border-box !important;
+            background: var(--win-bg) !important;
+            border-top: 2px solid var(--win-light) !important;
+            border-left: 2px solid var(--win-light) !important;
+            border-bottom: 2px solid var(--win-dark) !important;
+            border-right: 2px solid var(--win-dark) !important;
+            border-radius: 0 !important;
+        }
+
+        /* ── One field height for selects / numbers / text ── */
+        #controlsForm select,
+        #controlsForm input[type="number"],
+        #controlsForm input[type="text"] {
+            height: var(--huff-field-h) !important;
+            min-height: var(--huff-field-h) !important;
+            max-height: var(--huff-field-h) !important;
+            box-sizing: border-box !important;
+            line-height: 18px !important;
+        }
+
+        #controlsForm select {
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+        }
+
+        #controlsForm input[type="checkbox"] {
+            width: 12px !important;
+            height: 12px !important;
+            flex: 0 0 12px !important;
+        }
+
+        /*
+         * Buttons INSIDE a boxed chip must fit inside the 24px chip.
+         * This covers Source transport controls, Presets, Luma CAPTURE,
+         * Scanline angle buttons, etc.
+         */
+        #controlsForm .ctrl > button {
+            height: var(--huff-field-h) !important;
+            min-height: var(--huff-field-h) !important;
+            max-height: var(--huff-field-h) !important;
+            box-sizing: border-box !important;
+            padding: 1px 6px !important;
+            line-height: 14px !important;
+        }
+
+        /*
+         * Standalone row actions (CLEAR, RESET MOTION, RESET XYZ, etc.) align
+         * to the complete 24px chip height.
+         */
+        #controlsForm .group-row > button,
+        #controlsForm .corrupt-section > button {
+            height: var(--huff-ctrl-h) !important;
+            min-height: var(--huff-ctrl-h) !important;
+            max-height: var(--huff-ctrl-h) !important;
+            box-sizing: border-box !important;
+            padding: 2px 7px !important;
+            line-height: 14px !important;
+            align-self: center !important;
+        }
+
+        /* ── SOURCE: all three rows obey the same 24px box height ── */
+        #sourceGroup .source-box {
+            height: var(--huff-ctrl-h) !important;
+            min-height: var(--huff-ctrl-h) !important;
+            max-height: var(--huff-ctrl-h) !important;
+        }
+
+        #sourceGroup input[type="file"] {
+            height: var(--huff-field-h) !important;
+            min-height: var(--huff-field-h) !important;
+            max-height: var(--huff-field-h) !important;
+            box-sizing: border-box !important;
+            line-height: 16px !important;
+        }
+
+        #sourceGroup input[type="file"]::file-selector-button,
+        #sourceGroup input[type="file"]::-webkit-file-upload-button {
+            height: var(--huff-field-h) !important;
+            min-height: var(--huff-field-h) !important;
+            max-height: var(--huff-field-h) !important;
+            box-sizing: border-box !important;
+            margin-right: 5px !important;
+            padding: 1px 6px !important;
+            line-height: 14px !important;
+        }
+
+        #sourceGroup #timeDisplay {
+            height: var(--huff-field-h) !important;
+            min-height: var(--huff-field-h) !important;
+            box-sizing: border-box !important;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /*
+         * Large Source sliders remain a deliberate hierarchy, but BASE MIX and
+         * VOL now share the exact same range geometry as every other slider.
+         */
+        #sourceGroup #baseMix,
+        #sourceGroup #volumeSlider {
+            width: var(--huff-source-slider-w) !important;
+            min-width: var(--huff-source-slider-w) !important;
+            max-width: var(--huff-source-slider-w) !important;
+            flex: 0 0 var(--huff-source-slider-w) !important;
+        }
+
+        /*
+         * Transport is the one flexible range control.
+         * Track/thumb height remains identical to every other slider.
+         */
+        #sourceGroup #seekBar {
+            width: auto !important;
+            min-width: var(--huff-source-slider-w) !important;
+            max-width: none !important;
+            flex: 1 1 320px !important;
+        }
+
+        /*
+         * Source readouts intentionally remain readouts rather than another
+         * nested chip, but their visible pills use the same 20px inner height.
+         */
+        #sourceGroup #sourceInfo,
+        #sourceGroup #status {
+            height: var(--huff-field-h) !important;
+            min-height: var(--huff-field-h) !important;
+            max-height: var(--huff-field-h) !important;
+            box-sizing: border-box !important;
+            padding-top: 1px !important;
+            padding-bottom: 1px !important;
+        }
+
+        /* Preserve hidden compatibility sliders. */
+        #controlsForm input[type="range"][aria-hidden="true"] {
+            display: none !important;
+        }
+    </style>
+
+
+    <style id="huff-scan-angle-long-throw-v2">
+        /*
+         * Proven HUFF long-throw ANGLE treatment.
+         * ANGLE has 721 reachable values (-180..180 in 0.5° increments),
+         * so it intentionally receives more physical travel than normal sliders.
+         */
+        #controlsForm #scanAngle {
+            width: 720px !important;
+            min-width: 360px !important;
+            max-width: calc(100vw - 360px) !important;
+            flex: 1 1 720px !important;
+        }
+    </style>
+
+    <style id="huff-live-camera-transport-v1">
+        /*
+         * A live MediaStream is not seekable transport.
+         * Keep the transport box visible for layout consistency but visibly disable it.
+         */
+        #sourceGroup #seekBar:disabled {
+            opacity: .35 !important;
+            cursor: not-allowed !important;
+        }
+
+        #sourceGroup .source-seek-box:has(#seekBar:disabled) {
+            opacity: .62;
+        }
+    </style>
+
+</head>
+
+<body>
+    <!-- icon watermark -->
+    <div id="huff-bg"></div>
+
+    <!-- ═══ About modal ═══════════════════════════════════════ -->
+    <div id="aboutOverlay" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+        <div id="aboutBox">
+            <button id="aboutClose" aria-label="Close About HUFF">×</button>
+            <div class="a-icon"></div>
+            <h1 id="aboutTitle" style="font-family:'VT323',monospace;font-weight:normal;letter-spacing:.14em">HUFF</h1>
+            <div class="build">WEB CLASSIC · 720P VIDEO INSTRUMENT</div>
+            <p>HUFF is a real-time browser video instrument for temporal corruption, feedback, scan processing,
+                luma compositing, symmetry, solarization, and live image transformation.</p>
+            <p><strong>Creator:</strong> Christopher Konopka<br>
+                <strong>Company:</strong> schwwaaa<br>
+                <strong>Copyright:</strong> © 2026 schwwaaa</p>
+            <div class="links">
+                <a href="https://github.com/schwwaaa/huff" target="_blank" rel="noopener noreferrer">github.com/schwwaaa/huff</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Main header ════════════════════════════════════════ -->
+    <header>
+
+        <!-- transport row -->
+        <div class="topbar">
+            <span class="topbar-title"><button id="aboutLogoBtn" class="topbar-logo-button" type="button" title="About HUFF" aria-label="About HUFF"><img src="icon-name.jpg" alt="HUFF"
+                    style="display:block;width:24px;height:24px;object-fit:cover"></button></span>
+            <div class="topbar-sep"></div>
+            <button id="canvasViewerBtn" class="btn-dim" title="Open the rendered canvas output in a chrome-free floating viewer">CANVAS</button>
+            <button id="canvasMaxBtn" class="btn-dim" title="Request the largest chrome-free floating canvas window Chrome permits">MAX</button>
+            <button id="canvasFullscreenBtn" class="btn-dim" title="Open a standalone canvas page; click the canvas (or press F) there for true fullscreen">FULL</button>
+            <button id="canvasShot169Btn" class="btn-dim" title="Save a 1280×720 PNG from the current canvas">SHOT 16:9</button>
+            <button id="canvasShot43Btn" class="btn-dim" title="Save a centered 4:3 (960×720) PNG from the current canvas">SHOT 4:3</button>
+            <button id="canvasShot916Btn" class="btn-dim" title="Save a centered 9:16 (720×1280) PNG from the current canvas">SHOT 9:16</button>
+            <!-- <div class="topbar-sep"></div> -->
+            <!-- <input id="file" type="file" accept=".mp4,.m4v,.mov,.webm,video/mp4,video/quicktime,video/webm,video/*"
+                title="HUFF Classic recommends H.264/AAC MP4. MOV/WebM and other codecs depend on the operating-system WebView decoder.">
+            <button id="playBtn" disabled>▶ Play</button>
+            <button id="pauseBtn" disabled>⏸ Pause</button>
+            <div class="ctrl" style="border:none;background:none;padding:0 2px">
+                <label style="font-size:9px;opacity:.5">VOL</label>
+                <input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="1" style="width:60px">
+            </div>
+            <div class="ctrl" style="border:none;background:none;padding:0 2px">
+                <label class="source-emphasis-label" style="font-size:9px;opacity:.5">RATE</label>
+                <select id="playbackRate" style="font-size:10px;padding:1px 2px">
+                    <option value="0.25">0.25×</option>
+                    <option value="0.5">0.5×</option>
+                    <option value="1" selected>1×</option>
+                    <option value="2">2×</option>
+                    <option value="4">4×</option>
+                </select>
+            </div>
+            <div class="ctrl" style="border:none;background:none;padding:0 2px">
+                <label class="source-emphasis-label" style="font-size:9px;opacity:.5">LOOP</label>
+                <input id="loopToggle" type="checkbox" checked>
+            </div> -->
+            <!-- <div class="topbar-sep"></div> -->
+            <!-- <button id="camStartBtn">⬤ Cam</button>
+            <button id="camStopBtn">✕ Cam</button>
+            <button id="camRefreshBtn">↻</button>
+            <select id="cams" style="max-width:115px"></select> -->
+            <div class="topbar-sep"></div>
+        </div>
+        <div class="transport-row">
+
+            <!-- <button id="aboutBtn" class="btn-red">ABOUT</button> -->
+        </div>
+
+
+
+
+        <!-- grouped controls -->
+        <form id="controlsForm" autocomplete="off" novalidate>
+            <div class="groups">
+
+                <!-- SOURCE -->
+                <div class="group" id="sourceGroup">
+                    <div class="group-label">Source</div>
+                    <div class="group-body">
+                        <div class="transport-row source-box-row">
+                            <div class="ctrl source-box">
+                                <label class="source-emphasis-label" style="font-size:9px;opacity:.5">CAMERA</label>
+                                <button id="camStartBtn">⬤</button>
+                                <button id="camStopBtn">✕</button>
+                                <button id="camRefreshBtn">↻</button>
+                                <select id="cams" style="max-width:115px"></select>
+                            </div>
+
+                            <div class="ctrl source-box source-file-box">
+                                <label>FILE</label>
+                                <input id="file" type="file"
+                                    accept=".mp4,.m4v,.mov,.webm,video/mp4,video/quicktime,video/webm,video/*"
+                                    title="HUFF Classic recommends H.264/AAC MP4. MOV/WebM and other codecs depend on the operating-system WebView decoder.">
+                                <button id="playBtn" disabled>▶ Play</button>
+                                <button id="pauseBtn" disabled>⏸ Pause</button>
+                                <button id="refreshBtn" disabled>↻ Refresh</button>
+                                <label>LOOP</label>
+                                <input id="loopToggle" type="checkbox" checked>
+                            </div>
+
+                            <!-- <div class="ctrl source-box">
+                                <label>LOOP</label>
+                                <input id="loopToggle" type="checkbox" checked>
+                            </div> -->
+
+                            <!-- <button id="aboutBtn" class="btn-red">ABOUT</button> -->
+                        </div>
+
+                        <!-- seek / time row -->
+                        <div class="transport-row source-box-row">
+                            <div class="ctrl source-box">
+                                <label>RATE</label>
+                                <select id="playbackRate" style="font-size:10px;padding:1px 2px">
+                                    <option value="0.25">0.25×</option>
+                                    <option value="0.5">0.5×</option>
+                                    <option value="1" selected>1×</option>
+                                    <option value="2">2×</option>
+                                    <option value="4">4×</option>
+                                </select>
+                            </div>
+
+                            <div class="ctrl source-box source-seek-box">
+                                <input id="seekBar" type="range" min="0" max="1000" step="1" value="0">
+                                <span id="timeDisplay">0:00 / 0:00</span>
+                            </div>
+                        </div>
+                        <div class="group-row">
+                            <div class="ctrl"><label>BASE VIDEO</label><input id="baseOn" type="checkbox" checked></div>
+                            <div class="ctrl">
+                                <label>BASE MIX</label>
+                                <input id="baseMix" type="range" min="0" max="1" step="0.05" value="1.00">
+                                <span class="val" id="baseMixVal">1.00</span>
+                            </div>
+
+
+                            <div class="ctrl">
+                                <label style="font-size:9px;opacity:.5">VOL</label>
+                                <input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="1"
+                                    style="width:60px">
+                            </div>
+                            <div class="ctrl" style="border:none;background:none;padding:0 2px">
+                            </div>
+                            <div class="ctrl">
+                                <label>BASE BG</label>
+                                <select id="bgMode">
+                                    <option value="black" selected>Black</option>
+                                    <option value="green">Green</option>
+                                    <option value="blue">Blue</option>
+                                    <option value="white">White</option>
+                                </select>
+                            </div>
+                            <div class="ctrl">
+                                <span class="pill" id="sourceInfo"
+                                    title="Decoded source → HUFF Classic processing resolution">SRC —</span>
+                                <span class="pill" id="status">WS: …</span>
+                            </div>
+                            <!-- Legacy compatibility alias. Older presets may still target `quality`; it now mirrors HISTORY only and no longer changes preview encoding. -->
+                            <input id="quality" type="range" min="0" max="3.00" step="0.05" value="1.00"
+                                style="display:none" aria-hidden="true" tabindex="-1">
+
+
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PRESETS -->
+                <div class="group" id="presetsGroup">
+                    <div class="group-label">Presets</div>
+                    <div class="group-body">
+                        <div class="group-row preset-box-row">
+                            <div class="ctrl preset-box preset-recall-box">
+                                <label>PRESET</label>
+                                <select id="presetList"
+                                    title="Built-in presets plus JSON presets loaded for this HUFF session. Session-loaded presets disappear from HUFF when the app closes; the JSON files remain on disk.">
+                                    <option value="">— choose preset —</option>
+                                </select>
+                                <button id="presetBuiltinLoadBtn" type="button" class="btn-dim">RECALL</button>
+                                <button id="resetBtn" title="Reset all parameters to defaults">↺ RESET</button>
+                            </div>
+
+                            <div class="ctrl preset-box preset-file-box">
+                                <label>NAME</label>
+                                <input id="presetName" type="text" placeholder="preset name…"
+                                    title="Used as the suggested filename when saving a preset.">
+                                <button id="presetSaveBtn" type="button" class="btn-dim"
+                                    title="Save the current HUFF state to a local JSON preset file using the native Save dialog.">SAVE
+                                    FILE…</button>
+                                <button id="presetLoadBtn" type="button" class="btn-dim"
+                                    title="Choose a local HUFF preset JSON file. It is loaded immediately and added to the preset menu for this HUFF session only.">LOAD
+                                    FILE…</button>
+                            </div>
+
+                            <!-- <div class="ctrl preset-box preset-reset-box">
+                                <button id="resetBtn" title="Reset all parameters to defaults">↺ RESET</button>
+                            </div> -->
+
+                            <!-- <span id="presetFileState" style="font-size:9px;color:rgba(255,255,255,.34);padding:0 4px;font-family:'Share Tech Mono',monospace">loaded files stay for this session · Ctrl+Z undo</span> -->
+                        </div>
+                    </div>
+                </div>
+                <!-- Plain-browser fallback only. Tauri builds use the native system Open dialog. -->
+                <input id="presetLoadInput" type="file" accept=".json,application/json" style="display:none">
+
+
+                <!-- PIPELINE RECIPE — validated serial routes only -->
+                <div class="group">
+                    <div class="group-label">Pipeline</div>
+                    <div class="group-body">
+                        <div class="group-row">
+                            <div class="ctrl">
+                                <label>RECIPE</label>
+                                <select id="pipelineRecipe" style="font-size:10px;padding:1px 2px"
+                                    title="Select a validated serial recipe. The diagram below shows the active stage order; no recipe adds effects, branches, or buffers.">
+                                    <option value="classic">CLASSIC</option>
+                                    <option value="crisp-finish">CRISP FINISH</option>
+                                    <option value="temporal-underlay">TEMPORAL UNDERLAY</option>
+                                    <option value="symmetry-memory">SYMMETRY MEMORY</option>
+                                    <option value="color-memory">COLOR MEMORY</option>
+                                    <option value="flow-finish">FLOW FINISH</option>
+                                    <option value="feedback-finish">FEEDBACK FINISH · EXP</option>
+                                </select>
+                            </div>
+                            <div class="ctrl">
+                                <label>PRIORITY</label>
+                                <select id="layerPriority" style="font-size:10px;padding:1px 2px"
+                                    title="Stable paint order only. SCAN TOP draws Scanlines last; CORRUPT TOP draws Corrupt/Luma last.">
+                                    <option value="scan">SCAN TOP</option>
+                                    <option value="glitch">CORRUPT TOP</option>
+                                </select>
+                            </div>
+                            <div id="pipelineDiagram" class="pipeline-diagram"
+                                aria-label="CLASSIC pipeline: feed to feedback to flow to symmetry to solarize"
+                                title="The active recipe stage order. Global Mix remains controlled separately by its named insertion position.">
+                                <span class="pipeline-diagram-stage pipeline-diagram-image-feed">FEED</span>
+                                <span class="pipeline-diagram-arrow" aria-hidden="true">→</span>
+                                <span class="pipeline-diagram-stage pipeline-diagram-feedback">FEEDBACK</span>
+                                <span class="pipeline-diagram-arrow" aria-hidden="true">→</span>
+                                <span class="pipeline-diagram-stage pipeline-diagram-flow">FLOW</span>
+                                <span class="pipeline-diagram-arrow" aria-hidden="true">→</span>
+                                <span class="pipeline-diagram-stage pipeline-diagram-symmetry">SYMMETRY</span>
+                                <span class="pipeline-diagram-arrow" aria-hidden="true">→</span>
+                                <span class="pipeline-diagram-stage pipeline-diagram-solarize">SOLARIZE</span>
+                            </div>
+
+                            <!-- <span style="font-size:9px;color:rgba(255,255,255,.38);font-family:'Share Tech Mono',monospace;white-space:nowrap">VALIDATED SERIAL</span> -->
+                        </div>
+
+                        <!-- <div class="pipeline-awareness"
+                            title="HUFF Classic has three primary ways to feed live imagery into its persistent image system: Corrupt, Scanlines, or Luma Key with TARGET set to COMPOSITE.">
+                            <span class="pipeline-awareness-label">IMAGE FEED</span>
+                            <span id="pipelineFeedCorrupt" class="pipeline-feed">CORRUPT</span>
+                            <span id="pipelineFeedScan" class="pipeline-feed">SCANLINES</span>
+                            <span id="pipelineFeedLuma" class="pipeline-feed">LUMA/COMP</span>
+                            <span id="pipelineFeedSummary" class="pipeline-feed-summary warn">NONE</span>
+                            <span id="pipelineRouteSummary" class="pipeline-awareness-label">CLASSIC: IMAGE FEED → FEEDBACK → FLOW → SYMMETRY → SOLARIZE</span>
+                        </div> -->
+                    </div>
+                </div>
+
+                <!-- LAYER PRIORITY — paint order between glitch and scanlines -->
+                <!-- <div class="group">
+                <div class="group-label">Layer Priority</div>
+                <div class="group-body">
+                <div class="group-row">
+                    <div class="ctrl">
+                        <label>PRIORITY</label>
+                        <select id="layerPriority" style="font-size:10px;padding:1px 2px" title="Stable paint order only. SCAN TOP draws Scanlines last; CORRUPT TOP draws Corrupt/Luma last.">
+                            <option value="scan">SCAN TOP</option>
+                            <option value="glitch">CORRUPT TOP</option>
+                        </select>
+                    </div>
+                    <span id="layerPriorityState" style="font-size:9px;color:#000;background:#d4d0c8;border:1px solid #808080;padding:1px 4px;font-family:'Share Tech Mono',monospace;white-space:nowrap">STABLE · SCAN TOP</span>
+                </div>
+                </div>
+            </div> -->
+
+                <!-- SYMMETRY -->
+                <div class="group" id="symmetryGroup">
+                    <div class="group-label">Symmetry</div>
+                    <div class="group-body">
+                        <div class="group-row symmetry-box-row">
+                            <div class="ctrl symmetry-box">
+                                <label>MIRROR</label>
+                                <input id="symOn" type="checkbox"
+                                    title="Enable the mirror processor. Horizontal/Vertical Flip remain independent so they can be used without mirror symmetry.">
+                            </div>
+                            <!-- <span class="pipeline-role">DOWNSTREAM</span> -->
+                            <!-- <span id="symPipelineState" class="pipeline-stage-state">WAITING FOR FEED</span> -->
+                            <div class="ctrl symmetry-box">
+                                <label>MODE</label>
+                                <select id="symMode"
+                                    title="VERTICAL mirrors across AXIS X. HORIZONTAL mirrors across AXIS Y. BOTH applies both mirror passes. QUAD creates a true four-way reflection from the selected source quadrant.">
+                                    <option value="v">VERTICAL</option>
+                                    <option value="h">HORIZONTAL</option>
+                                    <option value="hv">BOTH</option>
+                                    <option value="quad">QUAD</option>
+                                </select>
+                            </div>
+                            <div class="ctrl symmetry-box">
+                                <label>MIX</label>
+                                <input id="symMix" type="range" min="0" max="1" step="0.01" value="1"
+                                    title="Wet/dry amount for the mirror operation. 1.00 preserves the established HUFF symmetry behavior.">
+                                <span class="val" id="symMixVal">1.00</span>
+                            </div>
+                            <div class="ctrl symmetry-box">
+                                <label>H FLIP</label>
+                                <input id="symFlipH" type="checkbox"
+                                    title="Flip the incoming image left-to-right. Independent of MIRROR.">
+                            </div>
+                            <div class="ctrl symmetry-box">
+                                <label>V FLIP</label>
+                                <input id="symFlipV" type="checkbox"
+                                    title="Flip the incoming image top-to-bottom. Independent of MIRROR.">
+                            </div>
+                            <div class="ctrl symmetry-box">
+                                <label>AXIS X</label>
+                                <input id="symPosX" type="range" min="0" max="1" step="0.001" value="0.5"
+                                    title="Vertical mirror axis position from left (0) to right (1).">
+                                <span class="val" id="symPosXVal">0.50</span>
+                            </div>
+                            <div class="ctrl symmetry-box">
+                                <label>AXIS Y</label>
+                                <input id="symPosY" type="range" min="0" max="1" step="0.001" value="0.5"
+                                    title="Horizontal mirror axis position from top (0) to bottom (1).">
+                                <span class="val" id="symPosYVal">0.50</span>
+                            </div>
+                            <div class="ctrl symmetry-box">
+                                <label>VERT SOURCE</label>
+                                <select id="symVDir" title="Choose which side supplies the vertical mirror.">
+                                    <option value="left">LEFT → RIGHT</option>
+                                    <option value="right">RIGHT → LEFT</option>
+                                </select>
+                            </div>
+                            <div class="ctrl symmetry-box">
+                                <label>HORZ SOURCE</label>
+                                <select id="symHDir" title="Choose which side supplies the horizontal mirror.">
+                                    <option value="top">TOP → BOTTOM</option>
+                                    <option value="bottom">BOTTOM → TOP</option>
+                                </select>
+                            </div>
+
+                            <!-- Legacy compatibility alias. Older presets targeting symPos drive both axes. -->
+                            <input id="symPos" type="range" min="0" max="1" step="0.001" value="0.5"
+                                style="display:none" aria-hidden="true" tabindex="-1">
+                            <span id="symPosVal" style="display:none" aria-hidden="true">0.50</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- GLOBAL MIX -->
+                <div class="group" id="globalMixGroup">
+                    <div class="group-label">Global Mix</div>
+                    <div class="group-body">
+                        <div class="group-row global-mix-box-row">
+                            <div class="ctrl global-mix-box">
+                                <label>ON</label>
+                                <input id="globalMixOn" type="checkbox">
+                            </div>
+                            <div class="ctrl global-mix-box">
+                                <label>BLEND</label>
+                                <select id="globalMixBlend">
+                                    <option value="screen">SCREEN</option>
+                                    <option value="lighter">ADD</option>
+                                    <option value="lighten">LIGHTEN</option>
+                                    <option value="color-dodge">DODGE</option>
+                                    <option value="multiply">MULTIPLY</option>
+                                    <option value="darken">DARKEN</option>
+                                    <option value="color-burn">BURN</option>
+                                    <option value="overlay">OVERLAY</option>
+                                    <option value="soft-light">SOFT LIGHT</option>
+                                    <option value="hard-light">HARD LIGHT</option>
+                                    <option value="difference">DIFFERENCE</option>
+                                    <option value="exclusion">EXCLUSION</option>
+                                    <option value="hue">HUE</option>
+                                    <option value="saturation">SATURATION</option>
+                                    <option value="color">COLOR</option>
+                                    <option value="luminosity">LUMINOSITY</option>
+                                    <option value="source-over">NORMAL</option>
+                                </select>
+                            </div>
+                            <div class="ctrl global-mix-box global-mix-amount-box">
+                                <label>MIX</label>
+                                <input id="globalMixAmt" type="range" min="0" max="1" step="0.01" value="0">
+                                <span class="val" id="globalMixAmtVal">0.00</span>
+                            </div>
+                            <div class="ctrl global-mix-box">
+                                <label>CURVE</label>
+                                <select id="globalMixCurve"
+                                    title="HUFF fader response only; does not add a render pass. LINEAR preserves the established mix. SMOOTH eases both ends. PUNCH brings the clean mix in earlier.">
+                                    <option value="linear">LINEAR</option>
+                                    <option value="smooth">SMOOTH</option>
+                                    <option value="punch">PUNCH</option>
+                                </select>
+                            </div>
+                            <div class="ctrl global-mix-box">
+                                <label>POSITION</label>
+                                <select id="globalMixPos">
+                                    <option value="before">BEFORE FB</option>
+                                    <option value="after" selected>AFTER FB</option>
+                                    <option value="afterflow">AFTER FLOW</option>
+                                    <option value="final">FINAL</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FEEDBACK — established Classic instrument + additive memory policies -->
+                <div class="group" id="feedbackGroup">
+                    <div class="group-label">Feedback</div>
+                    <div class="group-body">
+                        <div class="corrupt-section">
+                            <!-- <div class="corrupt-section-title">Core — original controls preserved</div> -->
+                            <div class="ctrl">
+                                <label>ENABLE</label>
+                                <input id="feedbackEnabled" type="checkbox" checked
+                                    title="Bypass only the Feedback transform and Restore layer. PERSISTENCE remains independent and keeps its established Classic behavior.">
+                            </div>
+                            <div class="ctrl">
+                                <label>FEEDBACK · RETURN</label>
+                                <input id="feedback" type="range" min="0" max="3" step="0.05" value="0.6"
+                                    title="Original HUFF FEEDBACK parameter. Controls how strongly the transformed previous composite is returned; the historical renderer clamps draw alpha at 1.0.">
+                                <span class="val" id="feedbackVal">0.60</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>PERSISTENCE · MEMORY</label>
+                                <input id="persistence" type="range" min="0" max="10" step="0.05" value="0.7"
+                                    title="Original HUFF PERSISTENCE parameter. This remains its own persistent-buffer decay stage and is never gated by Feedback Strobe or ENABLE.">
+                                <span class="val" id="persistenceVal">0.70</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>HISTORY</label>
+                                <input id="historyFrames" type="range" min="4" max="120" step="1" value="120"
+                                    title="Requested decoded history frames. HUFF clamps this to the 192 MiB FrameRing budget at the current processing resolution.">
+                                <span class="val" id="historyFramesVal">—</span>
+                            </div>
+                            <button id="clearBufBtn" title="Wipe frame ring and buffers instantly">⬛ Clear</button>
+                        </div>
+
+                        <div class="corrupt-section">
+                            <!-- <div class="corrupt-section-title">Motion — original parameters preserved</div> -->
+                            <div class="ctrl">
+                                <label>RANGE</label>
+                                <select id="feedbackMotionRange"
+                                    title="CLASSIC preserves the original slider ranges. WIDE exposes more aggressive travel while using the same FB X/Y/Z/θ runtime parameters and neutral values.">
+                                    <option value="classic">CLASSIC</option>
+                                    <option value="wide">WIDE</option>
+                                </select>
+                            </div>
+                            <div class="ctrl">
+                                <label>FB X · DRIFT</label>
+                                <input id="fbX" type="range" min="-1" max="1" step="0.001" value="1"
+                                    title="Original FB X. Horizontal translation of the returned Feedback image per Feedback update.">
+                                <span class="val" id="fbXVal">1.00</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>FB Y · DRIFT</label>
+                                <input id="fbY" type="range" min="-1" max="1" step="0.001" value="1"
+                                    title="Original FB Y. Vertical translation of the returned Feedback image per Feedback update.">
+                                <span class="val" id="fbYVal">1.00</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>FB Z · ZOOM</label>
+                                <input id="fbZ" type="range" min="0.98" max="1.03" step="0.005" value="1.000"
+                                    title="Original FB Z. Recursive scale: below 1 recedes, above 1 expands.">
+                                <span class="val" id="fbZVal">1.00</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>FB θ · ROTATE</label>
+                                <input id="fbTheta" type="range" min="-2.0" max="2.0" step="0.005" value="0.01"
+                                    title="Original FB θ. Rotation in degrees per Feedback update.">
+                                <span class="val" id="fbThetaVal">0.01</span>
+                            </div>
+                            <button id="resetMotionBtn" class="btn-dim" style="font-size:9px;padding:2px 7px"
+                                title="Reset original Feedback motion defaults: X 1, Y 1, Z 1.000, θ 0.01">↺ Reset
+                                Motion</button>                            
+                        </div>
+
+                        <div class="corrupt-section">
+                            <!-- <div class="corrupt-section-title">Memory Behavior — additive</div> -->
+                            <div class="ctrl">
+                                <label>FB STROBE</label>
+                                <input id="feedbackStrobe" type="checkbox"
+                                    title="Strobe only the established Feedback transform. PERSISTENCE, video, Corrupt, Luma, Scanlines and Flow continue independently.">
+                            </div>
+                            <div class="ctrl feedback-strobe-only">
+                                <label>INTERVAL</label>
+                                <input id="feedbackStrobeEvery" type="range" min="1" max="30" step="1" value="4"
+                                    title="Apply the existing Feedback transform once every N decoded source frames while FB STROBE is enabled.">
+                                <span class="val" id="feedbackStrobeEveryVal">4 fr</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>RESTORE</label>
+                                <input id="feedbackRestore" type="range" min="0" max="1" step="0.01" value="0"
+                                    title="Blend the current clean source back over the established Feedback result. 0% preserves exact original Feedback behavior.">
+                                <span class="val" id="feedbackRestoreVal">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CORRUPT — temporal region corruption + spatial distribution -->
+                <div class="group" id="corruptGroup">
+                    <div class="group-label">Corrupt</div>
+                    <div class="group-body">
+                        <!-- Legacy control aliases remain in the DOM for older presets.
+                         The visible FIELD RATE control is a derived compatibility/performance control and never changes
+                         the meaning/range of the original three runtime parameters. -->
+                        <div class="corrupt-hidden" aria-hidden="true">
+                            <input id="glitchStrobe" type="checkbox">
+                            <input id="glitchSpeed" type="range" min="0" max="5" step="0.005" value="0.8">
+                            <span id="glitchSpeedVal">0.80</span>
+                            <input id="glitchSpeedFine" type="range" min="0" max="10" step="0.001" value="1.00">
+                            <span id="glitchSpeedFineVal">1.00</span>
+                            <input id="glitchSpeedMul" type="range" min="0" max="10" step="0.1" value="1.00">
+                            <span id="glitchSpeedMulVal">1.00</span>
+                            <select id="corruptDistribution">
+                                <option value="random">RANDOM</option>
+                                <option value="cluster">CLUSTER</option>
+                            </select>
+                        </div>
+
+                        <div class="corrupt-section">
+                            <!-- <div class="corrupt-section-title">Update</div> -->
+                            <div class="ctrl"><label>ON</label><input id="corruptOn" type="checkbox"
+                                    title="Enable temporal region corruption."></div>
+                            <div class="ctrl random-speed-only">
+                                <label>RANDOM SPEED</label>
+                                <input id="corruptSpeed" type="range" min="0" max="4" step="0.01" value="1"
+                                    title="Overall RANDOM Corrupt evolution speed. In CONTINUOUS mode the Corrupt layer stays present every render: 0× locks patch placement and historical-age choice while delayed video remains live inside the patches; low values evolve slowly. Use STROBE or MULTIGRAB for temporal hold/update behavior. Independent of CLUSTER SPEED.">
+                                <span class="val" id="corruptSpeedVal">1.00×</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>MODE</label>
+                                <select id="corruptUpdateMode"
+                                    title="CONTINUOUS keeps the Corrupt layer continuously composited while SPEED controls its evolution. STROBE refreshes Corrupt only at an interval. MULTIGRAB alternates held and live-update periods.">
+                                    <option value="continuous">CONTINUOUS</option>
+                                    <option value="strobe">STROBE</option>
+                                    <option value="multigrab">MULTIGRAB</option>
+                                </select>
+                            </div>
+                            <div class="ctrl strobe-only">
+                                <label>INTERVAL</label>
+                                <input id="glitchStrobeEvery" type="range" min="1" max="30" step="1" value="4"
+                                    title="Refresh Corrupt every N decoded source frames.">
+                                <span class="val" id="glitchStrobeEveryVal">4 fr</span>
+                            </div>
+                            <div class="ctrl multigrab-only">
+                                <label>HOLD</label>
+                                <input id="corruptHoldFrames" type="range" min="1" max="60" step="1" value="8"
+                                    title="MULTIGRAB: number of decoded frames Corrupt remains held.">
+                                <span class="val" id="corruptHoldFramesVal">8 fr</span>
+                            </div>
+                            <div class="ctrl multigrab-only">
+                                <label>LIVE</label>
+                                <input id="corruptLiveFrames" type="range" min="1" max="30" step="1" value="2"
+                                    title="MULTIGRAB: number of decoded frames Corrupt updates continuously before the next hold.">
+                                <span class="val" id="corruptLiveFramesVal">2 fr</span>
+                            </div>
+                        </div>
+
+                        <div class="corrupt-section">
+                            <div class="corrupt-section-title">Time</div>
+                            <div class="ctrl">
+                                <label>AGE</label>
+                                <input id="depth" type="range" min="0" max="0.5" step="0.01" value="0.5"
+                                    title="How far back into the bounded video history Corrupt may borrow image patches.">
+                                <span class="val" id="depthVal">50%</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>AGE SPREAD</label>
+                                <input id="depthScatter" type="range" min="0" max="1" step="0.01" value="1.0"
+                                    title="How differently aged the individual borrowed patches may be.">
+                                <span class="val" id="depthScatterVal">100%</span>
+                            </div>
+                        </div>
+
+                        <div class="corrupt-section">
+                            <div class="corrupt-section-title">Regions</div>
+                            <div class="ctrl">
+                                <label>AMOUNT</label>
+                                <input id="corrupt" type="range" min="0" max="7" step="0.01" value="0.30"
+                                    title="Relative number of corruption targets selected from the image grid.">
+                                <span class="val" id="corruptVal">0.30×</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>AMOUNT DRIFT</label>
+                                <input id="corruptDrift" type="range" min="0" max="1" step="0.01" value="0"
+                                    title="Slowly vary the number of active corruption regions over time.">
+                                <span class="val" id="corruptDriftVal">0%</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>GRID</label>
+                                <input id="block" type="range" min="150" max="2000" step="2" value="1000"
+                                    title="Spacing of candidate corruption regions. Larger values make a coarser grid.">
+                                <span class="val" id="blockVal">1000 px</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>PATCH SIZE</label>
+                                <input id="glitchSize" type="range" min="1" max="60" step="0.01" value="10"
+                                    title="Size of each borrowed image patch relative to the grid cell.">
+                                <span class="val" id="glitchSizeVal">0.50×</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>GAP</label>
+                                <input id="spatialGap" type="range" min="0" max="200" step="1" value="40"
+                                    title="Minimum spacing between accepted corruption regions.">
+                                <span class="val" id="spatialGapVal">40 px</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>JITTER</label>
+                                <input id="glitchJitter" type="range" min="0" max="1" step="0.01" value="1.0"
+                                    title="Randomly displace each corruption patch around its selected position.">
+                                <span class="val" id="glitchJitterVal">100%</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>MASK</label>
+                                <select id="corruptMaskMode"
+                                    title="FULL allows corruption anywhere. STENCIL restricts patch placement to the stored Luma Stencil.">
+                                    <option value="full">FULL</option>
+                                    <option value="stencil">STENCIL</option>
+                                </select>
+                            </div>
+                            <div class="ctrl corrupt-stencil-only">
+                                <label>LEVEL</label>
+                                <input id="corruptMaskThreshold" type="range" min="0" max="255" step="1" value="128"
+                                    title="Brightness threshold used when the stored Luma Stencil controls Corrupt placement.">
+                                <span class="val" id="corruptMaskThresholdVal">128</span>
+                            </div>
+                            <div class="ctrl corrupt-stencil-only">
+                                <label>SIDE</label>
+                                <select id="corruptMaskSide"
+                                    title="Choose whether bright or dark regions of the stored Luma Stencil may receive corruption.">
+                                    <option value="bright">BRIGHT</option>
+                                    <option value="dark">DARK</option>
+                                </select>
+                            </div>
+                            <!-- <span id="corruptMaskStatus" class="corrupt-status">FULL FRAME</span> -->
+                        </div>
+
+                        <div class="corrupt-section">
+                            <div class="corrupt-section-title">Clusters</div>
+                            <div class="ctrl">
+                                <label>ON</label>
+                                <input id="clusterTiles" type="checkbox"
+                                    title="Group Corrupt patches into persistent moving bodies. Off uses the normal RANDOM placement field.">
+                            </div>
+                            <div class="ctrl cluster-speed-only">
+                                <label>CLUSTER SPEED</label>
+                                <input id="clusterMasterSpeed" type="range" min="0" max="4" step="0.01" value="1"
+                                    title="Overall CLUSTER Corrupt evolution speed. In CONTINUOUS mode the Corrupt layer stays continuously composited: 0× locks cluster bodies, shape evolution and historical-age choice while delayed video remains live inside patches; higher values accelerate Group XYZ and organic evolution. Use STROBE or MULTIGRAB for temporal hold/update behavior. Independent of RANDOM SPEED.">
+                                <span class="val" id="clusterMasterSpeedVal">1.00×</span>
+                            </div>
+                            <!-- <span id="clusterModeStatus" class="corrupt-status">RANDOM EVOLUTION</span> -->
+                        </div>
+
+                        <div class="corrupt-section cluster-only">
+                            <div class="corrupt-section-title">Group Shape</div>
+                            <div class="ctrl">
+                                <label>GROUPS</label>
+                                <input id="cluCenters" type="range" min="1" max="20" step="1" value="3"
+                                    title="Number of independent moving corruption groups.">
+                                <span class="val" id="cluCentersVal">3</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>GROUP AMOUNT</label>
+                                <input id="cluBias" type="range" min="0" max="1" step="0.01" value="0.85"
+                                    title="Share of total corruption targets assigned to groups instead of the random field.">
+                                <span class="val" id="cluBiasVal">85%</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>GROUP SIZE</label>
+                                <input id="cluSpread" type="range" min="1" max="300" step="1" value="80"
+                                    title="Maximum radius of each corruption group.">
+                                <span class="val" id="cluSpreadVal">80 px</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>HOLLOW</label>
+                                <input id="cluMinSpread" type="range" min="0" max="150" step="1" value="0"
+                                    title="Empty radius around each group center. Increase to turn a cloud into a ring or shell.">
+                                <span class="val" id="cluMinSpreadVal">0 px</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>Z SPREAD</label>
+                                <input id="cluDepth" type="range" min="0" max="1" step="0.01" value="0.35"
+                                    title="Spread cluster groups through simulated Z depth. Larger values make different groups appear nearer or farther.">
+                                <span class="val" id="cluDepthVal">35%</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>SHAPE HOLD</label>
+                                <input id="cluCohere" type="range" min="0" max="1" step="0.01" value="0.8"
+                                    title="How strongly each group keeps its internal patch arrangement: 0 boils, 1 locks the constellation.">
+                                <span class="val" id="cluCohereVal">80%</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>PULSE SIZE</label>
+                                <input id="cluBreathe" type="range" min="0" max="0.9" step="0.01" value="0"
+                                    title="Expand and contract each group radius over time.">
+                                <span class="val" id="cluBreatheVal">0%</span>
+                            </div>
+                        </div>
+
+                        <div class="corrupt-section cluster-only">
+                            <div class="corrupt-section-title">Group XYZ</div>
+                            <div class="ctrl">
+                                <label>MOVE X</label>
+                                <input id="cluMoveX" type="range" min="-600" max="600" step="1" value="0"
+                                    title="Move cluster centers horizontally in pixels per second. CLUSTER SPEED scales this motion.">
+                                <span class="val" id="cluMoveXVal">0 px/s</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>MOVE Y</label>
+                                <input id="cluMoveY" type="range" min="-600" max="600" step="1" value="0"
+                                    title="Move cluster centers vertically in pixels per second. CLUSTER SPEED scales this motion.">
+                                <span class="val" id="cluMoveYVal">0 px/s</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>MOVE Z</label>
+                                <input id="cluMoveZ" type="range" min="-1.5" max="1.5" step="0.01" value="0"
+                                    title="Move cluster centers through simulated depth. Positive begins toward camera; negative begins away. CLUSTER SPEED scales this motion.">
+                                <span class="val" id="cluMoveZVal">0.00 z/s</span>
+                            </div>
+                        </div>
+
+                        <div class="corrupt-section cluster-only">
+                            <div class="corrupt-section-title">Group Dynamics</div>
+                            <div class="ctrl">
+                                <label>ORGANIC SPEED</label>
+                                <input id="cluSpeed" type="range" min="0" max="10" step="0.01" value="0"
+                                    title="Additional noise-steered travel speed for the group centers. Use Group XYZ for direct movement.">
+                                <span class="val" id="cluSpeedVal">0.0</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>TURN RATE</label>
+                                <input id="cluSteer" type="range" min="0" max="10" step="0.01" value="1"
+                                    title="How quickly the group travel direction changes.">
+                                <span class="val" id="cluSteerVal">1.00</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>WANDER</label>
+                                <input id="cluDrift" type="range" min="0" max="5" step="0.01" value="0"
+                                    title="Add noise-driven unpredictable movement to group centers.">
+                                <span class="val" id="cluDriftVal">0.00</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>SPEED VAR</label>
+                                <input id="cluSpeedVar" type="range" min="0" max="2" step="0.01" value="0"
+                                    title="Difference in travel speed between groups.">
+                                <span class="val" id="cluSpeedVarVal">0%</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>KICK</label>
+                                <input id="cluPulse" type="range" min="0" max="10" step="0.1" value="0"
+                                    title="Periodic velocity impulse applied to the moving groups.">
+                                <span class="val" id="cluPulseVal">0.0</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>MOMENTUM</label>
+                                <input id="cluInertia" type="range" min="0.01" max="0.99" step="0.01" value="0.92"
+                                    title="How strongly a group keeps its existing velocity. High values glide; low values react quickly.">
+                                <span class="val" id="cluInertiaVal">92%</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>EDGE</label>
+                                <select id="cluBounds"
+                                    title="BOUNCE reflects group motion at the frame edge. WRAP moves the group to the opposite side.">
+                                    <option value="bounce">BOUNCE</option>
+                                    <option value="wrap">WRAP</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="corrupt-section">
+                            <div class="corrupt-section-title">Patch XYZ</div>
+                            <div class="ctrl">
+                                <label>POSITION X</label>
+                                <input id="glitchBaseX" type="range" min="-1000" max="1000" step="1" value="0"
+                                    title="Offset every corrupted patch horizontally.">
+                                <span class="val" id="glitchBaseXVal">0 px</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>POSITION Y</label>
+                                <input id="glitchBaseY" type="range" min="-1000" max="1000" step="1" value="0"
+                                    title="Offset every corrupted patch vertically.">
+                                <span class="val" id="glitchBaseYVal">0 px</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>POSITION Z</label>
+                                <input id="glitchBaseZ" type="range" min="-1" max="1" step="0.01" value="0"
+                                    title="Move Corrupt through simulated depth. Negative recedes toward frame center; positive comes forward and expands away from center.">
+                                <span class="val" id="glitchBaseZVal">0%</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>MOVE X</label>
+                                <input id="corruptMoveX" type="range" min="-1200" max="1200" step="1" value="0"
+                                    title="Continuously move the Corrupt field horizontally in pixels per second. SPEED scales this motion.">
+                                <span class="val" id="corruptMoveXVal">0 px/s</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>MOVE Y</label>
+                                <input id="corruptMoveY" type="range" min="-1200" max="1200" step="1" value="0"
+                                    title="Continuously move the Corrupt field vertically in pixels per second. SPEED scales this motion.">
+                                <span class="val" id="corruptMoveYVal">0 px/s</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>MOVE Z</label>
+                                <input id="corruptMoveZ" type="range" min="-1.5" max="1.5" step="0.01" value="0"
+                                    title="Continuously move the Corrupt field toward/away from camera in simulated depth. The motion bounces at the near/far limits. SPEED scales this motion.">
+                                <span class="val" id="corruptMoveZVal">0.00 z/s</span>
+                            </div>
+                            <button id="corruptResetXYZBtn" class="btn-dim" style="font-size:9px;padding:2px 7px"
+                                title="Reset Corrupt X/Y/Z position and movement to neutral">↺ Reset XYZ</button>
+                        </div>
+
+                        <div class="corrupt-section">
+                            <div class="corrupt-section-title">Patch Repeat</div>
+                            <div class="ctrl">
+                                <label>REPEATS</label>
+                                <input id="glitchSmear" type="range" min="0" max="200" step="0.01" value="6"
+                                    title="Number of additional copies drawn along the selected direction.">
+                                <span class="val" id="glitchSmearVal">6</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>DIRECTION</label>
+                                <input id="glitchSmearAngle" type="range" min="0" max="360" step="1" value="0"
+                                    title="Direction of repeated patches. 0 uses the automatic noise-driven direction.">
+                                <span class="val" id="glitchSmearAngleVal">AUTO</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>FIELD RATE</label>
+                                <input id="corruptRate" type="range" min="0" max="1" step="0.001" value="0.104"
+                                    title="Rate of Corrupt's internal noise field. CORRUPT SPEED scales this field and Patch XYZ motion; CLUSTER SPEED is independent. This control still drives the exact legacy SPEED/FINE/MULT runtime stack for compatibility.">
+                                <span class="val" id="corruptRateVal">0.80×</span>
+                            </div>
+                        </div>
+
+                        <div class="corrupt-section">
+                            <div class="corrupt-section-title">Composite</div>
+                            <div class="ctrl">
+                                <label>MIX</label>
+                                <input id="glitchAlpha" type="range" min="0" max="1" step="0.01" value="1.0"
+                                    title="Strength of corrupted image material over the current image.">
+                                <span class="val" id="glitchAlphaVal">100%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LUMA KEY — Fairlight stored stencil + INDIGO key shaping -->
+                <div class="group" id="lumaKeyGroup">
+                    <div class="group-label">Luma Key</div>
+                    <div class="group-body">
+                        <div class="group-row">
+                            <div class="ctrl"><label>ON</label><input id="lumaKeyOn" type="checkbox"></div>
+                            <div class="ctrl">
+                                <label>TARGET</label>
+                                <select id="lumaKeyTarget"
+                                    title="Choose exactly what Luma processes. COMPOSITE preserves the established clean-key overlay. CORRUPT keys Corrupt patches. SCAN keys Scan panels, including FIELD mode.">
+                                    <option value="composite">COMPOSITE</option>
+                                    <option value="corrupt">CORRUPT</option>
+                                    <option value="scan">SCAN</option>
+                                </select>
+                            </div>
+                            <!-- <span id="lumaKeyTargetState" style="font-size:9px;color:#000;background:#d4d0c8;border:1px solid #808080;padding:1px 4px;font-family:'Share Tech Mono',monospace;white-space:nowrap">COMPOSITE</span> -->
+                            <span
+                                style="font-size:9px;color:rgba(255,255,255,.4);font-family:'Share Tech Mono',monospace;white-space:nowrap">DARK
+                                ←</span>
+                            <div class="ctrl luma-key-ab-box">
+                                <input id="lumaKeyAB" type="range" min="0" max="1" step="0.01" value="0.5"
+                                    title="Clip / threshold. Determines where the luminance key changes ownership between clean and processed image.">
+                            </div>
+                            <span
+                                style="font-size:9px;color:rgba(255,255,255,.4);font-family:'Share Tech Mono',monospace;white-space:nowrap">→
+                                BRIGHT</span>
+                            <span class="val" id="lumaKeyABVal" style="min-width:30px;text-align:right">0.50</span>
+                            <div class="ctrl">
+                                <label>MIX</label>
+                                <input id="lumaKeyMix" type="range" min="0" max="1" step="0.01" value="0"
+                                    title="Overall key opacity. Kept separate from Clip/Gain, following INDIGO's key-control model.">
+                                <span class="val" id="lumaKeyMixVal">0.00</span>
+                            </div>
+                            <div class="ctrl"><label>INVERT</label><input id="lumaKeyInvert" type="checkbox"
+                                    title="Invert the luminance matte. Pass 40V keeps the accepted matte polarity while avoiding a redundant same-frame LIVE source readback when this switch changes.">
+                            </div>
+                        </div>
+                        <div class="group-row">
+                            <div class="ctrl">
+                                <label>GAIN</label>
+                                <input id="lumaKeyGain" type="range" min="0.25" max="4" step="0.05" value="1"
+                                    title="Key edge steepness. 1.00 preserves the established HUFF rolloff.">
+                                <span class="val" id="lumaKeyGainVal">1.00</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>KEY SRC</label>
+                                <select id="lumaKeySource"
+                                    title="LIVE follows incoming luminance continuously from one bounded cached luminance plane per decoded frame. STENCIL uses the captured internal luminance plane and requires no ongoing source readback.">
+                                    <option value="clean">LIVE</option>
+                                    <option value="stencil">STENCIL</option>
+                                </select>
+                            </div>
+                            <div class="ctrl">
+                                <label>STENCIL</label>
+                                <button id="lumaKeyCaptureBtn" type="button" class="btn-dim"
+                                    style="font-size:9px;padding:2px 7px"
+                                    title="Capture the current clean image luminance as a bounded internal stencil. The captured pixels are working memory, not preset data.">CAPTURE</button>
+                                <span id="lumaKeyStencilState"
+                                    style="font-size:9px;color:rgba(255,255,255,.45);font-family:'Share Tech Mono',monospace">EMPTY</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>FADE</label>
+                                <select id="lumaKeyFade"
+                                    title="Key-fill compositing. X-FADE and ADD follow INDIGO's Luma-key model; the additional blend fades are HUFF Classic extensions applied to the same keyed patch.">
+                                    <option value="xfade">X-FADE</option>
+                                    <option value="add">SOFT ADD</option>
+                                    <option value="lighten">LIGHTEN</option>
+                                    <option value="darken">DARKEN</option>
+                                    <option value="multiply">MULTIPLY</option>
+                                    <option value="overlay">OVERLAY</option>
+                                    <option value="hardlight">HARD LIGHT</option>
+                                    <option value="difference">DIFFERENCE</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="group-row">
+                            <div class="ctrl luma-key-shape-box">
+                                <label>CLEANUP</label>
+                                <input id="lumaKeyCleanup" type="range" min="0" max="1" step="0.01" value="0"
+                                    title="INDIGO-inspired key cleanup. Pushes low-level key leakage and slight shadows toward black while keeping the opposite end fixed.">
+                                <span class="val" id="lumaKeyCleanupVal">0.00</span>
+                            </div>
+                            <div class="ctrl luma-key-shape-box">
+                                <label>DENSITY</label>
+                                <input id="lumaKeyDensity" type="range" min="0" max="1" step="0.01" value="0"
+                                    title="INDIGO-inspired key density. Pushes strong keyed foreground toward full opacity while keeping black fixed.">
+                                <span class="val" id="lumaKeyDensityVal">0.00</span>
+                            </div>
+                            <span
+                                style="font-size:9px;color:rgba(255,255,255,.4);font-family:'Share Tech Mono',monospace;white-space:nowrap">key
+                                shape</span>
+                            <!-- <span style="font-size:9px;color:rgba(255,255,255,.4);font-family:'Share Tech Mono',monospace;white-space:nowrap">INDIGO key shaping · Fairlight stencil memory</span> -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SCANLINES — Pass 40U keeps the 40T panel zoom and adds one alternate panel organization: BANDS / FIELD. -->
+                <div class="group">
+                    <div class="group-label">Scanlines</div>
+                    <div class="group-body">
+                        <div class="group-row">
+                            <div class="ctrl"><label>ON</label><input id="clusters" type="checkbox"></div>
+                            <div class="ctrl">
+                                <label>SPEED</label>
+                                <input id="scanSpeed" type="range" min="0" max="5" step="0.005" value="1.0"
+                                    title="BANDS: steady travel speed of the ordered blind plane along its band axis. SPEED no longer creates wobble or scales MOVE X/Y/Z. FIELD retains its established motion-rate behavior.">
+                                <span class="val" id="scanSpeedVal">1.00×</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>POS X</label>
+                                <input id="scanPlaceX" type="range" min="-1000" max="1000" step="1" value="0"
+                                    title="Move the complete existing Scanlines result horizontally. This does not change the slice generator.">
+                                <span class="val" id="scanPlaceXVal">0 px</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>POS Y</label>
+                                <input id="scanPlaceY" type="range" min="-1000" max="1000" step="1" value="0"
+                                    title="Move the complete existing Scanlines result vertically. This does not change the slice generator.">
+                                <span class="val" id="scanPlaceYVal">0 px</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>ZOOM</label>
+                                <input id="scanZoom" type="range" min="0.25" max="4" step="0.01" value="1"
+                                    title="General Scanlines depth scale. In BANDS this scales each ordered blind without unfolding it into a FIELD panel. In FIELD it preserves the existing panel-aware collage zoom.">
+                                <span class="val" id="scanZoomVal">1.00×</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>PANEL LAYOUT</label>
+                                <select id="scanPanelLayout"
+                                    title="BANDS is an ordered window-blind structure with relational spacing, per-blind expansion, and Magnet deformation. FIELD preserves the free deterministic X/Y/Z collage layout.">
+                                    <option value="bands" selected>BANDS</option>
+                                    <option value="field">FIELD</option>
+                                </select>
+                            </div>
+                            <div class="ctrl scan-band-control">
+                                <label>SPREAD</label>
+                                <input id="scanBandSpread" type="range" min="0" max="1" step="0.01" value="1"
+                                    title="Ordered BANDS spacing. 0% scrunches the blind stack toward FOCUS; 100% distributes the ordered blind lanes across the full rotated frame. GAP adds extra distance between neighbouring blinds.">
+                                <span class="val" id="scanBandSpreadVal">100%</span>
+                            </div>
+                            <div class="ctrl scan-field-control" style="display:none">
+                                <label>SPREAD X</label>
+                                <input id="scanFieldSpreadX" type="range" min="0" max="1" step="0.01" value="0.55"
+                                    title="Scatter individual Scan panels horizontally. 0 keeps their original X lanes; 100% releases them across the collage field.">
+                                <span class="val" id="scanFieldSpreadXVal">55%</span>
+                            </div>
+                            <div class="ctrl scan-field-control" style="display:none">
+                                <label>SPREAD Y</label>
+                                <input id="scanFieldSpreadY" type="range" min="0" max="1" step="0.01" value="0.45"
+                                    title="Scatter individual Scan panels vertically. 0 keeps their original Y lanes; 100% releases them across the collage field.">
+                                <span class="val" id="scanFieldSpreadYVal">45%</span>
+                            </div>
+                            <div class="ctrl scan-field-control" style="display:none">
+                                <label>SPREAD Z</label>
+                                <input id="scanFieldSpreadZ" type="range" min="0" max="1" step="0.01" value="0.50"
+                                    title="Give individual panels different apparent depths. This changes each panel's local zoom while the general ZOOM still moves the whole Scan instrument.">
+                                <span class="val" id="scanFieldSpreadZVal">50%</span>
+                            </div>
+                            <div class="ctrl scan-field-control" style="display:none">
+                                <label>SIZE VAR</label>
+                                <input id="scanFieldSizeVar" type="range" min="0" max="1" step="0.01" value="0.20"
+                                    title="Vary panel size independently of depth so the FIELD reads as collage rather than a uniform tile array.">
+                                <span class="val" id="scanFieldSizeVarVal">20%</span>
+                            </div>
+                            <div class="ctrl scan-field-control" style="display:none">
+                                <label>XY MOTION</label>
+                                <input id="scanFieldDrift" type="range" min="0" max="1" step="0.01" value="0.15"
+                                    title="FIELD only: autonomous X/Y panel motion amount. Scanlines SPEED owns the rate; SPEED 0 freezes this motion. This is separate from BANDS STAGGER, which is static geometry.">
+                                <span class="val" id="scanFieldDriftVal">15%</span>
+                            </div>
+                            <div class="ctrl scan-field-control" style="display:none">
+                                <label>Z MOTION</label>
+                                <input id="scanFieldDepthDrift" type="range" min="0" max="1" step="0.01" value="0.10"
+                                    title="FIELD only: autonomous forward/back panel motion amount. Scanlines SPEED owns the rate; SPEED 0 freezes this motion.">
+                                <span class="val" id="scanFieldDepthDriftVal">10%</span>
+                            </div>
+                            <button id="scanFieldResetBtn" class="btn-dim scan-field-control"
+                                style="display:none;font-size:9px;padding:2px 7px"
+                                title="Zero FIELD distribution and drift without changing the original Scanlines controls or general XYZ">↺
+                                Zero Field</button>
+                            <div class="ctrl">
+                                <label>MOVE X</label>
+                                <input id="scanMoveX" type="range" min="-1000" max="1000" step="1" value="0"
+                                    title="Direct continuous horizontal motion in pixels per second. Independent from main SPEED.">
+                                <span class="val" id="scanMoveXVal">0 px/s</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>MOVE Y</label>
+                                <input id="scanMoveY" type="range" min="-1000" max="1000" step="1" value="0"
+                                    title="Direct continuous vertical motion in pixels per second. Independent from main SPEED.">
+                                <span class="val" id="scanMoveYVal">0 px/s</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>MOVE Z</label>
+                                <input id="scanMoveZ" type="range" min="-2" max="2" step="0.01" value="0"
+                                    title="Direct continuous depth motion through the ZOOM control. Independent from main SPEED; motion reflects at 0.25× / 4×.">
+                                <span class="val" id="scanMoveZVal">0.00×/s</span>
+                            </div>
+                            <button id="scanResetXYZBtn" class="btn-dim" style="font-size:9px;padding:2px 7px"
+                                title="Reset Scanlines X/Y/Zoom placement and accumulated XYZ motion">↺ Reset
+                                XYZ</button>
+                            <div class="ctrl">
+                                <label>ANGLE</label>
+                                <input id="scanAngle" type="range" min="-180" max="180" step="0.5" value="0">
+                                <span class="val" id="scanAngleVal">0°</span>
+                                <button id="scanAngleReset" class="btn-dim"
+                                    style="font-size:9px;padding:1px 5px;margin-left:2px"
+                                    title="Reset to 0°">0°</button>
+                                <button id="scanAngle90n" class="btn-dim"
+                                    style="font-size:9px;padding:1px 5px;margin-left:2px"
+                                    title="Set to -90°">-90°</button>
+                                <button id="scanAngle90p" class="btn-dim"
+                                    style="font-size:9px;padding:1px 5px;margin-left:2px"
+                                    title="Set to 90°">90°</button>
+                            </div>
+
+                            <div class="ctrl">
+                                <label>BANDS</label>
+                                <input id="clusterCount" type="range" min="1" max="50" step="1" value="3">
+                                <span class="val" id="clusterCountVal">3</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>SIZE</label>
+                                <input id="clusterRadius" type="range" min="1" max="120" step="1" value="10"
+                                    title="Blind thickness only. SIZE enlarges or thins every line around its existing lane center so adjacent blinds may overlap or separate; it no longer bunches/re-spaces the stack.">
+                                <span class="val" id="clusterRadiusVal">10</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>FOCUS</label>
+                                <input id="scanFocus" type="range" min="0" max="1" step="0.01" value="0.5"
+                                    title="BANDS stack center. 50% centers the ordered blind plane in the frame; lower/higher values move the complete ordered stack toward the first/last side without changing SIZE. FIELD keeps its established focus bias.">
+                                <span class="val" id="scanFocusVal">0.50</span>
+                            </div>
+                            <div class="ctrl scan-band-control">
+                                <label>EXPAND X</label>
+                                <input id="scanExpandX" type="range" min="0" max="4" step="0.01" value="0"
+                                    title="Expand every ordered blind horizontally around its own center. Extended to 400% for deliberately extreme overlap/overscan without releasing the blind from the BANDS stack.">
+                                <span class="val" id="scanExpandXVal">0%</span>
+                            </div>
+                            <div class="ctrl scan-band-control">
+                                <label>EXPAND Y</label>
+                                <input id="scanExpandY" type="range" min="0" max="3" step="0.01" value="0"
+                                    title="Unfurl each blind downward by opening its source crop. The first part of the range reaches the complete available image below the slice; the extended range then overscales that reconstructed region for stronger overlap and depth.">
+                                <span class="val" id="scanExpandYVal">0%</span>
+                            </div>
+                            <div class="ctrl scan-band-control">
+                                <label>EXPAND Z</label>
+                                <input id="scanExpandZ" type="range" min="-3" max="3" step="0.01" value="0"
+                                    title="Depth-fan the ordered blinds around FOCUS with a wider ±300% range. One side recedes while the other advances; depth remains separate from EXPAND Y. Magnet adds local depth on top.">
+                                <span class="val" id="scanExpandZVal">0%</span>
+                            </div>
+                            <div class="ctrl scan-band-control">
+                                <label>LFO AMT</label>
+                                <input id="scanLfoAmount" type="range" min="0" max="2" step="0.01" value="0"
+                                    title="Dedicated sine-wave wobble of the complete BANDS plane across its cross-axis. Independent from SPEED, DRIFT, ROLL, and MOVE X/Y/Z.">
+                                <span class="val" id="scanLfoAmountVal">0%</span>
+                            </div>
+                            <div class="ctrl scan-band-control">
+                                <label>LFO RATE</label>
+                                <input id="scanLfoRate" type="range" min="0" max="4" step="0.01" value="0.5"
+                                    title="Sine-wave wobble rate in cycles per second. LFO AMT 0 disables the wobble without stopping BANDS travel.">
+                                <span class="val" id="scanLfoRateVal">0.50 Hz</span>
+                            </div>
+                            <div class="ctrl scan-band-control"><label>MAGNET</label><input id="scanMagnetOn" type="checkbox"
+                                title="Deform the ordered blind stack like a flexible sheet over a moving magnet. Magnet adds local Z/perspective deformation without replacing EXPAND, STAGGER, ROLL, or MOVE."></div>
+                            <div class="ctrl scan-band-control">
+                                <label>MAG MODE</label>
+                                <select id="scanMagnetMode" title="LOCAL makes a smooth bubble around one blind. FOLD creates a moving split: one blind / rest below, then two / rest below, then three, with a rounded crest at the boundary.">
+                                    <option value="local" selected>LOCAL</option>
+                                    <option value="fold">FOLD</option>
+                                </select>
+                            </div>
+                            <div class="ctrl scan-band-control">
+                                <label>MAG POS</label>
+                                <input id="scanMagnetPosition" type="range" min="0" max="1" step="0.01" value="0.5"
+                                    title="Magnet position through ordered blind index space. 0 is the first blind; 100% is the last blind.">
+                                <span class="val" id="scanMagnetPositionVal">50%</span>
+                            </div>
+                            <div class="ctrl scan-band-control">
+                                <label>MAG STR</label>
+                                <input id="scanMagnetStrength" type="range" min="-6" max="6" step="0.01" value="0.65"
+                                    title="Magnet depth strength. Extended to ±600% for deliberately extreme pull/push through the blind stack; final perspective scale is bounded for render safety.">
+                                <span class="val" id="scanMagnetStrengthVal">65%</span>
+                            </div>
+                            <div class="ctrl scan-band-control">
+                                <label>MAG PERSP</label>
+                                <input id="scanMagnetPerspective" type="range" min="-3" max="3" step="0.01" value="0"
+                                    title="Magnet perspective / vanishing bias. Negative and positive values tilt the local bubble toward opposite sides with asymmetric scaling and cross-axis displacement around MAG POS.">
+                                <span class="val" id="scanMagnetPerspectiveVal">0.00</span>
+                            </div>
+                            <div class="ctrl scan-band-control">
+                                <label>MAG RAD</label>
+                                <input id="scanMagnetRadius" type="range" min="0.02" max="1" step="0.01" value="0.28"
+                                    title="How much of the ordered blind stack is influenced around the magnet boundary.">
+                                <span class="val" id="scanMagnetRadiusVal">28%</span>
+                            </div>
+                            <div class="ctrl scan-band-control">
+                                <label>MAG FALL</label>
+                                <input id="scanMagnetFalloff" type="range" min="0.25" max="4" step="0.05" value="1"
+                                    title="Magnet falloff curve. Lower values create a broad soft sheet; higher values tighten the deformation around the magnet.">
+                                <span class="val" id="scanMagnetFalloffVal">1.00</span>
+                            </div>
+                            <div class="ctrl scan-band-control">
+                                <label>MAG SPEED</label>
+                                <input id="scanMagnetSpeed" type="range" min="-1" max="1" step="0.01" value="0"
+                                    title="Automatically move the magnet through the blind stack on its own clock. 0 holds MAG POS exactly; Scanlines SPEED does not change magnet motion.">
+                                <span class="val" id="scanMagnetSpeedVal">0.00×</span>
+                            </div>
+                            <div class="ctrl scan-band-control">
+                                <label>MAG EDGE</label>
+                                <select id="scanMagnetEdge" title="Automatic magnet behavior at the first/last blind.">
+                                    <option value="bounce" selected>BOUNCE</option>
+                                    <option value="wrap">WRAP</option>
+                                </select>
+                            </div>
+                            <div class="ctrl">
+                                <label>SHIFT</label>
+                                <input id="scanShift" type="range" min="0" max="2.5" step="0.01" value="0.12"
+                                    title="Per-blind cross-axis source/destination displacement. The response accelerates into near-full-frame offsets at the upper range while retaining a drawable source strip.">
+                                <span class="val" id="scanShiftVal">0.12</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>SKEW</label>
+                                <input id="scanSkew" type="range" min="-2" max="2" step="0.01" value="0"
+                                    title="Focus-relative shear/fan of the ordered blinds. The wider range opens the structure around FOCUS instead of only pushing the whole stack in one direction.">
+                                <span class="val" id="scanSkewVal">0.00</span>
+                            </div>
+                            <div class="ctrl scan-band-control">
+                                <label>STAGGER</label>
+                                <input id="scanDrift" type="range" min="0" max="6" step="0.01" value="1.0"
+                                    title="BANDS only: static per-blind irregularity around the ordered lanes. It does not animate by itself. SPEED moves the plane; LFO creates periodic wobble; FIELD has separate XY/Z MOTION controls.">
+                                <span class="val" id="scanDriftVal">1.00</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>ROLL</label>
+                                <input id="scanRoll" type="range" min="-3" max="3" step="0.01" value="0"
+                                    title="BANDS: static 3D curl through the ordered blind stack. It bends lane position, apparent depth, and cross-axis perspective together; negative/positive values curl in opposite directions. It does not create its own motion.">
+                                <span class="val" id="scanRollVal">0.00</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>GAP</label>
+                                <input id="scanGap" type="range" min="0" max="200" step="1" value="0"
+                                    title="BANDS: true extra spacing between neighbouring ordered blinds. FIELD: preserves the established panel-position quantization behavior.">
+                                <span class="val" id="scanGapVal">0</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>OPACITY</label>
+                                <input id="scanAlpha" type="range" min="0" max="1" step="0.01" value="0.86">
+                                <span class="val" id="scanAlphaVal">0.86</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SOLARIZE -->
+                <div class="group">
+                    <div class="group-label">Solarize</div>
+                    <div class="group-body">
+                        <div class="group-row">
+                            <div class="ctrl"><label>ON</label><input id="solarizeOn" type="checkbox"
+                                    title="Downstream color processor. In the CLASSIC recipe, start imagery with Corrupt, Scanlines, or Luma Key set to COMPOSITE so Solarize has a live image stream to color-process.">
+                            </div>
+                            <span class="pipeline-role">DOWNSTREAM</span>
+                            <!-- <span id="solarizePipelineState" class="pipeline-stage-state">WAITING FOR FEED</span> -->
+                            <div class="ctrl">
+                                <label>MODE</label>
+                                <select id="solarizeMode"
+                                    title="THRESHOLD preserves HUFF Classic Solarize. LUMA QUANTIZE quantizes luminance while retaining chroma. CHROMA POSTERIZE is the complementary Magic DaVE-inspired colour quantizer that preserves luminance.">
+                                    <option value="threshold" selected>THRESHOLD</option>
+                                    <option value="luma-quantize">LUMA QUANTIZE</option>
+                                    <option value="chroma-posterize">CHROMA POSTERIZE</option>
+                                </select>
+                            </div>
+                            <div class="ctrl solarize-threshold-only">
+                                <label>THRESH</label>
+                                <input id="solarizeThresh" type="range" min="0" max="1" step="0.01" value="0.5">
+                                <span class="val" id="solarizeThreshVal">0.50</span>
+                            </div>
+                            <div class="ctrl solarize-luma-only">
+                                <label>LEVEL</label>
+                                <input id="solarizeLevel" type="range" min="0" max="100" step="1" value="75"
+                                    title="LUMA QUANTIZE only. Higher values reduce luminance to fewer, coarser levels. 99% produces two luma levels; 100% removes the luma component.">
+                                <span class="val" id="solarizeLevelVal">75%</span>
+                            </div>
+                            <div class="ctrl solarize-luma-only">
+                                <label>SOFT</label>
+                                <input id="solarizeSoft" type="range" min="0" max="100" step="1" value="0"
+                                    title="LUMA QUANTIZE only. 0% gives hard contour steps; higher values soften the transitions toward the unquantized luminance signal.">
+                                <span class="val" id="solarizeSoftVal">0%</span>
+                            </div>
+                            <div class="ctrl solarize-luma-only"><label>INVERT</label><input id="solarizeInvert"
+                                    type="checkbox"
+                                    title="LUMA QUANTIZE only. Inverts the luminance component while retaining chroma.">
+                            </div>
+                            <div class="ctrl solarize-poster-only solarize-mode-hidden">
+                                <label>LEVEL</label>
+                                <input id="solarizePosterLevel" type="range" min="0" max="100" step="1" value="75"
+                                    title="CHROMA POSTERIZE only. Higher values reduce the two chroma axes to fewer colour bands while preserving luminance.">
+                                <span class="val" id="solarizePosterLevelVal">75%</span>
+                            </div>
+                            <div class="ctrl solarize-poster-only solarize-mode-hidden">
+                                <label>SOFT</label>
+                                <input id="solarizePosterSoft" type="range" min="0" max="100" step="1" value="0"
+                                    title="CHROMA POSTERIZE only. Blends the quantized chroma back toward the original colour; 100% is neutral.">
+                                <span class="val" id="solarizePosterSoftVal">0%</span>
+                            </div>
+                            <div class="ctrl solarize-poster-only solarize-mode-hidden">
+                                <label>PHASE</label>
+                                <input id="solarizePosterPhase" type="range" min="-180" max="180" step="1" value="0"
+                                    title="CHROMA POSTERIZE only. Rotates the chroma quantization grid before quantizing, changing which hues fall into the same posterized bands without changing luminance.">
+                                <span class="val" id="solarizePosterPhaseVal">0°</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>AMOUNT</label>
+                                <input id="solarizeAmt" type="range" min="0" max="1" step="0.01" value="1.0">
+                                <span class="val" id="solarizeAmtVal">1.00</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>FLUIDITY</label>
+                                <input id="solarizeFluidity" type="range" min="0" max="100" step="1" value="100"
+                                    title="Solarize temporal response. 100% is exact Pass 42 instantaneous behavior; lower values make Solarize change more slowly and viscously without changing source playback or adding a frame-skip gate.">
+                                <span class="val" id="solarizeFluidityVal">100%</span>
+                            </div>
+                            <div class="ctrl solarize-threshold-only">
+                                <label>SOL R</label>
+                                <input id="solarizeR" type="range" min="0" max="2" step="0.01" value="1.0">
+                                <span class="val" id="solarizeRVal">1.00</span>
+                            </div>
+                            <div class="ctrl solarize-threshold-only">
+                                <label>SOL G</label>
+                                <input id="solarizeG" type="range" min="0" max="2" step="0.01" value="1.0">
+                                <span class="val" id="solarizeGVal">1.00</span>
+                            </div>
+                            <div class="ctrl solarize-threshold-only">
+                                <label>SOL B</label>
+                                <input id="solarizeB" type="range" min="0" max="2" step="0.01" value="1.0">
+                                <span class="val" id="solarizeBVal">1.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FLOW -->
+                <div class="group">
+                    <div class="group-label">Flow</div>
+                    <div class="group-body">
+                        <div class="group-row">
+                            <div class="ctrl"><label>ON</label><input id="flowOn" type="checkbox"></div>
+                            <div class="ctrl">
+                                <label>STRENGTH</label>
+                                <input id="flowStrength" type="range" min="0" max="20" step="1" value="6">
+                                <span class="val" id="flowStrengthVal">6</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>SCALE</label>
+                                <input id="flowScale" type="range" min="40" max="200" step="1" value="80">
+                                <span class="val" id="flowScaleVal">80</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>SPEED</label>
+                                <input id="flowSpeed" type="range" min="0" max="6" step="0.01" value="1">
+                                <span class="val" id="flowSpeedVal">1.00</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>PULSE</label>
+                                <input id="flowPulse" type="range" min="0" max="200" step="1" value="0">
+                                <span class="val" id="flowPulseVal">0</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>PULL</label>
+                                <input id="flowImpl" type="range" min="-1" max="1" step="0.01" value="0">
+                                <span class="val" id="flowImplVal">0.00</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>SWIRL</label>
+                                <input id="flowSwirl" type="range" min="-2" max="2" step="0.01" value="0">
+                                <span class="val" id="flowSwirlVal">0.00</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>TURB</label>
+                                <input id="flowTurb" type="range" min="0" max="1" step="0.01" value="0">
+                                <span class="val" id="flowTurbVal">0.00</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>SPREAD</label>
+                                <input id="flowSpread" type="range" min="0.25" max="4" step="0.01" value="1">
+                                <span class="val" id="flowSpreadVal">1.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- .groups -->
+        </form>
+    </header>
+
+    <script defer src="p5.js"></script>
+    <script defer src="capability-instrumentation.js"></script>
+    <script defer src="pipeline-runtime.js"></script>
+    <script defer src="effects.js"></script>
+    <script defer src="canvas.js"></script>
+
+    <!-- ═══ About + Collapsible groups ══════════════════════════════════ -->
+    <script>
+        (() => {
+            'use strict';
+
+            /* ── Collapsible groups ───────────────────────────────── */
+            document.querySelectorAll('.group-label').forEach(label => {
+                label.addEventListener('click', () => {
+                    label.closest('.group').classList.toggle('collapsed');
+                });
+            });
+
+            /* ── About ───────────────────────────────────────────── */
+            const overlay = document.getElementById('aboutOverlay');
+            document.getElementById('aboutLogoBtn')?.addEventListener('click', () => overlay?.classList.add('open'));
+            document.getElementById('aboutClose')?.addEventListener('click', () => overlay?.classList.remove('open'));
+            overlay?.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+            window.addEventListener('keydown', e => { if (e.key === 'Escape') overlay?.classList.remove('open'); }, true);
+
+            /* ── Canvas viewer / MAX ──────────────────────────────────────
+             * CANVAS opens the detached canvas-only Document PiP viewer.
+             * MAX never fullscreens the GUI. It recreates the Document PiP
+             * window from this top-level user gesture with the largest screen
+             * dimensions as its requested viewport. Chromium may clamp the
+             * resulting PiP size, but the request always targets the canvas
+             * viewer window rather than this GUI document.
+             */
+            let canvasViewerWindow = null;
+            let canvasViewerPipWindow = null;
+
+            const canvasMaxSize = () => ({
+                width: Math.max(640, Number(screen.availWidth) || 1280),
+                height: Math.max(360, Number(screen.availHeight) || 720),
+            });
+
+            function populateCanvasPip(pip) {
+                canvasViewerPipWindow = pip;
+                pip.document.documentElement.style.cssText = 'margin:0;width:100%;height:100%;background:#000;overflow:hidden';
+                pip.document.body.style.cssText = 'margin:0;width:100%;height:100%;background:#000;overflow:hidden';
+                const iframe = pip.document.createElement('iframe');
+                iframe.src = 'canvas.html?embedded=1';
+                iframe.title = 'HUFF Canvas';
+                iframe.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0;background:#000';
+                pip.document.body.appendChild(iframe);
+                pip.addEventListener('pagehide', () => {
+                    if (canvasViewerPipWindow === pip) canvasViewerPipWindow = null;
+                }, { once:true });
+            }
+
+            async function requestCanvasPip(size) {
+                const pip = await window.documentPictureInPicture.requestWindow({
+                    width: size.width,
+                    height: size.height,
+                    disallowReturnToOpener: true,
+                    preferInitialWindowPlacement: true
+                });
+                populateCanvasPip(pip);
+                return pip;
+            }
+
+            async function openCanvasViewer(maximized = false) {
+                const size = maximized ? canvasMaxSize() : { width:1280, height:720 };
+
+                if ('documentPictureInPicture' in window && window.documentPictureInPicture?.requestWindow) {
+                    try {
+                        // MAX must be issued by the top-level document while the
+                        // MAX click still provides transient user activation.
+                        // Document PiP windows are not normal window.open() popups,
+                        // so resizeTo() is not a reliable resizing mechanism.
+                        if (canvasViewerPipWindow && !canvasViewerPipWindow.closed) {
+                            if (!maximized) {
+                                canvasViewerPipWindow.focus();
+                                return;
+                            }
+                            canvasViewerPipWindow.close();
+                            canvasViewerPipWindow = null;
+                        }
+                        await requestCanvasPip(size);
+                        return;
+                    } catch (error) {
+                        console.warn('[HUFF] canvas-only Picture-in-Picture unavailable; using popup fallback', error);
+                    }
+                }
+
+                // Popup fallback: retain the existing canvas-only page. Browser
+                // chrome is controlled by the browser in this fallback path.
+                if (canvasViewerWindow && !canvasViewerWindow.closed) {
+                    try {
+                        if (maximized) {
+                            canvasViewerWindow.moveTo?.(0, 0);
+                            canvasViewerWindow.resizeTo?.(size.width, size.height);
+                        }
+                        canvasViewerWindow.focus();
+                    } catch {}
+                    return;
+                }
+
+                canvasViewerWindow = window.open(
+                    'canvas.html',
+                    'huff-canvas-viewer',
+                    `popup=yes,width=${size.width},height=${size.height},left=0,top=0,resizable=yes,scrollbars=no,location=no,toolbar=no,menubar=no,status=no`
+                );
+                if (maximized && canvasViewerWindow) {
+                    try { canvasViewerWindow.moveTo?.(0,0); canvasViewerWindow.resizeTo?.(size.width, size.height); } catch {}
+                }
+            }
+
+            function openCanvasFullscreenViewer() {
+                // Deliberately use a normal same-origin popup instead of Document PiP.
+                // This path trades guaranteed chrome-free windowed mode for access to
+                // the Fullscreen API. The popup itself asks for fullscreen only from
+                // a user gesture inside that canvas window (click or F), because
+                // transient activation does not reliably transfer across windows.
+                const size = canvasMaxSize();
+                if (canvasViewerWindow && !canvasViewerWindow.closed) {
+                    try {
+                        canvasViewerWindow.location.href = 'canvas.html?fullscreen=1';
+                        canvasViewerWindow.focus();
+                    } catch {}
+                    return;
+                }
+                canvasViewerWindow = window.open(
+                    'canvas.html?fullscreen=1',
+                    'huff-canvas-fullscreen',
+                    `popup=yes,width=${size.width},height=${size.height},left=0,top=0,resizable=yes,scrollbars=no,location=no,toolbar=no,menubar=no,status=no`
+                );
+                try { canvasViewerWindow?.focus(); } catch {}
+            }
+
+            document.getElementById('canvasViewerBtn')?.addEventListener('click', () => { void openCanvasViewer(false); });
+            document.getElementById('canvasMaxBtn')?.addEventListener('click', () => { void openCanvasViewer(true); });
+            document.getElementById('canvasFullscreenBtn')?.addEventListener('click', openCanvasFullscreenViewer);
+
+            /* ── Reset all parameters to HTML defaults ────────────── */
+            document.getElementById('resetBtn')?.addEventListener('click', () => {
+                document.getElementById('controlsForm')?.reset();
+                document.querySelectorAll('#controlsForm input[type=range], #controlsForm input[type=number]')
+                    .forEach(el => el.dispatchEvent(new Event('input', { bubbles: true })));
+                document.querySelectorAll('#controlsForm input[type=checkbox], #controlsForm select')
+                    .forEach(el => el.dispatchEvent(new Event('change', { bubbles: true })));
+            });
+
+            /* ── Reset Feedback motion sliders ───────────────────── */
+            document.getElementById('resetMotionBtn')?.addEventListener('click', () => {
+                const defaults = { fbX: '1', fbY: '1', fbZ: '1.000', fbTheta: '0.01' };
+                Object.entries(defaults).forEach(([id, val]) => {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    el.value = val;
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                });
+            });
+
+            /* ── Scanline angle snap buttons ──────────────────────── */
+            [['scanAngleReset', '0'], ['scanAngle90n', '-90'], ['scanAngle90p', '90']].forEach(([id, val]) => {
+                document.getElementById(id)?.addEventListener('click', () => {
+                    const el = document.getElementById('scanAngle');
+                    if (!el) return;
+                    el.value = val;
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                });
+            });
+
+        })();
+    </script>
+
+
+    </body>
+
+</html>

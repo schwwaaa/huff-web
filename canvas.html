@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Canvas Viewer</title>
+  <style>
+    html,body{ margin:0; width:100vw; height:100vh; background:#000; overflow:hidden; }
+    #mirror{ position:fixed; inset:0; width:100vw; height:100vh; display:block; background:#000; }
+    #mirror:fullscreen, #mirror:-webkit-full-screen{ width:100vw; height:100vh; object-fit:fill; background:#000; }
+    * { user-select:none; }
+
+  </style>
+</head>
+<body>
+  <canvas id="mirror" aria-label="HUFF canvas output"></canvas>
+  <script>
+    function qs(name) {
+      const q = new URLSearchParams(location.search);
+      return q.get(name);
+    }
+
+    // Pure-web experiment: the mirror window talks directly to the main HUFF
+    // page through BroadcastChannel. No localhost WebSocket relay is required.
+    const MIRROR_CHANNEL_NAME = 'huff-canvas-mirror-v1';
+    const autofs = qs('autofs') === '1';
+    const fullscreenMode = qs('fullscreen') === '1';
+
+    const cvs = document.getElementById('mirror');
+    // Keep the backing store at the encoded frame's native dimensions and let
+    // CSS/GPU composition scale it to the output window.
+    const bitmapCtx = cvs.getContext('bitmaprenderer');
+    const ctx = bitmapCtx ? null : cvs.getContext('2d', { alpha:false, desynchronized:true });
+    cvs.width = 1;
+    cvs.height = 1;
+
+    const embeddedInPip = window.parent !== window && !!window.parent;
+
+    function isFullscreen(){ return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+    async function togglePopupFullscreen(){
+      // Document Picture-in-Picture deliberately cannot enter Fullscreen.
+      // The standalone FULL path can: target the CANVAS ELEMENT itself so the
+      // GUI document is never eligible to become fullscreen.
+      if (embeddedInPip) return;
+      if (isFullscreen()) {
+        const ex = document.exitFullscreen || document.webkitExitFullscreen;
+        if (ex) await ex.call(document);
+        return;
+      }
+      try {
+        if (cvs.requestFullscreen) {
+          try {
+            await cvs.requestFullscreen({ navigationUI:'hide' });
+          } catch {
+            await cvs.requestFullscreen();
+          }
+        } else if (cvs.webkitRequestFullscreen) {
+          await cvs.webkitRequestFullscreen();
+        }
+      } catch (e) {
+        console.warn('[canvas web] canvas fullscreen request rejected', e);
+      }
+    }
+
+    // Standalone FULL experiment:
+    // - HUFF GUI opens this normal popup.
+    // - Browser chrome may remain while windowed (browser security policy).
+    // - One click anywhere on the canvas enters true fullscreen.
+    // - F toggles true fullscreen. Esc exits through the browser normally.
+    // The PiP CANVAS/MAX mode stays separate and never calls Fullscreen API.
+    if (!embeddedInPip) {
+      if (fullscreenMode) {
+        cvs.addEventListener('click', () => { if (!isFullscreen()) void togglePopupFullscreen(); });
+      } else {
+        document.addEventListener('dblclick', () => { void togglePopupFullscreen(); });
+      }
+      document.addEventListener('keydown', e => {
+        if (e.key === 'f' || e.key === 'F') {
+          e.preventDefault();
+          void togglePopupFullscreen();
+        }
+      });
+      if (autofs) setTimeout(() => { void togglePopupFullscreen(); }, 120);
+    }
+
+// ── Pure-browser canvas transport ──────────────────────────────────────────
+let channel = null;
+let viewerShutdown = false;
+let pendingFrame = null; // newest received encoded frame not yet rendered
+let decodeBusy = false;  // one decode/draw at a time
+let presenceTimer = 0;
+
+function post(message) {
+  if (!channel || viewerShutdown) return;
+  try { channel.postMessage(message); } catch {}
+}
+
+function drainPending() {
+  if (viewerShutdown || decodeBusy || pendingFrame == null) return;
+  decodeBusy = true;
+  const data = pendingFrame;
+  pendingFrame = null;
+  let blob;
+  try {
+    blob = data instanceof Blob ? data : new Blob([data], { type:'image/jpeg' });
+  } catch {
+    decodeBusy = false;
+    post({ type:'mirror-ack' });
+    return;
+  }
+
+  createImageBitmap(blob, { imageOrientation:'none', premultiplyAlpha:'premultiply' })
+    .then(bmp => {
+      if (viewerShutdown) {
+        bmp.close?.();
+        return;
+      }
+      if (cvs.width !== bmp.width || cvs.height !== bmp.height) {
+        cvs.width = bmp.width;
+        cvs.height = bmp.height;
+      }
+      if (bitmapCtx) {
+        bitmapCtx.transferFromImageBitmap(bmp);
+        bmp.close?.();
+      } else {
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'copy';
+        ctx.drawImage(bmp, 0, 0);
+        ctx.globalCompositeOperation = 'source-over';
+        bmp.close?.();
+      }
+    })
+    .catch(e => { if (!viewerShutdown) console.warn('[canvas web] bad frame', e); })
+    .finally(() => {
+      decodeBusy = false;
+      if (!viewerShutdown) {
+        post({ type:'mirror-ack' });
+        if (pendingFrame != null) drainPending();
+      }
+    });
+}
+
+function connectMirror() {
+  if (viewerShutdown) return;
+  if (typeof BroadcastChannel !== 'function') {
+    console.error('[canvas web] BroadcastChannel is unavailable in this browser');
+    return;
+  }
+  try {
+    channel = new BroadcastChannel(MIRROR_CHANNEL_NAME);
+    channel.onmessage = (event) => {
+      if (viewerShutdown) return;
+      const message = event.data;
+      if (!message || typeof message !== 'object') return;
+      if (message.type === 'mirror-frame' && message.data != null) {
+        // Latest-frame-wins. The sender normally keeps one frame in flight, but
+        // replacement here also protects the viewer if delivery races occur.
+        pendingFrame = message.data;
+        if (!decodeBusy) drainPending();
+      }
+    };
+    console.log('[canvas web] BroadcastChannel connected:', MIRROR_CHANNEL_NAME);
+    post({ type:'mirror-presence' });
+    presenceTimer = setInterval(() => post({ type:'mirror-presence' }), 1000);
+  } catch (error) {
+    channel = null;
+    console.error('[canvas web] BroadcastChannel initialization failed', error);
+  }
+}
+
+function shutdownViewer() {
+  if (viewerShutdown) return;
+  viewerShutdown = true;
+  pendingFrame = null;
+  if (presenceTimer) {
+    clearInterval(presenceTimer);
+    presenceTimer = 0;
+  }
+  if (autofsTimer) {
+    clearTimeout(autofsTimer);
+    autofsTimer = 0;
+  }
+  if (channel) {
+    try { channel.postMessage({ type:'mirror-bye' }); } catch {}
+    try { channel.onmessage = null; } catch {}
+    try { channel.close(); } catch {}
+  }
+  channel = null;
+}
+
+window.addEventListener('pagehide', shutdownViewer, { once:true });
+window.addEventListener('beforeunload', shutdownViewer, { once:true });
+connectMirror();
+  </script>
+</body>
+</html>
