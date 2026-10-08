@@ -5,6 +5,10 @@
   "branch": "main",
   "presets": [
     {
+      "file": "air freshener.json",
+      "name": "air freshener"
+    },
+    {
       "file": "airplane glue.json",
       "name": "airplane glue"
     },
@@ -13,20 +17,8 @@
       "name": "babagoogalon"
     },
     {
-      "file": "benzene.json",
-      "name": "benzene"
-    },
-    {
-      "file": "bleech.json",
-      "name": "bleech"
-    },
-    {
       "file": "carburetor cleaner.json",
       "name": "carburetor cleaner"
-    },
-    {
-      "file": "chloroform.json",
-      "name": "chloroform"
     },
     {
       "file": "cooking oil spray.json",
@@ -35,14 +27,6 @@
     {
       "file": "cyclohexane.json",
       "name": "cyclohexane"
-    },
-    {
-      "file": "diethyl-ether.json",
-      "name": "diethyl-ether"
-    },
-    {
-      "file": "enflurane.json",
-      "name": "enflurane"
     },
     {
       "file": "esters.json",
@@ -81,26 +65,6 @@
       "name": "hobby glue"
     },
     {
-      "file": "mek.json",
-      "name": "mek"
-    },
-    {
-      "file": "methanol.json",
-      "name": "methanol"
-    },
-    {
-      "file": "methoxyflurane.json",
-      "name": "methoxyflurane"
-    },
-    {
-      "file": "mibk.json",
-      "name": "mibk"
-    },
-    {
-      "file": "oven cleaner.json",
-      "name": "oven cleaner"
-    },
-    {
       "file": "paint thinner.json",
       "name": "paint thinner"
     },
@@ -109,64 +73,24 @@
       "name": "pc cleaner"
     },
     {
-      "file": "Preset10.json",
-      "name": "Preset10"
-    },
-    {
-      "file": "Preset11.json",
-      "name": "Preset11"
-    },
-    {
-      "file": "Preset12.json",
-      "name": "Preset12"
-    },
-    {
-      "file": "Preset13.json",
-      "name": "Preset13"
-    },
-    {
-      "file": "Preset14.json",
-      "name": "Preset14"
-    },
-    {
-      "file": "Preset15.json",
-      "name": "Preset15"
-    },
-    {
-      "file": "Preset16.json",
-      "name": "Preset16"
-    },
-    {
-      "file": "Preset17.json",
-      "name": "Preset17"
-    },
-    {
-      "file": "Preset18.json",
-      "name": "Preset18"
-    },
-    {
-      "file": "preset19.json",
-      "name": "preset19"
-    },
-    {
-      "file": "propylene.json",
-      "name": "propylene"
-    },
-    {
       "file": "refrigerant gas.json",
       "name": "refrigerant gas"
     },
     {
-      "file": "sulfur hexafluoride.json",
-      "name": "sulfur hexafluoride"
+      "file": "rubber cement.json",
+      "name": "rubber cement"
+    },
+    {
+      "file": "spot remover.json",
+      "name": "spot remover"
+    },
+    {
+      "file": "spray paint.json",
+      "name": "spray paint"
     },
     {
       "file": "toluene.json",
       "name": "toluene"
-    },
-    {
-      "file": "trichloroethane.json",
-      "name": "trichloroethane"
     }
   ]
 }

@@ -25,13 +25,13 @@
     moderate: freeze({
       id:'moderate',
       label:'Moderate',
-      stages:freeze(['glitch','scanlines','feedback']),
+      stages:freeze(['glitch','paneling','feedback']),
       purpose:'representative layered Classic performance load',
     }),
     worstCase: freeze({
       id:'worst-case',
       label:'Worst Case',
-      stages:freeze(['glitch','pipeline-luma-key','scanlines','global-mix','feedback','flow','symmetry','solarize']),
+      stages:freeze(['glitch','pipeline-luma-key','paneling','global-mix','feedback','sift','symmetry','solarize']),
       purpose:'all expensive visual stages active for capability testing',
     }),
   });

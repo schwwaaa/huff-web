@@ -49,7 +49,7 @@
             <div class="a-icon"></div>
             <h1 id="aboutTitle" style="font-family:'VT323',monospace;font-weight:normal;letter-spacing:.14em">HUFF</h1>
             <div class="build">WEB CLASSIC · 720P VIDEO INSTRUMENT</div>
-            <p>HUFF is a real-time browser video instrument for temporal corruption, feedback, scan processing,
+            <p>HUFF is a real-time browser video instrument for temporal corruption, feedback, panel processing,
                 luma compositing, symmetry, solarization, and live image transformation.</p>
             <p><strong>Creator:</strong> Christopher Konopka<br>
                 <strong>Company:</strong> schwwaaa<br>
@@ -212,10 +212,9 @@
                             <div class="ctrl preset-box preset-recall-box">
                                 <label>PRESET</label>
                                 <select id="presetList"
-                                    title="Presets discovered from the presets folder/GitHub at startup, plus session-loaded JSON presets.">
+                                    title="Select a preset to recall it immediately. Presets are discovered from the preset catalog at startup, plus session-loaded JSON presets.">
                                     <option value="">— choose preset —</option>
                                 </select>
-                                <button id="presetBuiltinLoadBtn" type="button" class="btn-dim">RECALL</button>
                                 <button id="resetBtn" title="Reset all parameters to defaults">↺ RESET</button>
                             </div>
 
@@ -257,26 +256,30 @@
                                     <option value="temporal-underlay">TEMPORAL UNDERLAY</option>
                                     <option value="symmetry-memory">SYMMETRY MEMORY</option>
                                     <option value="color-memory">COLOR MEMORY</option>
-                                    <option value="flow-finish">FLOW FINISH</option>
+                                    <option value="sift-finish">SIFT FINISH</option>
                                     <option value="feedback-finish">FEEDBACK FINISH · EXP</option>
                                 </select>
                             </div>
                             <div class="ctrl">
                                 <label>PRIORITY</label>
                                 <select id="layerPriority" style="font-size:10px;padding:1px 2px"
-                                    title="Stable paint order only. SCAN TOP draws Scanlines last; CORRUPT TOP draws Corrupt/Luma last.">
-                                    <option value="scan">SCAN TOP</option>
-                                    <option value="glitch">CORRUPT TOP</option>
+                                    title="Stable paint order only. PANELING TOP draws paneling last; VISTA TOP draws Vista/Luma last.">
+                                    <option value="panel">PANELING TOP</option>
+                                    <option value="glitch">VISTA TOP</option>
                                 </select>
                             </div>
                             <div id="pipelineDiagram" class="pipeline-diagram"
-                                aria-label="CLASSIC pipeline: feed to feedback to flow to symmetry to solarize"
+                                aria-label="CLASSIC pipeline: feed to feedback to sift to symmetry to solarize"
                                 title="The active recipe stage order. Global Mix remains controlled separately by its named insertion position.">
-                                <span class="pipeline-diagram-stage pipeline-diagram-image-feed">FEED</span>
+                                <span class="pipeline-diagram-feed-group">
+                                    <span class="pipeline-diagram-stage pipeline-diagram-vista">VISTA</span>
+                                    <span class="pipeline-diagram-stage pipeline-diagram-luma">LUMA</span>
+                                    <span class="pipeline-diagram-stage pipeline-diagram-paneling">PANELING</span>
+                                </span>
                                 <span class="pipeline-diagram-arrow" aria-hidden="true">→</span>
-                                <span class="pipeline-diagram-stage pipeline-diagram-feedback">FEEDBACK</span>
+                                <span class="pipeline-diagram-stage pipeline-diagram-feedback active">FEEDBACK</span>
                                 <span class="pipeline-diagram-arrow" aria-hidden="true">→</span>
-                                <span class="pipeline-diagram-stage pipeline-diagram-flow">FLOW</span>
+                                <span class="pipeline-diagram-stage pipeline-diagram-sift">SIFT</span>
                                 <span class="pipeline-diagram-arrow" aria-hidden="true">→</span>
                                 <span class="pipeline-diagram-stage pipeline-diagram-symmetry">SYMMETRY</span>
                                 <span class="pipeline-diagram-arrow" aria-hidden="true">→</span>
@@ -287,30 +290,30 @@
                         </div>
 
                         <!-- <div class="pipeline-awareness"
-                            title="HUFF Classic has three primary ways to feed live imagery into its persistent image system: Corrupt, Scanlines, or Luma Key with TARGET set to COMPOSITE.">
+                            title="HUFF Classic has three primary ways to feed live imagery into its persistent image system: Vista, paneling, or Luma Key with TARGET set to COMPOSITE.">
                             <span class="pipeline-awareness-label">IMAGE FEED</span>
-                            <span id="pipelineFeedCorrupt" class="pipeline-feed">CORRUPT</span>
-                            <span id="pipelineFeedScan" class="pipeline-feed">SCANLINES</span>
+                            <span id="pipelineFeedVista" class="pipeline-feed">VISTA</span>
+                            <span id="pipelineFeedPanel" class="pipeline-feed">paneling</span>
                             <span id="pipelineFeedLuma" class="pipeline-feed">LUMA/COMP</span>
                             <span id="pipelineFeedSummary" class="pipeline-feed-summary warn">NONE</span>
-                            <span id="pipelineRouteSummary" class="pipeline-awareness-label">CLASSIC: IMAGE FEED → FEEDBACK → FLOW → SYMMETRY → SOLARIZE</span>
+                            <span id="pipelineRouteSummary" class="pipeline-awareness-label">CLASSIC: IMAGE FEED → FEEDBACK → SIFT → SYMMETRY → SOLARIZE</span>
                         </div> -->
                     </div>
                 </div>
 
-                <!-- LAYER PRIORITY — paint order between glitch and scanlines -->
+                <!-- LAYER PRIORITY — paint order between glitch and paneling -->
                 <!-- <div class="group">
                 <div class="group-label">Layer Priority</div>
                 <div class="group-body">
                 <div class="group-row">
                     <div class="ctrl">
                         <label>PRIORITY</label>
-                        <select id="layerPriority" style="font-size:10px;padding:1px 2px" title="Stable paint order only. SCAN TOP draws Scanlines last; CORRUPT TOP draws Corrupt/Luma last.">
-                            <option value="scan">SCAN TOP</option>
-                            <option value="glitch">CORRUPT TOP</option>
+                        <select id="layerPriority" style="font-size:10px;padding:1px 2px" title="Stable paint order only. PANELING TOP draws paneling last; VISTA TOP draws Vista/Luma last.">
+                            <option value="panel">PANELING TOP</option>
+                            <option value="glitch">VISTA TOP</option>
                         </select>
                     </div>
-                    <span id="layerPriorityState" style="font-size:9px;color:#000;background:#d4d0c8;border:1px solid #808080;padding:1px 4px;font-family:'Share Tech Mono',monospace;white-space:nowrap">STABLE · SCAN TOP</span>
+                    <span id="layerPriorityState" style="font-size:9px;color:#000;background:#d4d0c8;border:1px solid #808080;padding:1px 4px;font-family:'Share Tech Mono',monospace;white-space:nowrap">STABLE · PANELING TOP</span>
                 </div>
                 </div>
             </div> -->
@@ -438,7 +441,7 @@
                                 <select id="globalMixPos">
                                     <option value="before">BEFORE FB</option>
                                     <option value="after" selected>AFTER FB</option>
-                                    <option value="afterflow">AFTER FLOW</option>
+                                    <option value="aftersift">AFTER SIFT</option>
                                     <option value="final">FINAL</option>
                                 </select>
                             </div>
@@ -450,8 +453,8 @@
                 <div class="group" id="feedbackGroup">
                     <div class="group-label">Feedback</div>
                     <div class="group-body">
-                        <div class="corrupt-section">
-                            <!-- <div class="corrupt-section-title">Core — original controls preserved</div> -->
+                        <div class="vista-section">
+                            <!-- <div class="vista-section-title">Core — original controls preserved</div> -->
                             <div class="ctrl">
                                 <label>ENABLE</label>
                                 <input id="feedbackEnabled" type="checkbox" checked
@@ -478,8 +481,8 @@
                             <button id="clearBufBtn" title="Wipe frame ring and buffers instantly">⬛ Clear</button>
                         </div>
 
-                        <div class="corrupt-section">
-                            <!-- <div class="corrupt-section-title">Motion — original parameters preserved</div> -->
+                        <div class="vista-section">
+                            <!-- <div class="vista-section-title">Motion — original parameters preserved</div> -->
                             <div class="ctrl">
                                 <label>RANGE</label>
                                 <select id="feedbackMotionRange"
@@ -517,12 +520,12 @@
                                 Motion</button>                            
                         </div>
 
-                        <div class="corrupt-section">
-                            <!-- <div class="corrupt-section-title">Memory Behavior — additive</div> -->
+                        <div class="vista-section">
+                            <!-- <div class="vista-section-title">Memory Behavior — additive</div> -->
                             <div class="ctrl">
                                 <label>FB STROBE</label>
                                 <input id="feedbackStrobe" type="checkbox"
-                                    title="Strobe only the established Feedback transform. PERSISTENCE, video, Corrupt, Luma, Scanlines and Flow continue independently.">
+                                    title="Strobe only the established Feedback transform. PERSISTENCE, video, Vista, Luma, paneling and Sift continue independently.">
                             </div>
                             <div class="ctrl feedback-strobe-only">
                                 <label>INTERVAL</label>
@@ -540,13 +543,13 @@
                     </div>
                 </div>
 
-                <!-- CORRUPT — temporal region corruption + spatial distribution -->
-                <div class="group" id="corruptGroup">
-                    <div class="group-label">Corrupt</div>
+                <!-- VISTA — temporal region corruption + spatial distribution -->
+                <div class="group" id="vistaGroup">
+                    <div class="group-label">Vista</div>
                     <div class="group-body">
-                        <!-- Hidden Corrupt controls remain addressable by imported presets.
+                        <!-- Hidden Vista controls remain addressable by imported presets.
                          FIELD RATE presents the same runtime speed stack through one performance-oriented control. -->
-                        <div class="corrupt-hidden" aria-hidden="true">
+                        <div class="vista-hidden" aria-hidden="true">
                             <input id="glitchStrobe" type="checkbox">
                             <input id="glitchSpeed" type="range" min="0" max="5" step="0.005" value="0.8">
                             <span id="glitchSpeedVal">0.80</span>
@@ -554,26 +557,26 @@
                             <span id="glitchSpeedFineVal">1.00</span>
                             <input id="glitchSpeedMul" type="range" min="0" max="10" step="0.1" value="1.00">
                             <span id="glitchSpeedMulVal">1.00</span>
-                            <select id="corruptDistribution">
+                            <select id="vistaDistribution">
                                 <option value="random">RANDOM</option>
                                 <option value="cluster">CLUSTER</option>
                             </select>
                         </div>
 
-                        <div class="corrupt-section">
-                            <!-- <div class="corrupt-section-title">Update</div> -->
-                            <div class="ctrl"><label>ON</label><input id="corruptOn" type="checkbox"
+                        <div class="vista-section">
+                            <!-- <div class="vista-section-title">Update</div> -->
+                            <div class="ctrl"><label>ON</label><input id="vistaOn" type="checkbox"
                                     title="Enable temporal region corruption."></div>
                             <div class="ctrl random-speed-only">
                                 <label>RANDOM SPEED</label>
-                                <input id="corruptSpeed" type="range" min="0" max="4" step="0.01" value="1"
-                                    title="Overall RANDOM Corrupt evolution speed. In CONTINUOUS mode the Corrupt layer stays present every render: 0× locks patch placement and historical-age choice while delayed video remains live inside the patches; low values evolve slowly. Use STROBE or MULTIGRAB for temporal hold/update behavior. Independent of CLUSTER SPEED.">
-                                <span class="val" id="corruptSpeedVal">1.00×</span>
+                                <input id="vistaSpeed" type="range" min="0" max="4" step="0.01" value="1"
+                                    title="Overall RANDOM Vista evolution speed. In CONTINUOUS mode the Vista layer stays present every render: 0× locks patch placement and historical-age choice while delayed video remains live inside the patches; low values evolve slowly. Use STROBE or MULTIGRAB for temporal hold/update behavior. Independent of CLUSTER SPEED.">
+                                <span class="val" id="vistaSpeedVal">1.00×</span>
                             </div>
                             <div class="ctrl">
                                 <label>MODE</label>
-                                <select id="corruptUpdateMode"
-                                    title="CONTINUOUS keeps the Corrupt layer continuously composited while SPEED controls its evolution. STROBE refreshes Corrupt only at an interval. MULTIGRAB alternates held and live-update periods.">
+                                <select id="vistaUpdateMode"
+                                    title="CONTINUOUS keeps the Vista layer continuously composited while SPEED controls its evolution. STROBE refreshes Vista only at an interval. MULTIGRAB alternates held and live-update periods.">
                                     <option value="continuous">CONTINUOUS</option>
                                     <option value="strobe">STROBE</option>
                                     <option value="multigrab">MULTIGRAB</option>
@@ -582,29 +585,29 @@
                             <div class="ctrl strobe-only">
                                 <label>INTERVAL</label>
                                 <input id="glitchStrobeEvery" type="range" min="1" max="30" step="1" value="4"
-                                    title="Refresh Corrupt every N decoded source frames.">
+                                    title="Refresh Vista every N decoded source frames.">
                                 <span class="val" id="glitchStrobeEveryVal">4 fr</span>
                             </div>
                             <div class="ctrl multigrab-only">
                                 <label>HOLD</label>
-                                <input id="corruptHoldFrames" type="range" min="1" max="60" step="1" value="8"
-                                    title="MULTIGRAB: number of decoded frames Corrupt remains held.">
-                                <span class="val" id="corruptHoldFramesVal">8 fr</span>
+                                <input id="vistaHoldFrames" type="range" min="1" max="60" step="1" value="8"
+                                    title="MULTIGRAB: number of decoded frames Vista remains held.">
+                                <span class="val" id="vistaHoldFramesVal">8 fr</span>
                             </div>
                             <div class="ctrl multigrab-only">
                                 <label>LIVE</label>
-                                <input id="corruptLiveFrames" type="range" min="1" max="30" step="1" value="2"
-                                    title="MULTIGRAB: number of decoded frames Corrupt updates continuously before the next hold.">
-                                <span class="val" id="corruptLiveFramesVal">2 fr</span>
+                                <input id="vistaLiveFrames" type="range" min="1" max="30" step="1" value="2"
+                                    title="MULTIGRAB: number of decoded frames Vista updates continuously before the next hold.">
+                                <span class="val" id="vistaLiveFramesVal">2 fr</span>
                             </div>
                         </div>
 
-                        <div class="corrupt-section">
-                            <div class="corrupt-section-title">Time</div>
+                        <div class="vista-section">
+                            <div class="vista-section-title">Time</div>
                             <div class="ctrl">
                                 <label>AGE</label>
                                 <input id="depth" type="range" min="0" max="0.5" step="0.01" value="0.5"
-                                    title="How far back into the bounded video history Corrupt may borrow image patches.">
+                                    title="How far back into the bounded video history Vista may borrow image patches.">
                                 <span class="val" id="depthVal">50%</span>
                             </div>
                             <div class="ctrl">
@@ -615,19 +618,19 @@
                             </div>
                         </div>
 
-                        <div class="corrupt-section">
-                            <div class="corrupt-section-title">Regions</div>
+                        <div class="vista-section">
+                            <div class="vista-section-title">Regions</div>
                             <div class="ctrl">
                                 <label>AMOUNT</label>
-                                <input id="corrupt" type="range" min="0" max="7" step="0.01" value="0.30"
+                                <input id="vista" type="range" min="0" max="7" step="0.01" value="0.30"
                                     title="Relative number of corruption targets selected from the image grid.">
-                                <span class="val" id="corruptVal">0.30×</span>
+                                <span class="val" id="vistaVal">0.30×</span>
                             </div>
                             <div class="ctrl">
                                 <label>AMOUNT DRIFT</label>
-                                <input id="corruptDrift" type="range" min="0" max="1" step="0.01" value="0"
+                                <input id="vistaDrift" type="range" min="0" max="1" step="0.01" value="0"
                                     title="Slowly vary the number of active corruption regions over time.">
-                                <span class="val" id="corruptDriftVal">0%</span>
+                                <span class="val" id="vistaDriftVal">0%</span>
                             </div>
                             <div class="ctrl">
                                 <label>GRID</label>
@@ -637,7 +640,7 @@
                             </div>
                             <div class="ctrl">
                                 <label>PATCH SIZE</label>
-                                <input id="glitchSize" type="range" min="1" max="60" step="0.01" value="10"
+                                <input id="glitchSize" type="range" min="1" max="60" step="1" value="10"
                                     title="Size of each borrowed image patch relative to the grid cell.">
                                 <span class="val" id="glitchSizeVal">0.50×</span>
                             </div>
@@ -655,47 +658,47 @@
                             </div>
                             <div class="ctrl">
                                 <label>MASK</label>
-                                <select id="corruptMaskMode"
+                                <select id="vistaMaskMode"
                                     title="FULL allows corruption anywhere. STENCIL restricts patch placement to the stored Luma Stencil.">
                                     <option value="full">FULL</option>
                                     <option value="stencil">STENCIL</option>
                                 </select>
                             </div>
-                            <div class="ctrl corrupt-stencil-only">
+                            <div class="ctrl vista-stencil-only">
                                 <label>LEVEL</label>
-                                <input id="corruptMaskThreshold" type="range" min="0" max="255" step="1" value="128"
-                                    title="Brightness threshold used when the stored Luma Stencil controls Corrupt placement.">
-                                <span class="val" id="corruptMaskThresholdVal">128</span>
+                                <input id="vistaMaskThreshold" type="range" min="0" max="255" step="1" value="128"
+                                    title="Brightness threshold used when the stored Luma Stencil controls Vista placement.">
+                                <span class="val" id="vistaMaskThresholdVal">128</span>
                             </div>
-                            <div class="ctrl corrupt-stencil-only">
+                            <div class="ctrl vista-stencil-only">
                                 <label>SIDE</label>
-                                <select id="corruptMaskSide"
+                                <select id="vistaMaskSide"
                                     title="Choose whether bright or dark regions of the stored Luma Stencil may receive corruption.">
                                     <option value="bright">BRIGHT</option>
                                     <option value="dark">DARK</option>
                                 </select>
                             </div>
-                            <!-- <span id="corruptMaskStatus" class="corrupt-status">FULL FRAME</span> -->
+                            <!-- <span id="vistaMaskStatus" class="vista-status">FULL FRAME</span> -->
                         </div>
 
-                        <div class="corrupt-section">
-                            <div class="corrupt-section-title">Clusters</div>
+                        <div class="vista-section">
+                            <div class="vista-section-title">Clusters</div>
                             <div class="ctrl">
                                 <label>ON</label>
                                 <input id="clusterTiles" type="checkbox"
-                                    title="Group Corrupt patches into persistent moving bodies. Off uses the normal RANDOM placement field.">
+                                    title="Group Vista patches into persistent moving bodies. Off uses the normal RANDOM placement field.">
                             </div>
                             <div class="ctrl cluster-speed-only">
                                 <label>CLUSTER SPEED</label>
                                 <input id="clusterMasterSpeed" type="range" min="0" max="4" step="0.01" value="1"
-                                    title="Overall CLUSTER Corrupt evolution speed. In CONTINUOUS mode the Corrupt layer stays continuously composited: 0× locks cluster bodies, shape evolution and historical-age choice while delayed video remains live inside patches; higher values accelerate Group XYZ and organic evolution. Use STROBE or MULTIGRAB for temporal hold/update behavior. Independent of RANDOM SPEED.">
+                                    title="Overall CLUSTER Vista evolution speed. In CONTINUOUS mode the Vista layer stays continuously composited: 0× locks cluster bodies, shape evolution and historical-age choice while delayed video remains live inside patches; higher values accelerate Group XYZ and organic evolution. Use STROBE or MULTIGRAB for temporal hold/update behavior. Independent of RANDOM SPEED.">
                                 <span class="val" id="clusterMasterSpeedVal">1.00×</span>
                             </div>
-                            <!-- <span id="clusterModeStatus" class="corrupt-status">RANDOM EVOLUTION</span> -->
+                            <!-- <span id="clusterModeStatus" class="vista-status">RANDOM EVOLUTION</span> -->
                         </div>
 
-                        <div class="corrupt-section cluster-only">
-                            <div class="corrupt-section-title">Group Shape</div>
+                        <div class="vista-section cluster-only">
+                            <div class="vista-section-title">Group Shape</div>
                             <div class="ctrl">
                                 <label>GROUPS</label>
                                 <input id="cluCenters" type="range" min="1" max="20" step="1" value="3"
@@ -740,8 +743,8 @@
                             </div>
                         </div>
 
-                        <div class="corrupt-section cluster-only">
-                            <div class="corrupt-section-title">Group XYZ</div>
+                        <div class="vista-section cluster-only">
+                            <div class="vista-section-title">Group XYZ</div>
                             <div class="ctrl">
                                 <label>MOVE X</label>
                                 <input id="cluMoveX" type="range" min="-600" max="600" step="1" value="0"
@@ -762,8 +765,8 @@
                             </div>
                         </div>
 
-                        <div class="corrupt-section cluster-only">
-                            <div class="corrupt-section-title">Group Dynamics</div>
+                        <div class="vista-section cluster-only">
+                            <div class="vista-section-title">Group Dynamics</div>
                             <div class="ctrl">
                                 <label>ORGANIC SPEED</label>
                                 <input id="cluSpeed" type="range" min="0" max="10" step="0.01" value="0"
@@ -810,8 +813,8 @@
                             </div>
                         </div>
 
-                        <div class="corrupt-section">
-                            <div class="corrupt-section-title">Patch XYZ</div>
+                        <div class="vista-section">
+                            <div class="vista-section-title">Patch XYZ</div>
                             <div class="ctrl">
                                 <label>POSITION X</label>
                                 <input id="glitchBaseX" type="range" min="-1000" max="1000" step="1" value="0"
@@ -827,36 +830,36 @@
                             <div class="ctrl">
                                 <label>POSITION Z</label>
                                 <input id="glitchBaseZ" type="range" min="-1" max="1" step="0.01" value="0"
-                                    title="Move Corrupt through simulated depth. Negative recedes toward frame center; positive comes forward and expands away from center.">
+                                    title="Move Vista through simulated depth. Negative recedes toward frame center; positive comes forward and expands away from center.">
                                 <span class="val" id="glitchBaseZVal">0%</span>
                             </div>
                             <div class="ctrl">
                                 <label>MOVE X</label>
-                                <input id="corruptMoveX" type="range" min="-1200" max="1200" step="1" value="0"
-                                    title="Continuously move the Corrupt field horizontally in pixels per second. SPEED scales this motion.">
-                                <span class="val" id="corruptMoveXVal">0 px/s</span>
+                                <input id="vistaMoveX" type="range" min="-1200" max="1200" step="1" value="0"
+                                    title="Continuously move the Vista field horizontally in pixels per second. SPEED scales this motion.">
+                                <span class="val" id="vistaMoveXVal">0 px/s</span>
                             </div>
                             <div class="ctrl">
                                 <label>MOVE Y</label>
-                                <input id="corruptMoveY" type="range" min="-1200" max="1200" step="1" value="0"
-                                    title="Continuously move the Corrupt field vertically in pixels per second. SPEED scales this motion.">
-                                <span class="val" id="corruptMoveYVal">0 px/s</span>
+                                <input id="vistaMoveY" type="range" min="-1200" max="1200" step="1" value="0"
+                                    title="Continuously move the Vista field vertically in pixels per second. SPEED scales this motion.">
+                                <span class="val" id="vistaMoveYVal">0 px/s</span>
                             </div>
                             <div class="ctrl">
                                 <label>MOVE Z</label>
-                                <input id="corruptMoveZ" type="range" min="-1.5" max="1.5" step="0.01" value="0"
-                                    title="Continuously move the Corrupt field toward/away from camera in simulated depth. The motion bounces at the near/far limits. SPEED scales this motion.">
-                                <span class="val" id="corruptMoveZVal">0.00 z/s</span>
+                                <input id="vistaMoveZ" type="range" min="-1.5" max="1.5" step="0.01" value="0"
+                                    title="Continuously move the Vista field toward/away from camera in simulated depth. The motion bounces at the near/far limits. SPEED scales this motion.">
+                                <span class="val" id="vistaMoveZVal">0.00 z/s</span>
                             </div>
-                            <button id="corruptResetXYZBtn" class="btn-dim" style="font-size:9px;padding:2px 7px"
-                                title="Reset Corrupt X/Y/Z position and movement to neutral">↺ Reset XYZ</button>
+                            <button id="vistaResetXYZBtn" class="btn-dim" style="font-size:9px;padding:2px 7px"
+                                title="Reset Vista X/Y/Z position and movement to neutral">↺ Reset XYZ</button>
                         </div>
 
-                        <div class="corrupt-section">
-                            <div class="corrupt-section-title">Patch Repeat</div>
+                        <div class="vista-section">
+                            <div class="vista-section-title">Patch Repeat</div>
                             <div class="ctrl">
                                 <label>REPEATS</label>
-                                <input id="glitchSmear" type="range" min="0" max="200" step="0.01" value="6"
+                                <input id="glitchSmear" type="range" min="0" max="200" step="1" value="6"
                                     title="Number of additional copies drawn along the selected direction.">
                                 <span class="val" id="glitchSmearVal">6</span>
                             </div>
@@ -868,14 +871,14 @@
                             </div>
                             <div class="ctrl">
                                 <label>FIELD RATE</label>
-                                <input id="corruptRate" type="range" min="0" max="1" step="0.001" value="0.104"
-                                    title="Rate of Corrupt's internal noise field. CORRUPT SPEED scales this field and Patch XYZ motion; CLUSTER SPEED is independent. This control still drives the exact legacy SPEED/FINE/MULT runtime stack for compatibility.">
-                                <span class="val" id="corruptRateVal">0.80×</span>
+                                <input id="vistaRate" type="range" min="0" max="1" step="0.001" value="0.104"
+                                    title="Rate of Vista's internal noise field. VISTA SPEED scales this field and Patch XYZ motion; CLUSTER SPEED is independent. This control still drives the exact legacy SPEED/FINE/MULT runtime stack for compatibility.">
+                                <span class="val" id="vistaRateVal">0.80×</span>
                             </div>
                         </div>
 
-                        <div class="corrupt-section">
-                            <div class="corrupt-section-title">Composite</div>
+                        <div class="vista-section">
+                            <div class="vista-section-title">Composite</div>
                             <div class="ctrl">
                                 <label>MIX</label>
                                 <input id="glitchAlpha" type="range" min="0" max="1" step="0.01" value="1.0"
@@ -895,10 +898,10 @@
                             <div class="ctrl">
                                 <label>TARGET</label>
                                 <select id="lumaKeyTarget"
-                                    title="Choose exactly what Luma processes. COMPOSITE preserves the established clean-key overlay. CORRUPT keys Corrupt patches. SCAN keys Scan panels, including FIELD mode.">
+                                    title="Choose exactly what Luma processes. COMPOSITE preserves the established clean-key overlay. VISTA keys Vista patches. PANELING keys Paneling panels, including FIELD mode.">
                                     <option value="composite">COMPOSITE</option>
-                                    <option value="corrupt">CORRUPT</option>
-                                    <option value="scan">SCAN</option>
+                                    <option value="vista">VISTA</option>
+                                    <option value="panel">PANELING</option>
                                 </select>
                             </div>
                             <!-- <span id="lumaKeyTargetState" style="font-size:9px;color:#000;background:#d4d0c8;border:1px solid #808080;padding:1px 4px;font-family:'Share Tech Mono',monospace;white-space:nowrap">COMPOSITE</span> -->
@@ -982,122 +985,122 @@
                     </div>
                 </div>
 
-                <!-- SCANLINES — two organizations of the same scan-panel processor: ordered BANDS or distributed FIELD. -->
+                <!-- PANELING — two organizations of the same panel processor: ordered BANDS or distributed FIELD. -->
                 <div class="group">
-                    <div class="group-label">Scanlines</div>
+                    <div class="group-label">Paneling</div>
                     <div class="group-body">
                         <div class="group-row">
                             <div class="ctrl"><label>ON</label><input id="clusters" type="checkbox"></div>
                             <div class="ctrl">
                                 <label>SPEED</label>
-                                <input id="scanSpeed" type="range" min="0" max="5" step="0.005" value="1.0"
+                                <input id="panelSpeed" type="range" min="0" max="5" step="0.005" value="1.0"
                                     title="BANDS: steady travel speed of the ordered blind plane along its band axis. SPEED no longer creates wobble or scales MOVE X/Y/Z. FIELD retains its established motion-rate behavior.">
-                                <span class="val" id="scanSpeedVal">1.00×</span>
+                                <span class="val" id="panelSpeedVal">1.00×</span>
                             </div>
                             <div class="ctrl">
                                 <label>POS X</label>
-                                <input id="scanPlaceX" type="range" min="-1000" max="1000" step="1" value="0"
-                                    title="Move the complete existing Scanlines result horizontally. This does not change the slice generator.">
-                                <span class="val" id="scanPlaceXVal">0 px</span>
+                                <input id="panelPlaceX" type="range" min="-1000" max="1000" step="1" value="0"
+                                    title="Move the complete existing paneling result horizontally. This does not change the slice generator.">
+                                <span class="val" id="panelPlaceXVal">0 px</span>
                             </div>
                             <div class="ctrl">
                                 <label>POS Y</label>
-                                <input id="scanPlaceY" type="range" min="-1000" max="1000" step="1" value="0"
-                                    title="Move the complete existing Scanlines result vertically. This does not change the slice generator.">
-                                <span class="val" id="scanPlaceYVal">0 px</span>
+                                <input id="panelPlaceY" type="range" min="-1000" max="1000" step="1" value="0"
+                                    title="Move the complete existing paneling result vertically. This does not change the slice generator.">
+                                <span class="val" id="panelPlaceYVal">0 px</span>
                             </div>
                             <div class="ctrl">
                                 <label>ZOOM</label>
-                                <input id="scanZoom" type="range" min="0.25" max="4" step="0.01" value="1"
-                                    title="General Scanlines depth scale. In BANDS this scales each ordered blind without unfolding it into a FIELD panel. In FIELD it preserves the existing panel-aware collage zoom.">
-                                <span class="val" id="scanZoomVal">1.00×</span>
+                                <input id="panelZoom" type="range" min="0.25" max="4" step="0.01" value="1"
+                                    title="General paneling depth scale. In BANDS this scales each ordered blind without unfolding it into a FIELD panel. In FIELD it preserves the existing panel-aware collage zoom.">
+                                <span class="val" id="panelZoomVal">1.00×</span>
                             </div>
                             <div class="ctrl">
                                 <label>PANEL LAYOUT</label>
-                                <select id="scanPanelLayout"
+                                <select id="panelLayout"
                                     title="BANDS is an ordered window-blind structure with relational spacing, per-blind expansion, and Magnet deformation. FIELD preserves the free deterministic X/Y/Z collage layout.">
                                     <option value="bands" selected>BANDS</option>
                                     <option value="field">FIELD</option>
                                 </select>
                             </div>
-                            <div class="ctrl scan-band-control">
+                            <div class="ctrl panel-band-control">
                                 <label>SPREAD</label>
-                                <input id="scanBandSpread" type="range" min="0" max="1" step="0.01" value="1"
+                                <input id="panelBandSpread" type="range" min="0" max="1" step="0.01" value="1"
                                     title="Ordered BANDS spacing. 0% scrunches the blind stack toward FOCUS; 100% distributes the ordered blind lanes across the full rotated frame. GAP adds extra distance between neighbouring blinds.">
-                                <span class="val" id="scanBandSpreadVal">100%</span>
+                                <span class="val" id="panelBandSpreadVal">100%</span>
                             </div>
-                            <div class="ctrl scan-field-control" style="display:none">
+                            <div class="ctrl panel-field-control" style="display:none">
                                 <label>SPREAD X</label>
-                                <input id="scanFieldSpreadX" type="range" min="0" max="1" step="0.01" value="0.55"
-                                    title="Scatter individual Scan panels horizontally. 0 keeps their original X lanes; 100% releases them across the collage field.">
-                                <span class="val" id="scanFieldSpreadXVal">55%</span>
+                                <input id="panelFieldSpreadX" type="range" min="0" max="1" step="0.01" value="0.55"
+                                    title="Scatter individual Paneling panels horizontally. 0 keeps their original X lanes; 100% releases them across the collage field.">
+                                <span class="val" id="panelFieldSpreadXVal">55%</span>
                             </div>
-                            <div class="ctrl scan-field-control" style="display:none">
+                            <div class="ctrl panel-field-control" style="display:none">
                                 <label>SPREAD Y</label>
-                                <input id="scanFieldSpreadY" type="range" min="0" max="1" step="0.01" value="0.45"
-                                    title="Scatter individual Scan panels vertically. 0 keeps their original Y lanes; 100% releases them across the collage field.">
-                                <span class="val" id="scanFieldSpreadYVal">45%</span>
+                                <input id="panelFieldSpreadY" type="range" min="0" max="1" step="0.01" value="0.45"
+                                    title="Scatter individual Paneling panels vertically. 0 keeps their original Y lanes; 100% releases them across the collage field.">
+                                <span class="val" id="panelFieldSpreadYVal">45%</span>
                             </div>
-                            <div class="ctrl scan-field-control" style="display:none">
+                            <div class="ctrl panel-field-control" style="display:none">
                                 <label>SPREAD Z</label>
-                                <input id="scanFieldSpreadZ" type="range" min="0" max="1" step="0.01" value="0.50"
-                                    title="Give individual panels different apparent depths. This changes each panel's local zoom while the general ZOOM still moves the whole Scan instrument.">
-                                <span class="val" id="scanFieldSpreadZVal">50%</span>
+                                <input id="panelFieldSpreadZ" type="range" min="0" max="1" step="0.01" value="0.50"
+                                    title="Give individual panels different apparent depths. This changes each panel's local zoom while the general ZOOM still moves the whole Panel instrument.">
+                                <span class="val" id="panelFieldSpreadZVal">50%</span>
                             </div>
-                            <div class="ctrl scan-field-control" style="display:none">
+                            <div class="ctrl panel-field-control" style="display:none">
                                 <label>SIZE VAR</label>
-                                <input id="scanFieldSizeVar" type="range" min="0" max="1" step="0.01" value="0.20"
+                                <input id="panelFieldSizeVar" type="range" min="0" max="1" step="0.01" value="0.20"
                                     title="Vary panel size independently of depth so the FIELD reads as collage rather than a uniform tile array.">
-                                <span class="val" id="scanFieldSizeVarVal">20%</span>
+                                <span class="val" id="panelFieldSizeVarVal">20%</span>
                             </div>
-                            <div class="ctrl scan-field-control" style="display:none">
+                            <div class="ctrl panel-field-control" style="display:none">
                                 <label>XY MOTION</label>
-                                <input id="scanFieldDrift" type="range" min="0" max="1" step="0.01" value="0.15"
-                                    title="FIELD only: autonomous X/Y panel motion amount. Scanlines SPEED owns the rate; SPEED 0 freezes this motion. This is separate from BANDS STAGGER, which is static geometry.">
-                                <span class="val" id="scanFieldDriftVal">15%</span>
+                                <input id="panelFieldDrift" type="range" min="0" max="1" step="0.01" value="0.15"
+                                    title="FIELD only: autonomous X/Y panel motion amount. paneling SPEED owns the rate; SPEED 0 freezes this motion. This is separate from BANDS STAGGER, which is static geometry.">
+                                <span class="val" id="panelFieldDriftVal">15%</span>
                             </div>
-                            <div class="ctrl scan-field-control" style="display:none">
+                            <div class="ctrl panel-field-control" style="display:none">
                                 <label>Z MOTION</label>
-                                <input id="scanFieldDepthDrift" type="range" min="0" max="1" step="0.01" value="0.10"
-                                    title="FIELD only: autonomous forward/back panel motion amount. Scanlines SPEED owns the rate; SPEED 0 freezes this motion.">
-                                <span class="val" id="scanFieldDepthDriftVal">10%</span>
+                                <input id="panelFieldDepthDrift" type="range" min="0" max="1" step="0.01" value="0.10"
+                                    title="FIELD only: autonomous forward/back panel motion amount. paneling SPEED owns the rate; SPEED 0 freezes this motion.">
+                                <span class="val" id="panelFieldDepthDriftVal">10%</span>
                             </div>
-                            <button id="scanFieldResetBtn" class="btn-dim scan-field-control"
+                            <button id="panelFieldResetBtn" class="btn-dim panel-field-control"
                                 style="display:none;font-size:9px;padding:2px 7px"
-                                title="Zero FIELD distribution and drift without changing the original Scanlines controls or general XYZ">↺
+                                title="Zero FIELD distribution and drift without changing the original paneling controls or general XYZ">↺
                                 Zero Field</button>
                             <div class="ctrl">
                                 <label>MOVE X</label>
-                                <input id="scanMoveX" type="range" min="-1000" max="1000" step="1" value="0"
+                                <input id="panelMoveX" type="range" min="-1000" max="1000" step="1" value="0"
                                     title="Direct continuous horizontal motion in pixels per second. Independent from main SPEED.">
-                                <span class="val" id="scanMoveXVal">0 px/s</span>
+                                <span class="val" id="panelMoveXVal">0 px/s</span>
                             </div>
                             <div class="ctrl">
                                 <label>MOVE Y</label>
-                                <input id="scanMoveY" type="range" min="-1000" max="1000" step="1" value="0"
+                                <input id="panelMoveY" type="range" min="-1000" max="1000" step="1" value="0"
                                     title="Direct continuous vertical motion in pixels per second. Independent from main SPEED.">
-                                <span class="val" id="scanMoveYVal">0 px/s</span>
+                                <span class="val" id="panelMoveYVal">0 px/s</span>
                             </div>
                             <div class="ctrl">
                                 <label>MOVE Z</label>
-                                <input id="scanMoveZ" type="range" min="-2" max="2" step="0.01" value="0"
+                                <input id="panelMoveZ" type="range" min="-2" max="2" step="0.01" value="0"
                                     title="Direct continuous depth motion through the ZOOM control. Independent from main SPEED; motion reflects at 0.25× / 4×.">
-                                <span class="val" id="scanMoveZVal">0.00×/s</span>
+                                <span class="val" id="panelMoveZVal">0.00×/s</span>
                             </div>
-                            <button id="scanResetXYZBtn" class="btn-dim" style="font-size:9px;padding:2px 7px"
-                                title="Reset Scanlines X/Y/Zoom placement and accumulated XYZ motion">↺ Reset
+                            <button id="panelResetXYZBtn" class="btn-dim" style="font-size:9px;padding:2px 7px"
+                                title="Reset paneling X/Y/Zoom placement and accumulated XYZ motion">↺ Reset
                                 XYZ</button>
                             <div class="ctrl">
                                 <label>ANGLE</label>
-                                <input id="scanAngle" type="range" min="-180" max="180" step="0.5" value="0">
-                                <span class="val" id="scanAngleVal">0°</span>
-                                <button id="scanAngleReset" class="btn-dim"
+                                <input id="panelAngle" type="range" min="-180" max="180" step="0.5" value="0">
+                                <span class="val" id="panelAngleVal">0°</span>
+                                <button id="panelAngleReset" class="btn-dim"
                                     style="font-size:9px;padding:1px 5px;margin-left:2px"
                                     title="Reset to 0°">0°</button>
-                                <button id="scanAngle90n" class="btn-dim"
+                                <button id="panelAngle90n" class="btn-dim"
                                     style="font-size:9px;padding:1px 5px;margin-left:2px"
                                     title="Set to -90°">-90°</button>
-                                <button id="scanAngle90p" class="btn-dim"
+                                <button id="panelAngle90p" class="btn-dim"
                                     style="font-size:9px;padding:1px 5px;margin-left:2px"
                                     title="Set to 90°">90°</button>
                             </div>
@@ -1115,126 +1118,126 @@
                             </div>
                             <div class="ctrl">
                                 <label>FOCUS</label>
-                                <input id="scanFocus" type="range" min="0" max="1" step="0.01" value="0.5"
+                                <input id="panelFocus" type="range" min="0" max="1" step="0.01" value="0.5"
                                     title="BANDS stack center. 50% centers the ordered blind plane in the frame; lower/higher values move the complete ordered stack toward the first/last side without changing SIZE. FIELD keeps its established focus bias.">
-                                <span class="val" id="scanFocusVal">0.50</span>
+                                <span class="val" id="panelFocusVal">0.50</span>
                             </div>
-                            <div class="ctrl scan-band-control">
+                            <div class="ctrl panel-band-control">
                                 <label>EXPAND X</label>
-                                <input id="scanExpandX" type="range" min="0" max="4" step="0.01" value="0"
+                                <input id="panelExpandX" type="range" min="0" max="4" step="0.01" value="0"
                                     title="Expand every ordered blind horizontally around its own center. Extended to 400% for deliberately extreme overlap/overscan without releasing the blind from the BANDS stack.">
-                                <span class="val" id="scanExpandXVal">0%</span>
+                                <span class="val" id="panelExpandXVal">0%</span>
                             </div>
-                            <div class="ctrl scan-band-control">
+                            <div class="ctrl panel-band-control">
                                 <label>EXPAND Y</label>
-                                <input id="scanExpandY" type="range" min="0" max="3" step="0.01" value="0"
+                                <input id="panelExpandY" type="range" min="0" max="3" step="0.01" value="0"
                                     title="Unfurl each blind downward by opening its source crop. The first part of the range reaches the complete available image below the slice; the extended range then overscales that reconstructed region for stronger overlap and depth.">
-                                <span class="val" id="scanExpandYVal">0%</span>
+                                <span class="val" id="panelExpandYVal">0%</span>
                             </div>
-                            <div class="ctrl scan-band-control">
+                            <div class="ctrl panel-band-control">
                                 <label>EXPAND Z</label>
-                                <input id="scanExpandZ" type="range" min="-3" max="3" step="0.01" value="0"
+                                <input id="panelExpandZ" type="range" min="-3" max="3" step="0.01" value="0"
                                     title="Depth-fan the ordered blinds around FOCUS with a wider ±300% range. One side recedes while the other advances; depth remains separate from EXPAND Y. Magnet adds local depth on top.">
-                                <span class="val" id="scanExpandZVal">0%</span>
+                                <span class="val" id="panelExpandZVal">0%</span>
                             </div>
-                            <div class="ctrl scan-band-control">
+                            <div class="ctrl panel-band-control">
                                 <label>LFO AMT</label>
-                                <input id="scanLfoAmount" type="range" min="0" max="2" step="0.01" value="0"
+                                <input id="panelLfoAmount" type="range" min="0" max="2" step="0.01" value="0"
                                     title="Dedicated sine-wave wobble of the complete BANDS plane across its cross-axis. Independent from SPEED, DRIFT, ROLL, and MOVE X/Y/Z.">
-                                <span class="val" id="scanLfoAmountVal">0%</span>
+                                <span class="val" id="panelLfoAmountVal">0%</span>
                             </div>
-                            <div class="ctrl scan-band-control">
+                            <div class="ctrl panel-band-control">
                                 <label>LFO RATE</label>
-                                <input id="scanLfoRate" type="range" min="0" max="4" step="0.01" value="0.5"
+                                <input id="panelLfoRate" type="range" min="0" max="4" step="0.01" value="0.5"
                                     title="Sine-wave wobble rate in cycles per second. LFO AMT 0 disables the wobble without stopping BANDS travel.">
-                                <span class="val" id="scanLfoRateVal">0.50 Hz</span>
+                                <span class="val" id="panelLfoRateVal">0.50 Hz</span>
                             </div>
-                            <div class="ctrl scan-band-control"><label>MAGNET</label><input id="scanMagnetOn" type="checkbox"
+                            <div class="ctrl panel-band-control"><label>MAGNET</label><input id="panelMagnetOn" type="checkbox"
                                 title="Deform the ordered blind stack like a flexible sheet over a moving magnet. Magnet adds local Z/perspective deformation without replacing EXPAND, STAGGER, ROLL, or MOVE."></div>
-                            <div class="ctrl scan-band-control">
+                            <div class="ctrl panel-band-control">
                                 <label>MAG MODE</label>
-                                <select id="scanMagnetMode" title="LOCAL makes a smooth bubble around one blind. FOLD creates a moving split: one blind / rest below, then two / rest below, then three, with a rounded crest at the boundary.">
+                                <select id="panelMagnetMode" title="LOCAL makes a smooth bubble around one blind. FOLD creates a moving split: one blind / rest below, then two / rest below, then three, with a rounded crest at the boundary.">
                                     <option value="local" selected>LOCAL</option>
                                     <option value="fold">FOLD</option>
                                 </select>
                             </div>
-                            <div class="ctrl scan-band-control">
+                            <div class="ctrl panel-band-control">
                                 <label>MAG POS</label>
-                                <input id="scanMagnetPosition" type="range" min="0" max="1" step="0.01" value="0.5"
+                                <input id="panelMagnetPosition" type="range" min="0" max="1" step="0.01" value="0.5"
                                     title="Magnet position through ordered blind index space. 0 is the first blind; 100% is the last blind.">
-                                <span class="val" id="scanMagnetPositionVal">50%</span>
+                                <span class="val" id="panelMagnetPositionVal">50%</span>
                             </div>
-                            <div class="ctrl scan-band-control">
+                            <div class="ctrl panel-band-control">
                                 <label>MAG STR</label>
-                                <input id="scanMagnetStrength" type="range" min="-6" max="6" step="0.01" value="0.65"
+                                <input id="panelMagnetStrength" type="range" min="-6" max="6" step="0.01" value="0.65"
                                     title="Magnet depth strength. Extended to ±600% for deliberately extreme pull/push through the blind stack; final perspective scale is bounded for render safety.">
-                                <span class="val" id="scanMagnetStrengthVal">65%</span>
+                                <span class="val" id="panelMagnetStrengthVal">65%</span>
                             </div>
-                            <div class="ctrl scan-band-control">
+                            <div class="ctrl panel-band-control">
                                 <label>MAG PERSP</label>
-                                <input id="scanMagnetPerspective" type="range" min="-3" max="3" step="0.01" value="0"
+                                <input id="panelMagnetPerspective" type="range" min="-3" max="3" step="0.01" value="0"
                                     title="Magnet perspective / vanishing bias. Negative and positive values tilt the local bubble toward opposite sides with asymmetric scaling and cross-axis displacement around MAG POS.">
-                                <span class="val" id="scanMagnetPerspectiveVal">0.00</span>
+                                <span class="val" id="panelMagnetPerspectiveVal">0.00</span>
                             </div>
-                            <div class="ctrl scan-band-control">
+                            <div class="ctrl panel-band-control">
                                 <label>MAG RAD</label>
-                                <input id="scanMagnetRadius" type="range" min="0.02" max="1" step="0.01" value="0.28"
+                                <input id="panelMagnetRadius" type="range" min="0.02" max="1" step="0.01" value="0.28"
                                     title="How much of the ordered blind stack is influenced around the magnet boundary.">
-                                <span class="val" id="scanMagnetRadiusVal">28%</span>
+                                <span class="val" id="panelMagnetRadiusVal">28%</span>
                             </div>
-                            <div class="ctrl scan-band-control">
+                            <div class="ctrl panel-band-control">
                                 <label>MAG FALL</label>
-                                <input id="scanMagnetFalloff" type="range" min="0.25" max="4" step="0.05" value="1"
+                                <input id="panelMagnetFalloff" type="range" min="0.25" max="4" step="0.05" value="1"
                                     title="Magnet falloff curve. Lower values create a broad soft sheet; higher values tighten the deformation around the magnet.">
-                                <span class="val" id="scanMagnetFalloffVal">1.00</span>
+                                <span class="val" id="panelMagnetFalloffVal">1.00</span>
                             </div>
-                            <div class="ctrl scan-band-control">
+                            <div class="ctrl panel-band-control">
                                 <label>MAG SPEED</label>
-                                <input id="scanMagnetSpeed" type="range" min="-1" max="1" step="0.01" value="0"
-                                    title="Automatically move the magnet through the blind stack on its own clock. 0 holds MAG POS exactly; Scanlines SPEED does not change magnet motion.">
-                                <span class="val" id="scanMagnetSpeedVal">0.00×</span>
+                                <input id="panelMagnetSpeed" type="range" min="-1" max="1" step="0.01" value="0"
+                                    title="Automatically move the magnet through the blind stack on its own clock. 0 holds MAG POS exactly; paneling SPEED does not change magnet motion.">
+                                <span class="val" id="panelMagnetSpeedVal">0.00×</span>
                             </div>
-                            <div class="ctrl scan-band-control">
+                            <div class="ctrl panel-band-control">
                                 <label>MAG EDGE</label>
-                                <select id="scanMagnetEdge" title="Automatic magnet behavior at the first/last blind.">
+                                <select id="panelMagnetEdge" title="Automatic magnet behavior at the first/last blind.">
                                     <option value="bounce" selected>BOUNCE</option>
                                     <option value="wrap">WRAP</option>
                                 </select>
                             </div>
                             <div class="ctrl">
                                 <label>SHIFT</label>
-                                <input id="scanShift" type="range" min="0" max="2.5" step="0.01" value="0.12"
+                                <input id="panelShift" type="range" min="0" max="2.5" step="0.01" value="0.12"
                                     title="Per-blind cross-axis source/destination displacement. The response accelerates into near-full-frame offsets at the upper range while retaining a drawable source strip.">
-                                <span class="val" id="scanShiftVal">0.12</span>
+                                <span class="val" id="panelShiftVal">0.12</span>
                             </div>
                             <div class="ctrl">
                                 <label>SKEW</label>
-                                <input id="scanSkew" type="range" min="-2" max="2" step="0.01" value="0"
+                                <input id="panelSkew" type="range" min="-2" max="2" step="0.01" value="0"
                                     title="Focus-relative shear/fan of the ordered blinds. The wider range opens the structure around FOCUS instead of only pushing the whole stack in one direction.">
-                                <span class="val" id="scanSkewVal">0.00</span>
+                                <span class="val" id="panelSkewVal">0.00</span>
                             </div>
-                            <div class="ctrl scan-band-control">
+                            <div class="ctrl panel-band-control">
                                 <label>STAGGER</label>
-                                <input id="scanDrift" type="range" min="0" max="6" step="0.01" value="1.0"
+                                <input id="panelDrift" type="range" min="0" max="6" step="0.01" value="1.0"
                                     title="BANDS only: static per-blind irregularity around the ordered lanes. It does not animate by itself. SPEED moves the plane; LFO creates periodic wobble; FIELD has separate XY/Z MOTION controls.">
-                                <span class="val" id="scanDriftVal">1.00</span>
+                                <span class="val" id="panelDriftVal">1.00</span>
                             </div>
                             <div class="ctrl">
                                 <label>ROLL</label>
-                                <input id="scanRoll" type="range" min="-3" max="3" step="0.01" value="0"
+                                <input id="panelRoll" type="range" min="-3" max="3" step="0.01" value="0"
                                     title="BANDS: static 3D curl through the ordered blind stack. It bends lane position, apparent depth, and cross-axis perspective together; negative/positive values curl in opposite directions. It does not create its own motion.">
-                                <span class="val" id="scanRollVal">0.00</span>
+                                <span class="val" id="panelRollVal">0.00</span>
                             </div>
                             <div class="ctrl">
                                 <label>GAP</label>
-                                <input id="scanGap" type="range" min="0" max="200" step="1" value="0"
+                                <input id="panelGap" type="range" min="0" max="200" step="1" value="0"
                                     title="BANDS: true extra spacing between neighbouring ordered blinds. FIELD: preserves the established panel-position quantization behavior.">
-                                <span class="val" id="scanGapVal">0</span>
+                                <span class="val" id="panelGapVal">0</span>
                             </div>
                             <div class="ctrl">
                                 <label>OPACITY</label>
-                                <input id="scanAlpha" type="range" min="0" max="1" step="0.01" value="0.86">
-                                <span class="val" id="scanAlphaVal">0.86</span>
+                                <input id="panelAlpha" type="range" min="0" max="1" step="0.01" value="0.86">
+                                <span class="val" id="panelAlphaVal">0.86</span>
                             </div>
                         </div>
                     </div>
@@ -1246,7 +1249,7 @@
                     <div class="group-body">
                         <div class="group-row">
                             <div class="ctrl"><label>ON</label><input id="solarizeOn" type="checkbox"
-                                    title="Downstream color processor. In the CLASSIC recipe, start imagery with Corrupt, Scanlines, or Luma Key set to COMPOSITE so Solarize has a live image stream to color-process.">
+                                    title="Downstream color processor. In the CLASSIC recipe, start imagery with Vista, paneling, or Luma Key set to COMPOSITE so Solarize has a live image stream to color-process.">
                             </div>
                             <span class="pipeline-role">DOWNSTREAM</span>
                             <!-- <span id="solarizePipelineState" class="pipeline-stage-state">WAITING FOR FEED</span> -->
@@ -1328,51 +1331,51 @@
                     </div>
                 </div>
 
-                <!-- FLOW -->
+                <!-- SIFT -->
                 <div class="group">
-                    <div class="group-label">Flow</div>
+                    <div class="group-label">Sift</div>
                     <div class="group-body">
                         <div class="group-row">
-                            <div class="ctrl"><label>ON</label><input id="flowOn" type="checkbox"></div>
+                            <div class="ctrl"><label>ON</label><input id="siftOn" type="checkbox"></div>
                             <div class="ctrl">
                                 <label>STRENGTH</label>
-                                <input id="flowStrength" type="range" min="0" max="20" step="1" value="6">
-                                <span class="val" id="flowStrengthVal">6</span>
+                                <input id="siftStrength" type="range" min="0" max="20" step="1" value="6">
+                                <span class="val" id="siftStrengthVal">6</span>
                             </div>
                             <div class="ctrl">
                                 <label>SCALE</label>
-                                <input id="flowScale" type="range" min="40" max="200" step="1" value="80">
-                                <span class="val" id="flowScaleVal">80</span>
+                                <input id="siftScale" type="range" min="40" max="200" step="1" value="80">
+                                <span class="val" id="siftScaleVal">80</span>
                             </div>
                             <div class="ctrl">
                                 <label>SPEED</label>
-                                <input id="flowSpeed" type="range" min="0" max="6" step="0.01" value="1">
-                                <span class="val" id="flowSpeedVal">1.00</span>
+                                <input id="siftSpeed" type="range" min="0" max="6" step="0.01" value="1">
+                                <span class="val" id="siftSpeedVal">1.00</span>
                             </div>
                             <div class="ctrl">
                                 <label>PULSE</label>
-                                <input id="flowPulse" type="range" min="0" max="200" step="1" value="0">
-                                <span class="val" id="flowPulseVal">0</span>
+                                <input id="siftPulse" type="range" min="0" max="200" step="1" value="0">
+                                <span class="val" id="siftPulseVal">0</span>
                             </div>
                             <div class="ctrl">
                                 <label>PULL</label>
-                                <input id="flowImpl" type="range" min="-1" max="1" step="0.01" value="0">
-                                <span class="val" id="flowImplVal">0.00</span>
+                                <input id="siftImpl" type="range" min="-1" max="1" step="0.01" value="0">
+                                <span class="val" id="siftImplVal">0.00</span>
                             </div>
                             <div class="ctrl">
                                 <label>SWIRL</label>
-                                <input id="flowSwirl" type="range" min="-2" max="2" step="0.01" value="0">
-                                <span class="val" id="flowSwirlVal">0.00</span>
+                                <input id="siftSwirl" type="range" min="-2" max="2" step="0.01" value="0">
+                                <span class="val" id="siftSwirlVal">0.00</span>
                             </div>
                             <div class="ctrl">
                                 <label>TURB</label>
-                                <input id="flowTurb" type="range" min="0" max="1" step="0.01" value="0">
-                                <span class="val" id="flowTurbVal">0.00</span>
+                                <input id="siftTurb" type="range" min="0" max="1" step="0.01" value="0">
+                                <span class="val" id="siftTurbVal">0.00</span>
                             </div>
                             <div class="ctrl">
                                 <label>SPREAD</label>
-                                <input id="flowSpread" type="range" min="0.25" max="4" step="0.01" value="1">
-                                <span class="val" id="flowSpreadVal">1.00</span>
+                                <input id="siftSpread" type="range" min="0.25" max="4" step="0.01" value="1">
+                                <span class="val" id="siftSpreadVal">1.00</span>
                             </div>
                         </div>
                     </div>
@@ -1451,10 +1454,10 @@
                 });
             });
 
-            /* ── Scanline angle snap buttons ──────────────────────── */
-            [['scanAngleReset', '0'], ['scanAngle90n', '-90'], ['scanAngle90p', '90']].forEach(([id, val]) => {
+            /* ── paneling angle snap buttons ──────────────────────── */
+            [['panelAngleReset', '0'], ['panelAngle90n', '-90'], ['panelAngle90p', '90']].forEach(([id, val]) => {
                 document.getElementById(id)?.addEventListener('click', () => {
-                    const el = document.getElementById('scanAngle');
+                    const el = document.getElementById('panelAngle');
                     if (!el) return;
                     el.value = val;
                     el.dispatchEvent(new Event('input', { bubbles: true }));

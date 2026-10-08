@@ -18,13 +18,13 @@
   const TEMPORAL_UNDERLAY_RECIPE_ID = 'temporal-underlay';
   const SYMMETRY_MEMORY_RECIPE_ID = 'symmetry-memory';
   const COLOR_MEMORY_RECIPE_ID = 'color-memory';
-  const FLOW_FINISH_RECIPE_ID = 'flow-finish';
+  const SIFT_FINISH_RECIPE_ID = 'sift-finish';
   const FEEDBACK_FINISH_RECIPE_ID = 'feedback-finish';
 
   const DIAGRAM_STAGE_LABELS = Object.freeze({
     'image-feed': 'FEED',
     'feedback': 'FEEDBACK',
-    'flow': 'FLOW',
+    'sift': 'SIFT',
     'symmetry': 'SYMMETRY',
     'solarize': 'SOLARIZE',
   });
@@ -37,7 +37,7 @@
     'persistent-transform',
     'global-mix-after',
     'primary-transform',
-    'global-mix-afterflow',
+    'global-mix-aftersift',
     'secondary-transform',
     'color-finish',
     'global-mix-final',
@@ -51,7 +51,7 @@
     'persistent-transform',
     'global-mix-after',
     'primary-transform',
-    'global-mix-afterflow',
+    'global-mix-aftersift',
     'secondary-transform',
     'color-finish',
     'final-overlays',
@@ -66,11 +66,11 @@
     'global-mix': freezeArray([
       'global-mix-before',
       'global-mix-after',
-      'global-mix-afterflow',
+      'global-mix-aftersift',
       'global-mix-final',
     ]),
     'feedback': freezeArray(['persistent-transform', 'feedback-stage']),
-    'flow': freezeArray(['primary-transform', 'flow-stage']),
+    'sift': freezeArray(['primary-transform', 'sift-stage']),
     'symmetry': freezeArray(['secondary-transform', 'symmetry-stage']),
     'solarize': freezeArray(['color-finish', 'solarize-stage']),
     'presentation': freezeArray(['presentation']),
@@ -82,7 +82,7 @@
     'front-stage-priority': freezeObject({ scratch: false, swap: false }),
     'global-mix': freezeObject({ scratch: false, swap: false }),
     'feedback': freezeObject({ scratch: true, swap: false }),
-    'flow': freezeObject({ scratch: true, swap: true }),
+    'sift': freezeObject({ scratch: true, swap: true }),
     'symmetry': freezeObject({ scratch: true, swap: true }),
     'solarize': freezeObject({ scratch: false, swap: false }),
     'presentation': freezeObject({ scratch: false, swap: false }),
@@ -90,16 +90,16 @@
 
   const FRONT_STAGE_GROUPS = Object.freeze({
     'glitch-luma-group': freezeArray(['glitch', 'pipeline-luma-key']),
-    'scanline-group': freezeArray(['scanlines']),
+    'paneling-group': freezeArray(['paneling']),
   });
 
   // Array order is paint order. The last group is visually on top.
   const FRONT_STAGE_SCAN_TOP_ORDER = freezeArray([
     'glitch-luma-group',
-    'scanline-group',
+    'paneling-group',
   ]);
   const FRONT_STAGE_GLITCH_TOP_ORDER = freezeArray([
-    'scanline-group',
+    'paneling-group',
     'glitch-luma-group',
   ]);
 
@@ -107,14 +107,14 @@
   // The former NEUTRAL/ALTERNATE and PULSE modes were render-time order
   // oscillators rather than meaningful layer hierarchy, and are removed.
   const FRONT_STAGE_PRIORITY_MODES = Object.freeze({
-    scan: FRONT_STAGE_SCAN_TOP_ORDER,
+    panel: FRONT_STAGE_SCAN_TOP_ORDER,
     glitch: FRONT_STAGE_GLITCH_TOP_ORDER,
   });
 
   const FRONT_STAGE_PRIORITY_CONTRACT = Object.freeze({
     stateKey: 'layerPriority',
-    defaultMode: 'scan',
-    fallbackMode: 'scan',
+    defaultMode: 'panel',
+    fallbackMode: 'panel',
     groups: FRONT_STAGE_GROUPS,
     modes: FRONT_STAGE_PRIORITY_MODES,
   });
@@ -125,7 +125,7 @@
       return Object.freeze({ valid: false, errors: freezeArray(['front-stage contract must be an object']) });
     }
 
-    const expectedGroupIds = ['glitch-luma-group', 'scanline-group'];
+    const expectedGroupIds = ['glitch-luma-group', 'paneling-group'];
     const actualGroupIds = Object.keys(contract.groups ?? {});
     if (JSON.stringify(actualGroupIds) !== JSON.stringify(expectedGroupIds)) {
       errors.push('front-stage group IDs differ from the CLASSIC contract');
@@ -133,20 +133,20 @@
     if (JSON.stringify(contract.groups?.['glitch-luma-group']) !== JSON.stringify(['glitch', 'pipeline-luma-key'])) {
       errors.push('Glitch/Luma group differs from the CLASSIC contract');
     }
-    if (JSON.stringify(contract.groups?.['scanline-group']) !== JSON.stringify(['scanlines'])) {
-      errors.push('Scanline group differs from the CLASSIC contract');
+    if (JSON.stringify(contract.groups?.['paneling-group']) !== JSON.stringify(['paneling'])) {
+      errors.push('paneling group differs from the CLASSIC contract');
     }
-    if (JSON.stringify(contract.modes?.scan) !== JSON.stringify(FRONT_STAGE_SCAN_TOP_ORDER)) {
-      errors.push('SCAN TOP order differs from the CLASSIC contract');
+    if (JSON.stringify(contract.modes?.panel) !== JSON.stringify(FRONT_STAGE_SCAN_TOP_ORDER)) {
+      errors.push('PANELING TOP order differs from the CLASSIC contract');
     }
     if (JSON.stringify(contract.modes?.glitch) !== JSON.stringify(FRONT_STAGE_GLITCH_TOP_ORDER)) {
       errors.push('GLITCH TOP order differs from the CLASSIC contract');
     }
-    if (Object.keys(contract.modes ?? {}).some(mode => mode !== 'scan' && mode !== 'glitch')) {
+    if (Object.keys(contract.modes ?? {}).some(mode => mode !== 'panel' && mode !== 'glitch')) {
       errors.push('front-stage priority contains a non-stable mode');
     }
-    if (contract.defaultMode !== 'scan' || contract.fallbackMode !== 'scan') {
-      errors.push('front-stage default/fallback must remain SCAN TOP');
+    if (contract.defaultMode !== 'panel' || contract.fallbackMode !== 'panel') {
+      errors.push('front-stage default/fallback must remain PANELING TOP');
     }
 
     return Object.freeze({
@@ -157,7 +157,7 @@
 
   function resolveFrontStageOrder(mode) {
     if (mode === 'glitch') return FRONT_STAGE_GLITCH_TOP_ORDER;
-    // SCAN TOP is the default and deterministic fallback for unsupported
+    // PANELING TOP is the default and deterministic fallback for unsupported
     // ALTERNATE/PULSE values.
     return FRONT_STAGE_SCAN_TOP_ORDER;
   }
@@ -172,17 +172,17 @@
     }
 
     const glitchLumaHandler = groupHandlers['glitch-luma-group'];
-    const scanlineHandler = groupHandlers['scanline-group'];
+    const panelingHandler = groupHandlers['paneling-group'];
     if (typeof glitchLumaHandler !== 'function') {
       throw new Error('[HUFF pipeline] missing front-stage handler for glitch-luma-group');
     }
-    if (typeof scanlineHandler !== 'function') {
-      throw new Error('[HUFF pipeline] missing front-stage handler for scanline-group');
+    if (typeof panelingHandler !== 'function') {
+      throw new Error('[HUFF pipeline] missing front-stage handler for paneling-group');
     }
 
     const compiledHandlers = Object.freeze({
       'glitch-luma-group': glitchLumaHandler,
-      'scanline-group': scanlineHandler,
+      'paneling-group': panelingHandler,
     });
 
     return Object.freeze({
@@ -203,14 +203,14 @@
     freezeObject({
       zone: 'front-overlays',
       stage: 'front-stage-priority',
-      members: freezeArray(['glitch', 'pipeline-luma-key', 'scanlines']),
+      members: freezeArray(['glitch', 'pipeline-luma-key', 'paneling']),
       priorityContract: FRONT_STAGE_PRIORITY_CONTRACT,
     }),
     freezeObject({ zone: 'global-mix-before', stage: 'global-mix', conditionalPosition: 'before' }),
     freezeObject({ zone: 'persistent-transform', stage: 'feedback' }),
     freezeObject({ zone: 'global-mix-after', stage: 'global-mix', conditionalPosition: 'after' }),
-    freezeObject({ zone: 'primary-transform', stage: 'flow' }),
-    freezeObject({ zone: 'global-mix-afterflow', stage: 'global-mix', conditionalPosition: 'afterflow' }),
+    freezeObject({ zone: 'primary-transform', stage: 'sift' }),
+    freezeObject({ zone: 'global-mix-aftersift', stage: 'global-mix', conditionalPosition: 'aftersift' }),
     freezeObject({ zone: 'secondary-transform', stage: 'symmetry' }),
     freezeObject({ zone: 'color-finish', stage: 'solarize' }),
     freezeObject({ zone: 'global-mix-final', stage: 'global-mix', conditionalPosition: 'final' }),
@@ -223,14 +223,14 @@
     freezeObject({ zone: 'global-mix-before', stage: 'global-mix', conditionalPosition: 'before' }),
     freezeObject({ zone: 'persistent-transform', stage: 'feedback' }),
     freezeObject({ zone: 'global-mix-after', stage: 'global-mix', conditionalPosition: 'after' }),
-    freezeObject({ zone: 'primary-transform', stage: 'flow' }),
-    freezeObject({ zone: 'global-mix-afterflow', stage: 'global-mix', conditionalPosition: 'afterflow' }),
+    freezeObject({ zone: 'primary-transform', stage: 'sift' }),
+    freezeObject({ zone: 'global-mix-aftersift', stage: 'global-mix', conditionalPosition: 'aftersift' }),
     freezeObject({ zone: 'secondary-transform', stage: 'symmetry' }),
     freezeObject({ zone: 'color-finish', stage: 'solarize' }),
     freezeObject({
       zone: 'final-overlays',
       stage: 'front-stage-priority',
-      members: freezeArray(['glitch', 'pipeline-luma-key', 'scanlines']),
+      members: freezeArray(['glitch', 'pipeline-luma-key', 'paneling']),
       priorityContract: FRONT_STAGE_PRIORITY_CONTRACT,
     }),
     freezeObject({ zone: 'global-mix-final', stage: 'global-mix', conditionalPosition: 'final' }),
@@ -240,7 +240,7 @@
   const frontStageStep = zone => freezeObject({
     zone,
     stage: 'front-stage-priority',
-    members: freezeArray(['glitch', 'pipeline-luma-key', 'scanlines']),
+    members: freezeArray(['glitch', 'pipeline-luma-key', 'paneling']),
     priorityContract: FRONT_STAGE_PRIORITY_CONTRACT,
   });
 
@@ -250,8 +250,8 @@
     freezeObject({ zone: 'global-mix-before', stage: 'global-mix', conditionalPosition: 'before' }),
     freezeObject({ zone: 'feedback-stage', stage: 'feedback' }),
     freezeObject({ zone: 'global-mix-after', stage: 'global-mix', conditionalPosition: 'after' }),
-    freezeObject({ zone: 'flow-stage', stage: 'flow' }),
-    freezeObject({ zone: 'global-mix-afterflow', stage: 'global-mix', conditionalPosition: 'afterflow' }),
+    freezeObject({ zone: 'sift-stage', stage: 'sift' }),
+    freezeObject({ zone: 'global-mix-aftersift', stage: 'global-mix', conditionalPosition: 'aftersift' }),
     frontStageStep('image-feed'),
     freezeObject({ zone: 'symmetry-stage', stage: 'symmetry' }),
     freezeObject({ zone: 'solarize-stage', stage: 'solarize' }),
@@ -267,8 +267,8 @@
     freezeObject({ zone: 'global-mix-before', stage: 'global-mix', conditionalPosition: 'before' }),
     freezeObject({ zone: 'feedback-stage', stage: 'feedback' }),
     freezeObject({ zone: 'global-mix-after', stage: 'global-mix', conditionalPosition: 'after' }),
-    freezeObject({ zone: 'flow-stage', stage: 'flow' }),
-    freezeObject({ zone: 'global-mix-afterflow', stage: 'global-mix', conditionalPosition: 'afterflow' }),
+    freezeObject({ zone: 'sift-stage', stage: 'sift' }),
+    freezeObject({ zone: 'global-mix-aftersift', stage: 'global-mix', conditionalPosition: 'aftersift' }),
     freezeObject({ zone: 'solarize-stage', stage: 'solarize' }),
     freezeObject({ zone: 'global-mix-final', stage: 'global-mix', conditionalPosition: 'final' }),
     freezeObject({ zone: 'presentation', stage: 'presentation' }),
@@ -282,14 +282,14 @@
     freezeObject({ zone: 'global-mix-before', stage: 'global-mix', conditionalPosition: 'before' }),
     freezeObject({ zone: 'feedback-stage', stage: 'feedback' }),
     freezeObject({ zone: 'global-mix-after', stage: 'global-mix', conditionalPosition: 'after' }),
-    freezeObject({ zone: 'flow-stage', stage: 'flow' }),
-    freezeObject({ zone: 'global-mix-afterflow', stage: 'global-mix', conditionalPosition: 'afterflow' }),
+    freezeObject({ zone: 'sift-stage', stage: 'sift' }),
+    freezeObject({ zone: 'global-mix-aftersift', stage: 'global-mix', conditionalPosition: 'aftersift' }),
     freezeObject({ zone: 'symmetry-stage', stage: 'symmetry' }),
     freezeObject({ zone: 'global-mix-final', stage: 'global-mix', conditionalPosition: 'final' }),
     freezeObject({ zone: 'presentation', stage: 'presentation' }),
   ]);
 
-  const FLOW_FINISH_SERIAL_RECIPE = freezeArray([
+  const SIFT_FINISH_SERIAL_RECIPE = freezeArray([
     freezeObject({ zone: 'source-sync', stage: 'source-sync' }),
     freezeObject({ zone: 'persistent-decay', stage: 'persistent-decay' }),
     frontStageStep('image-feed'),
@@ -298,8 +298,8 @@
     freezeObject({ zone: 'global-mix-after', stage: 'global-mix', conditionalPosition: 'after' }),
     freezeObject({ zone: 'symmetry-stage', stage: 'symmetry' }),
     freezeObject({ zone: 'solarize-stage', stage: 'solarize' }),
-    freezeObject({ zone: 'flow-stage', stage: 'flow' }),
-    freezeObject({ zone: 'global-mix-afterflow', stage: 'global-mix', conditionalPosition: 'afterflow' }),
+    freezeObject({ zone: 'sift-stage', stage: 'sift' }),
+    freezeObject({ zone: 'global-mix-aftersift', stage: 'global-mix', conditionalPosition: 'aftersift' }),
     freezeObject({ zone: 'global-mix-final', stage: 'global-mix', conditionalPosition: 'final' }),
     freezeObject({ zone: 'presentation', stage: 'presentation' }),
   ]);
@@ -308,8 +308,8 @@
     freezeObject({ zone: 'source-sync', stage: 'source-sync' }),
     freezeObject({ zone: 'persistent-decay', stage: 'persistent-decay' }),
     frontStageStep('image-feed'),
-    freezeObject({ zone: 'flow-stage', stage: 'flow' }),
-    freezeObject({ zone: 'global-mix-afterflow', stage: 'global-mix', conditionalPosition: 'afterflow' }),
+    freezeObject({ zone: 'sift-stage', stage: 'sift' }),
+    freezeObject({ zone: 'global-mix-aftersift', stage: 'global-mix', conditionalPosition: 'aftersift' }),
     freezeObject({ zone: 'symmetry-stage', stage: 'symmetry' }),
     freezeObject({ zone: 'solarize-stage', stage: 'solarize' }),
     freezeObject({ zone: 'global-mix-before', stage: 'global-mix', conditionalPosition: 'before' }),
@@ -326,7 +326,7 @@
       id: CLASSIC_RECIPE_ID,
       label: 'CLASSIC',
       description: 'Baseline HUFF Classic stage order.',
-      diagram: freezeArray(['image-feed', 'feedback', 'flow', 'symmetry', 'solarize']),
+      diagram: freezeArray(['image-feed', 'feedback', 'sift', 'symmetry', 'solarize']),
       zoneOrder: ZONE_ORDER,
       steps: CLASSIC_SERIAL_RECIPE,
       fullResolutionBufferCount: 3,
@@ -338,7 +338,7 @@
       id: CRISP_FINISH_RECIPE_ID,
       label: 'CRISP FINISH',
       description: 'Processes the persistent image first, then draws the image-feed group last.',
-      diagram: freezeArray(['feedback', 'flow', 'symmetry', 'solarize', 'image-feed']),
+      diagram: freezeArray(['feedback', 'sift', 'symmetry', 'solarize', 'image-feed']),
       zoneOrder: CRISP_FINISH_ZONE_ORDER,
       steps: CRISP_FINISH_SERIAL_RECIPE,
       fullResolutionBufferCount: 3,
@@ -349,8 +349,8 @@
     [TEMPORAL_UNDERLAY_RECIPE_ID]: Object.freeze({
       id: TEMPORAL_UNDERLAY_RECIPE_ID,
       label: 'TEMPORAL UNDERLAY',
-      description: 'Runs Feedback and Flow before the image feed, then finishes with Symmetry and Solarize.',
-      diagram: freezeArray(['feedback', 'flow', 'image-feed', 'symmetry', 'solarize']),
+      description: 'Runs Feedback and Sift before the image feed, then finishes with Symmetry and Solarize.',
+      diagram: freezeArray(['feedback', 'sift', 'image-feed', 'symmetry', 'solarize']),
       zoneOrder: zoneOrderFor(TEMPORAL_UNDERLAY_SERIAL_RECIPE),
       steps: TEMPORAL_UNDERLAY_SERIAL_RECIPE,
       fullResolutionBufferCount: 3,
@@ -361,8 +361,8 @@
     [SYMMETRY_MEMORY_RECIPE_ID]: Object.freeze({
       id: SYMMETRY_MEMORY_RECIPE_ID,
       label: 'SYMMETRY MEMORY',
-      description: 'Creates symmetry before Feedback and Flow so recursive memory receives the transformed image.',
-      diagram: freezeArray(['image-feed', 'symmetry', 'feedback', 'flow', 'solarize']),
+      description: 'Creates symmetry before Feedback and Sift so recursive memory receives the transformed image.',
+      diagram: freezeArray(['image-feed', 'symmetry', 'feedback', 'sift', 'solarize']),
       zoneOrder: zoneOrderFor(SYMMETRY_MEMORY_SERIAL_RECIPE),
       steps: SYMMETRY_MEMORY_SERIAL_RECIPE,
       fullResolutionBufferCount: 3,
@@ -373,8 +373,8 @@
     [COLOR_MEMORY_RECIPE_ID]: Object.freeze({
       id: COLOR_MEMORY_RECIPE_ID,
       label: 'COLOR MEMORY',
-      description: 'Solarizes the image feed before Feedback and Flow so color treatment enters persistent memory.',
-      diagram: freezeArray(['image-feed', 'solarize', 'feedback', 'flow', 'symmetry']),
+      description: 'Solarizes the image feed before Feedback and Sift so color treatment enters persistent memory.',
+      diagram: freezeArray(['image-feed', 'solarize', 'feedback', 'sift', 'symmetry']),
       zoneOrder: zoneOrderFor(COLOR_MEMORY_SERIAL_RECIPE),
       steps: COLOR_MEMORY_SERIAL_RECIPE,
       fullResolutionBufferCount: 3,
@@ -382,13 +382,13 @@
       declaredCycles: freezeArray([]),
       compatibilityDefault: false,
     }),
-    [FLOW_FINISH_RECIPE_ID]: Object.freeze({
-      id: FLOW_FINISH_RECIPE_ID,
-      label: 'FLOW FINISH',
-      description: 'Runs Flow after Symmetry and Solarize so Flow becomes the final transform.',
-      diagram: freezeArray(['image-feed', 'feedback', 'symmetry', 'solarize', 'flow']),
-      zoneOrder: zoneOrderFor(FLOW_FINISH_SERIAL_RECIPE),
-      steps: FLOW_FINISH_SERIAL_RECIPE,
+    [SIFT_FINISH_RECIPE_ID]: Object.freeze({
+      id: SIFT_FINISH_RECIPE_ID,
+      label: 'SIFT FINISH',
+      description: 'Runs Sift after Symmetry and Solarize so Sift becomes the final transform.',
+      diagram: freezeArray(['image-feed', 'feedback', 'symmetry', 'solarize', 'sift']),
+      zoneOrder: zoneOrderFor(SIFT_FINISH_SERIAL_RECIPE),
+      steps: SIFT_FINISH_SERIAL_RECIPE,
       fullResolutionBufferCount: 3,
       scratchResources: freezeArray(['gScratch']),
       declaredCycles: freezeArray([]),
@@ -397,8 +397,8 @@
     [FEEDBACK_FINISH_RECIPE_ID]: Object.freeze({
       id: FEEDBACK_FINISH_RECIPE_ID,
       label: 'FEEDBACK FINISH',
-      description: 'Runs Feedback after Flow, Symmetry, and Solarize so the finished image becomes recursive material.',
-      diagram: freezeArray(['image-feed', 'flow', 'symmetry', 'solarize', 'feedback']),
+      description: 'Runs Feedback after Sift, Symmetry, and Solarize so the finished image becomes recursive material.',
+      diagram: freezeArray(['image-feed', 'sift', 'symmetry', 'solarize', 'feedback']),
       zoneOrder: zoneOrderFor(FEEDBACK_FINISH_SERIAL_RECIPE),
       steps: FEEDBACK_FINISH_SERIAL_RECIPE,
       fullResolutionBufferCount: 3,
@@ -415,7 +415,7 @@
     'front-stage-priority': 1,
     'global-mix': 4,
     'feedback': 1,
-    'flow': 1,
+    'sift': 1,
     'symmetry': 1,
     'solarize': 1,
     'presentation': 1,
@@ -466,7 +466,7 @@
         globalMixPositions.push(step.conditionalPosition);
       }
       if (step.stage === 'front-stage-priority') {
-        const expectedMembers = ['glitch', 'pipeline-luma-key', 'scanlines'];
+        const expectedMembers = ['glitch', 'pipeline-luma-key', 'paneling'];
         if (JSON.stringify(step.members) !== JSON.stringify(expectedMembers)) {
           errors.push('front-stage members differ from the CLASSIC contract');
         }
@@ -481,7 +481,7 @@
         errors.push(`${stage}: expected ${expectedCount} occurrence(s), got ${actualCount}`);
       }
     }
-    const expectedGlobalMixPositions = ['before', 'after', 'afterflow', 'final'];
+    const expectedGlobalMixPositions = ['before', 'after', 'aftersift', 'final'];
     for (const position of expectedGlobalMixPositions) {
       if (globalMixPositions.filter(value => value === position).length !== 1) {
         errors.push(`Global Mix position ${position} must occur exactly once`);
@@ -515,7 +515,7 @@
       errors.push(`${definition.id || 'recipe'} may not declare a pipeline cycle`);
     }
 
-    const expectedDiagramStages = ['image-feed', 'feedback', 'flow', 'symmetry', 'solarize'];
+    const expectedDiagramStages = ['image-feed', 'feedback', 'sift', 'symmetry', 'solarize'];
     if (!Array.isArray(definition.diagram) || definition.diagram.length !== expectedDiagramStages.length) {
       errors.push(`${definition.id || 'recipe'} must declare a five-stage operator diagram`);
     } else {
@@ -689,7 +689,7 @@
     TEMPORAL_UNDERLAY_RECIPE_ID,
     SYMMETRY_MEMORY_RECIPE_ID,
     COLOR_MEMORY_RECIPE_ID,
-    FLOW_FINISH_RECIPE_ID,
+    SIFT_FINISH_RECIPE_ID,
     FEEDBACK_FINISH_RECIPE_ID,
     DIAGRAM_STAGE_LABELS,
     ZONE_ORDER,
@@ -702,7 +702,7 @@
     TEMPORAL_UNDERLAY_SERIAL_RECIPE,
     SYMMETRY_MEMORY_SERIAL_RECIPE,
     COLOR_MEMORY_SERIAL_RECIPE,
-    FLOW_FINISH_SERIAL_RECIPE,
+    SIFT_FINISH_SERIAL_RECIPE,
     FEEDBACK_FINISH_SERIAL_RECIPE,
     PIPELINE_RECIPES,
     frontStageValidation,

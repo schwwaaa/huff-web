@@ -84,7 +84,7 @@ body {
 }
 
 
-/* Phosphor scanline texture over everything */
+/* Phosphor paneling texture over everything */
 
 body::after {
     content: '';
@@ -357,7 +357,7 @@ header::-webkit-scrollbar-track {
     align-items: center;
 }
 
-.corrupt-section {
+.vista-section {
     display: flex;
     flex-wrap: wrap;
     gap: 3px;
@@ -367,13 +367,13 @@ header::-webkit-scrollbar-track {
     border-top: 1px dotted var(--win-dark);
 }
 
-.corrupt-section:first-child {
+.vista-section:first-child {
     border-top: 0;
     margin-top: 0;
     padding-top: 0;
 }
 
-.corrupt-section-title {
+.vista-section-title {
     font-family: 'VT323', monospace;
     font-size: 10px;
     letter-spacing: .1em;
@@ -384,7 +384,7 @@ header::-webkit-scrollbar-track {
     user-select: none;
 }
 
-.corrupt-hidden {
+.vista-hidden {
     display: none !important;
 }
 
@@ -392,7 +392,7 @@ header::-webkit-scrollbar-track {
     display: none !important;
 }
 
-.corrupt-status {
+.vista-status {
     font-family: 'Share Tech Mono', monospace;
     font-size: 10px;
     color: var(--ui-text);
@@ -400,13 +400,13 @@ header::-webkit-scrollbar-track {
     white-space: nowrap;
 }
 
-.corrupt-status.ready {
+.vista-status.ready {
     color: var(--ui-text);
     font-weight: bold;
     text-shadow: none;
 }
 
-.corrupt-status.warn {
+.vista-status.warn {
     color: var(--term-yel);
 }
 
@@ -512,9 +512,22 @@ header::-webkit-scrollbar-track {
 }
 
 .pipeline-diagram-stage.active {
-    color: #000;
-    background: #fff;
+    color: #fff;
+    background: #8b1e2d;
+    border-color: #5f101c;
     font-weight: bold;
+}
+
+.pipeline-diagram-feed-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px 2px;
+    background: #bdb9b1;
+    border-top: 1px solid #808080;
+    border-left: 1px solid #808080;
+    border-right: 1px solid #fff;
+    border-bottom: 1px solid #fff;
 }
 
 .pipeline-diagram-arrow {
@@ -1454,7 +1467,7 @@ select {
     padding: 6px 8px 7px;
 }
 
-#feedbackGroup .corrupt-section {
+#feedbackGroup .vista-section {
     gap: 6px;
     row-gap: 7px;
     padding-top: 6px;
@@ -1462,7 +1475,7 @@ select {
     border-top: 1px solid var(--win-mid);
 }
 
-#feedbackGroup .corrupt-section:first-child {
+#feedbackGroup .vista-section:first-child {
     border-top: 0;
     margin-top: 0;
     padding-top: 0;
@@ -1525,16 +1538,16 @@ select {
 }
 
 
-/* ===== huff-corrupt-cleanup-v1 ===== */
+/* ===== huff-vista-cleanup-v1 ===== */
 
 
-/* CORRUPT cleanup only: same boxed language as prior cleaned sections. */
+/* VISTA cleanup only: same boxed language as prior cleaned sections. */
 
-#corruptGroup .group-body {
+#vistaGroup .group-body {
     padding: 6px 8px 7px;
 }
 
-#corruptGroup .corrupt-section {
+#vistaGroup .vista-section {
     gap: 6px;
     row-gap: 7px;
     padding-top: 7px;
@@ -1542,13 +1555,13 @@ select {
     border-top: 1px solid var(--win-mid);
 }
 
-#corruptGroup .corrupt-section:first-child {
+#vistaGroup .vista-section:first-child {
     border-top: 0;
     margin-top: 0;
     padding-top: 0;
 }
 
-#corruptGroup .corrupt-section-title {
+#vistaGroup .vista-section-title {
     min-width: 76px;
     box-sizing: border-box;
     padding: 2px 6px;
@@ -1561,14 +1574,14 @@ select {
     white-space: nowrap;
 }
 
-#corruptGroup .ctrl {
+#vistaGroup .ctrl {
     min-height: 30px;
     box-sizing: border-box;
     gap: 6px;
     padding: 3px 7px;
 }
 
-#corruptGroup .ctrl>label {
+#vistaGroup .ctrl>label {
     font-family: 'VT323', 'Courier New', monospace !important;
     font-size: 12px !important;
     line-height: 1 !important;
@@ -1578,17 +1591,17 @@ select {
     text-transform: uppercase;
 }
 
-#corruptGroup input[type="checkbox"] {
+#vistaGroup input[type="checkbox"] {
     width: 16px;
     height: 16px;
 }
 
-#corruptGroup input[type="range"] {
+#vistaGroup input[type="range"] {
     width: 150px !important;
     flex: 0 0 150px !important;
 }
 
-#corruptGroup select {
+#vistaGroup select {
     height: 26px !important;
     min-height: 26px !important;
     box-sizing: border-box !important;
@@ -1598,7 +1611,7 @@ select {
     padding: 1px 24px 1px 6px !important;
 }
 
-#corruptGroup button {
+#vistaGroup button {
     height: 30px !important;
     min-height: 30px !important;
     box-sizing: border-box !important;
@@ -1609,21 +1622,21 @@ select {
     line-height: 20px !important;
 }
 
-#corruptGroup .val {
+#vistaGroup .val {
     min-width: 42px;
 }
 
-#corruptGroup #corruptUpdateMode {
+#vistaGroup #vistaUpdateMode {
     min-width: 122px;
 }
 
-#corruptGroup #corruptMaskMode,
-#corruptGroup #corruptMaskSide,
-#corruptGroup #cluBounds {
+#vistaGroup #vistaMaskMode,
+#vistaGroup #vistaMaskSide,
+#vistaGroup #cluBounds {
     min-width: 92px;
 }
 
-#corruptGroup .corrupt-hidden {
+#vistaGroup .vista-hidden {
     display: none !important;
 }
 
@@ -1748,17 +1761,17 @@ select {
 }
 
 
-/* ===== huff-scanline-scale-v1 ===== */
+/* ===== huff-paneling-scale-v1 ===== */
 
 
 /*
          * HUFF compact scale V1
          *
-         * Use the existing Scanlines section as the size/spacing reference.
+         * Use the existing paneling section as the size/spacing reference.
          * This only reduces the cleaned sections that had been enlarged:
-         * Source, Presets, Symmetry, Global Mix, Feedback, Corrupt, Luma Key.
+         * Source, Presets, Symmetry, Global Mix, Feedback, Vista, Luma Key.
          *
-         * Pipeline, Scanlines, Solarize and Flow already use the compact
+         * Pipeline, paneling, Solarize and Sift already use the compact
          * baseline and are intentionally not resized here.
          */
 
@@ -1770,7 +1783,7 @@ select {
 #symmetryGroup .group-body,
 #globalMixGroup .group-body,
 #feedbackGroup .group-body,
-#corruptGroup .group-body,
+#vistaGroup .group-body,
 #lumaKeyGroup .group-body {
     padding: 3px 5px 4px !important;
 }
@@ -1789,7 +1802,7 @@ select {
 #symmetryGroup .ctrl,
 #globalMixGroup .ctrl,
 #feedbackGroup .ctrl,
-#corruptGroup .ctrl,
+#vistaGroup .ctrl,
 #lumaKeyGroup .ctrl {
     min-height: 0 !important;
     gap: 4px !important;
@@ -1801,7 +1814,7 @@ select {
 #symmetryGroup .ctrl>label,
 #globalMixGroup .ctrl>label,
 #feedbackGroup .ctrl>label,
-#corruptGroup .ctrl>label,
+#vistaGroup .ctrl>label,
 #lumaKeyGroup .ctrl>label {
     font-size: 11px !important;
     line-height: 1 !important;
@@ -1812,21 +1825,21 @@ select {
 #symmetryGroup input[type="checkbox"],
 #globalMixGroup input[type="checkbox"],
 #feedbackGroup input[type="checkbox"],
-#corruptGroup input[type="checkbox"],
+#vistaGroup input[type="checkbox"],
 #lumaKeyGroup input[type="checkbox"] {
     width: 12px !important;
     height: 12px !important;
 }
 
 
-/* Match the existing Scanlines slider throw. */
+/* Match the existing paneling slider throw. */
 
 #sourceGroup #baseMix,
 #sourceGroup #volumeSlider,
 #symmetryGroup input[type="range"]:not(#symPos),
 #globalMixGroup #globalMixAmt,
 #feedbackGroup input[type="range"],
-#corruptGroup input[type="range"],
+#vistaGroup input[type="range"],
 #lumaKeyGroup input[type="range"],
 #lumaKeyGroup .luma-key-ab-box input[type="range"],
 #lumaKeyGroup .luma-key-shape-box input[type="range"] {
@@ -1846,14 +1859,14 @@ select {
 }
 
 
-/* Compact menu height/padding to the existing Scanlines scale. */
+/* Compact menu height/padding to the existing paneling scale. */
 
 #sourceGroup select,
 #presetsGroup select,
 #symmetryGroup select,
 #globalMixGroup select,
 #feedbackGroup select,
-#corruptGroup select,
+#vistaGroup select,
 #lumaKeyGroup select {
     height: 20px !important;
     min-height: 20px !important;
@@ -1868,7 +1881,7 @@ select {
 #sourceGroup button,
 #presetsGroup button,
 #feedbackGroup button,
-#corruptGroup button,
+#vistaGroup button,
 #lumaKeyGroup button {
     height: 23px !important;
     min-height: 23px !important;
@@ -1972,23 +1985,23 @@ select {
 }
 
 
-/* ── Feedback / Corrupt compact subsections ───────────── */
+/* ── Feedback / Vista compact subsections ───────────── */
 
-#feedbackGroup .corrupt-section,
-#corruptGroup .corrupt-section {
+#feedbackGroup .vista-section,
+#vistaGroup .vista-section {
     gap: 3px !important;
     row-gap: 3px !important;
     padding-top: 3px !important;
     margin-top: 3px !important;
 }
 
-#feedbackGroup .corrupt-section:first-child,
-#corruptGroup .corrupt-section:first-child {
+#feedbackGroup .vista-section:first-child,
+#vistaGroup .vista-section:first-child {
     margin-top: 0 !important;
     padding-top: 0 !important;
 }
 
-#corruptGroup .corrupt-section-title {
+#vistaGroup .vista-section-title {
     min-width: 58px !important;
     padding: 1px 3px !important;
     font-size: 10px !important;
@@ -1997,7 +2010,7 @@ select {
 }
 
 #feedbackGroup .val,
-#corruptGroup .val,
+#vistaGroup .val,
 #lumaKeyGroup .val {
     min-width: 24px !important;
 }
@@ -2028,7 +2041,7 @@ select {
 /*
          * Exact scope on the user's index(7).html:
          * 1) Base Mix + Volume get a larger throw related to the transport slider.
-         * 2) Feedback CLEAR + RESET MOTION use the compact Scanlines action-button scale.
+         * 2) Feedback CLEAR + RESET MOTION use the compact paneling action-button scale.
          */
 
 
@@ -2049,7 +2062,7 @@ select {
 
 
 /*
-         * Match the compact Scanlines reset-button treatment while keeping both
+         * Match the compact paneling reset-button treatment while keeping both
          * Feedback actions on one exact height so they align in the Core row.
          */
 
@@ -2073,7 +2086,7 @@ select {
 /*
          * HUFF CONTROL GEOMETRY CONTRACT V1
          *
-         * Scanlines remains the compact visual reference.
+         * paneling remains the compact visual reference.
          *
          * MAIN UI CONTRACT:
          * - every boxed control chip is exactly 24px high
@@ -2243,7 +2256,7 @@ select {
 /*
          * Buttons INSIDE a boxed chip must fit inside the 24px chip.
          * This covers Source transport controls, Presets, Luma CAPTURE,
-         * Scanline angle buttons, etc.
+         * paneling angle buttons, etc.
          */
 
 #controlsForm .ctrl>button {
@@ -2262,7 +2275,7 @@ select {
          */
 
 #controlsForm .group-row>button,
-#controlsForm .corrupt-section>button {
+#controlsForm .vista-section>button {
     height: var(--huff-ctrl-h) !important;
     min-height: var(--huff-ctrl-h) !important;
     max-height: var(--huff-ctrl-h) !important;
@@ -2360,7 +2373,7 @@ select {
 }
 
 
-/* ===== huff-scan-angle-long-throw-v2 ===== */
+/* ===== huff-panel-angle-long-throw-v2 ===== */
 
 
 /*
@@ -2369,7 +2382,7 @@ select {
          * so it intentionally receives more physical travel than normal sliders.
          */
 
-#controlsForm #scanAngle {
+#controlsForm #panelAngle {
     width: 720px !important;
     min-width: 360px !important;
     max-width: calc(100vw - 360px) !important;

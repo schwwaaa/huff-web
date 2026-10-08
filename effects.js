@@ -3,7 +3,7 @@
 //
 // Performance model:
 //  - FrameRing exposes recent decoded frames through O(1) fromEnd() lookups.
-//  - Flow, Scanlines, and Corrupt keep reusable typed workspaces for geometry,
+//  - Sift, paneling, and Vista keep reusable typed workspaces for geometry,
 //    noise coordinates, clip bounds, motion state, and target placement.
 //  - Solarize uses bounded working canvases, lookup tables, and a WebGL1 colour
 //    accelerator when available, with deterministic CPU fallback.
@@ -737,7 +737,7 @@ function _tryClassicGpuChromaPosterize(srcCanvas, width, height, fusedGlobalMix,
     if (profile) _solProfileAdd('fusedGlobalMixFrames');
   }
   const levelPct = Math.max(0, Math.min(100, Number(level) || 0));
-  const steps = Math.max(2, Math.min(64, Math.round(64 - 62 * (levelPct / 100))));
+  const steps = Math.max(2, Math.min(256, Math.round(Math.pow(2, 8 - 7 * (levelPct / 100)))));
   return _runClassicGpuChromaPosterize(stage, width, height, {
     steps,
     soft: Math.max(0, Math.min(1, (Number(soft) || 0) / 100)),
@@ -1072,8 +1072,8 @@ function updateClusterPhysics(
 // Self-contained — initialises _ringCanvas itself rather than relying on
 // drawRingRegion having run first. Safe to call in any order.
 
-// ─── Scanlines ────────────────────────────────────────────────────────────────
-// ANGLE — rotates the entire scanline pattern. 0°=horizontal, 90°=vertical,
+// ─── paneling ────────────────────────────────────────────────────────────────
+// ANGLE — rotates the entire paneling pattern. 0°=horizontal, 90°=vertical,
 //         45°=diagonal right, -45°=diagonal left, any value = spin.
 //         Canvas context is rotated before drawing bands; all band math runs in
 //         the rotated frame so displacement is always perpendicular to band axis.
@@ -1081,7 +1081,7 @@ function updateClusterPhysics(
 // ROLL  — steady scroll simulating CRT rolling sync loss, independent of DRIFT
 // DRIFT — dual-frequency noise: slow sync wander + fast instability jitter
 
-class ScanlineBandWorkspace {
+class PanelingBandWorkspace {
   constructor() {
     this.slowSeed = new Float64Array(0);
     this.fastSeed = new Float64Array(0);
@@ -1213,13 +1213,13 @@ class ScanlineBandWorkspace {
     return this;
   }
 
-  _matches(scanBands, bandSize, scanGap, scanSkew, focus, roll, shiftScale, driftAmt, phX, phY) {
+  _matches(panelBands, bandSize, panelGap, panelSkew, focus, roll, shiftScale, driftAmt, phX, phY) {
     return this.cacheValid &&
       this.cacheMode === 'field' &&
-      this.cacheBands === scanBands &&
+      this.cacheBands === panelBands &&
       this.cacheBandSize === bandSize &&
-      this.cacheGap === scanGap &&
-      this.cacheSkew === scanSkew &&
+      this.cacheGap === panelGap &&
+      this.cacheSkew === panelSkew &&
       this.cacheFocus === focus &&
       this.cacheRoll === roll &&
       this.cacheShiftScale === shiftScale &&
@@ -1228,9 +1228,9 @@ class ScanlineBandWorkspace {
       this.cacheCross === this.cross;
   }
 
-  prepare(scanBands, bandSize, scanGap, scanSkew, focus, roll, shiftScale, driftAmt, phX, phY) {
-    this._ensureCapacity(scanBands);
-    if (this._matches(scanBands, bandSize, scanGap, scanSkew, focus, roll, shiftScale, driftAmt, phX, phY)) {
+  prepare(panelBands, bandSize, panelGap, panelSkew, focus, roll, shiftScale, driftAmt, phX, phY) {
+    this._ensureCapacity(panelBands);
+    if (this._matches(panelBands, bandSize, panelGap, panelSkew, focus, roll, shiftScale, driftAmt, phX, phY)) {
       this.bandsRebuilt = false;
       return this.count;
     }
@@ -1242,13 +1242,13 @@ class ScanlineBandWorkspace {
     const focusBias = focusDistance * 1.4;
     const slowScale = 1 - focusBias;
     const focusOffset = (focus * dim) * focusDistance * 1.4;
-    const gridStep = Math.max(1, bandSize + scanGap);
-    const snapToGrid = scanGap > 0;
+    const gridStep = Math.max(1, bandSize + panelGap);
+    const snapToGrid = panelGap > 0;
     const shiftRange = cross * shiftScale;
     // p5 map(noise, 0, 1, -shiftRange, shiftRange) performs parameter
     // validation on every band. Preserve the exact arithmetic locally.
     const shiftSpan = shiftRange - (-shiftRange);
-    const noShift = shiftScale === 0 && scanSkew === 0;
+    const noShift = shiftScale === 0 && panelSkew === 0;
     const noFastJitter = driftAmt === 0;
     // Resolve band-independent phase expressions once while preserving their
     // left-to-right arithmetic.
@@ -1266,11 +1266,11 @@ class ScanlineBandWorkspace {
     const crossLengths = this.crossLength;
     let count = 0;
 
-    // Select the neutral/dynamic variants once per Scanline render rather than
+    // Select the neutral/dynamic variants once per paneling render rather than
     // re-testing drift and shift state for every requested band.
     if (noFastJitter) {
       if (noShift) {
-        for (let n = 0; n < scanBands; n++) {
+        for (let n = 0; n < panelBands; n++) {
           const slowDrift = noise(slowSeed[n] + slowPhase) * dim;
           const biased = slowDrift * slowScale + focusOffset;
           const rawPos = ((biased + rollOffset) % dim + dim) % dim;
@@ -1290,7 +1290,7 @@ class ScanlineBandWorkspace {
           count++;
         }
       } else {
-        for (let n = 0; n < scanBands; n++) {
+        for (let n = 0; n < panelBands; n++) {
           const slowDrift = noise(slowSeed[n] + slowPhase) * dim;
           const biased = slowDrift * slowScale + focusOffset;
           const rawPos = ((biased + rollOffset) % dim + dim) % dim;
@@ -1302,7 +1302,7 @@ class ScanlineBandWorkspace {
           const bandLength = bandEnd - bandStart;
           if (bandLength <= 0) continue;
 
-          const skewOffset = Math.floor(scanSkew * bandStart);
+          const skewOffset = Math.floor(panelSkew * bandStart);
           const shiftNoise = noise(shiftSeed[n] + shiftPhase);
           const shift = Math.floor(shiftNoise * shiftSpan + (-shiftRange)) + skewOffset;
           const sourceOffset = Math.max(0, shift < 0 ? -shift : 0);
@@ -1319,7 +1319,7 @@ class ScanlineBandWorkspace {
         }
       }
     } else if (noShift) {
-      for (let n = 0; n < scanBands; n++) {
+      for (let n = 0; n < panelBands; n++) {
         const slowDrift = noise(slowSeed[n] + slowPhase) * dim;
         const fastJitter = (noise(fastSeed[n] + fastPhase) - 0.5) * dim * 0.12 * driftAmt;
         const biased = slowDrift * slowScale + focusOffset + fastJitter;
@@ -1340,7 +1340,7 @@ class ScanlineBandWorkspace {
         count++;
       }
     } else {
-      for (let n = 0; n < scanBands; n++) {
+      for (let n = 0; n < panelBands; n++) {
         const slowDrift = noise(slowSeed[n] + slowPhase) * dim;
         const fastJitter = (noise(fastSeed[n] + fastPhase) - 0.5) * dim * 0.12 * driftAmt;
         const biased = slowDrift * slowScale + focusOffset + fastJitter;
@@ -1353,7 +1353,7 @@ class ScanlineBandWorkspace {
         const bandLength = bandEnd - bandStart;
         if (bandLength <= 0) continue;
 
-        const skewOffset = Math.floor(scanSkew * bandStart);
+        const skewOffset = Math.floor(panelSkew * bandStart);
         const shiftNoise = noise(shiftSeed[n] + shiftPhase);
         const shift = Math.floor(shiftNoise * shiftSpan + (-shiftRange)) + skewOffset;
         const sourceOffset = Math.max(0, shift < 0 ? -shift : 0);
@@ -1374,10 +1374,10 @@ class ScanlineBandWorkspace {
     this.cacheValid = true;
     this.cacheMode = 'field';
     this.bandsRebuilt = true;
-    this.cacheBands = scanBands;
+    this.cacheBands = panelBands;
     this.cacheBandSize = bandSize;
-    this.cacheGap = scanGap;
-    this.cacheSkew = scanSkew;
+    this.cacheGap = panelGap;
+    this.cacheSkew = panelSkew;
     this.cacheFocus = focus;
     this.cacheRoll = roll;
     this.cacheShiftScale = shiftScale;
@@ -1389,14 +1389,14 @@ class ScanlineBandWorkspace {
     return count;
   }
 
-  _matchesBlinds(scanBands, bandSize, scanGap, scanSpread, scanSkew, focus, roll, travel, shiftScale, driftAmt, phX, phY) {
+  _matchesBlinds(panelBands, bandSize, panelGap, panelSpread, panelSkew, focus, roll, travel, shiftScale, driftAmt, phX, phY) {
     return this.cacheValid &&
       this.cacheMode === 'bands' &&
-      this.cacheBands === scanBands &&
+      this.cacheBands === panelBands &&
       this.cacheBandSize === bandSize &&
-      this.cacheGap === scanGap &&
-      this.cacheSpread === scanSpread &&
-      this.cacheSkew === scanSkew &&
+      this.cacheGap === panelGap &&
+      this.cacheSpread === panelSpread &&
+      this.cacheSkew === panelSkew &&
       this.cacheFocus === focus &&
       this.cacheRoll === roll &&
       this.cacheTravel === travel &&
@@ -1413,9 +1413,9 @@ class ScanlineBandWorkspace {
   // SPREAD controls how much of the frame the lane centers occupy, FOCUS moves
   // that ordered stack as a whole, GAP adds true neighbour separation, DRIFT is
   // a bounded local departure, and ROLL is a travelling wave through the stack.
-  prepareBlinds(scanBands, bandSize, scanGap, scanSpread, scanSkew, focus, roll, travel, shiftScale, driftAmt, phX, phY) {
-    this._ensureCapacity(scanBands);
-    if (this._matchesBlinds(scanBands, bandSize, scanGap, scanSpread, scanSkew, focus, roll, travel, shiftScale, driftAmt, phX, phY)) {
+  prepareBlinds(panelBands, bandSize, panelGap, panelSpread, panelSkew, focus, roll, travel, shiftScale, driftAmt, phX, phY) {
+    this._ensureCapacity(panelBands);
+    if (this._matchesBlinds(panelBands, bandSize, panelGap, panelSpread, panelSkew, focus, roll, travel, shiftScale, driftAmt, phX, phY)) {
       this.bandsRebuilt = false;
       return this.count;
     }
@@ -1424,10 +1424,10 @@ class ScanlineBandWorkspace {
     const cross = this.cross;
     const sourceHeight = Math.max(1, this.geometryHeight);
     const sourceBandSize = Math.max(1, Math.min(sourceHeight, bandSize));
-    const spread = Math.max(0, Math.min(1, Number(scanSpread) || 0));
+    const spread = Math.max(0, Math.min(1, Number(panelSpread) || 0));
     const focusClamped = Math.max(0, Math.min(1, Number(focus) || 0));
     const focusCenter = focusClamped * dim;
-    const midIndex = (scanBands - 1) * 0.5;
+    const midIndex = (panelBands - 1) * 0.5;
     // SHIFT is spatial, not autonomous motion. Its response accelerates into
     // near-full-frame displacement without ever reducing the drawable span to 0.
     const shiftControl = Math.max(0, Number(shiftScale) || 0);
@@ -1449,11 +1449,11 @@ class ScanlineBandWorkspace {
     const crossLengths = this.crossLength;
     let count = 0;
 
-    for (let n = 0; n < scanBands; n++) {
+    for (let n = 0; n < panelBands; n++) {
       // Source identity is defined by stable slice CENTERS, not by SIZE.
       // Changing SIZE therefore thickens/thins a blind around the same source
       // location instead of bunching/re-spacing the stack.
-      const sourceCenter = ((n + 0.5) / scanBands) * sourceHeight;
+      const sourceCenter = ((n + 0.5) / panelBands) * sourceHeight;
       const srcStart = Math.max(0, Math.min(
         sourceHeight - sourceBandSize,
         Math.floor(sourceCenter - sourceBandSize * 0.5)
@@ -1463,9 +1463,9 @@ class ScanlineBandWorkspace {
       // Neutral lane centers occupy equal cells across the whole rotated frame.
       // SPREAD scales that ordered structure around FOCUS; GAP is extra spacing
       // between neighbours and is deliberately independent from SIZE.
-      const neutralCenter = ((n + 0.5) / scanBands) * dim;
+      const neutralCenter = ((n + 0.5) / panelBands) * dim;
       const relativeCenter = neutralCenter - dim * 0.5;
-      const gapOffset = (n - midIndex) * Math.max(0, scanGap);
+      const gapOffset = (n - midIndex) * Math.max(0, panelGap);
 
       // STAGGER stays local and static so it adds irregular structure without
       // creating another hidden animation source.
@@ -1475,7 +1475,7 @@ class ScanlineBandWorkspace {
       // ROLL is a static curl through the ordered stack. It bends the lane axis
       // here; the render stage adds matching depth/perspective so this reads as
       // a dimensional fold instead of a small travelling wiggle.
-      const rollT = scanBands > 1 ? n / (scanBands - 1) : 0.5;
+      const rollT = panelBands > 1 ? n / (panelBands - 1) : 0.5;
       const rollArc = Math.sin((rollT - 0.5) * Math.PI);
       const rollWave = rollAmount * rollArc * bandSize * 4.5;
 
@@ -1487,7 +1487,7 @@ class ScanlineBandWorkspace {
       // BANDS skew is a focus-relative shear rather than a one-sided absolute
       // offset. Extending the range therefore opens/fans the stack around its
       // focus point instead of merely pushing every line in one direction.
-      const skewOffset = Math.floor(scanSkew * (destinationCenter - focusCenter) * 1.35);
+      const skewOffset = Math.floor(panelSkew * (destinationCenter - focusCenter) * 1.35);
       const shiftNoise = noise(shiftSeed[n]);
       const rawShift = Math.floor(shiftNoise * shiftSpan + (-shiftRange)) + skewOffset;
       const maxDrawableShift = Math.max(0, cross - 1);
@@ -1511,11 +1511,11 @@ class ScanlineBandWorkspace {
     this.cacheValid = true;
     this.cacheMode = 'bands';
     this.bandsRebuilt = true;
-    this.cacheBands = scanBands;
+    this.cacheBands = panelBands;
     this.cacheBandSize = bandSize;
-    this.cacheGap = scanGap;
+    this.cacheGap = panelGap;
     this.cacheSpread = spread;
-    this.cacheSkew = scanSkew;
+    this.cacheSkew = panelSkew;
     this.cacheFocus = focus;
     this.cacheRoll = roll;
     this.cacheTravel = travel;
@@ -1530,10 +1530,10 @@ class ScanlineBandWorkspace {
 
 }
 
-const _scanlineBands = new ScanlineBandWorkspace();
-window.invalidateScanlineCache = () => _scanlineBands.invalidate();
+const _panelingBands = new PanelingBandWorkspace();
+window.invalidatePanelingCache = () => _panelingBands.invalidate();
 
-const _scanlineTelemetry = window.__huffScanlineTelemetry || {
+const _panelingTelemetry = window.__huffPanelingTelemetry || {
   frames: 0,
   bands: 0,
   drawCalls: 0,
@@ -1544,27 +1544,27 @@ const _scanlineTelemetry = window.__huffScanlineTelemetry || {
   directFrames: 0,
   transformedFrames: 0,
 };
-window.__huffScanlineTelemetry = _scanlineTelemetry;
+window.__huffPanelingTelemetry = _panelingTelemetry;
 
-function _scanlineProfileFrame(bandCount) {
+function _panelingProfileFrame(bandCount) {
   if (window.__huffProfilerActive !== true) return;
-  const workspace = _scanlineBands;
-  _scanlineTelemetry.frames++;
-  _scanlineTelemetry.bands += bandCount;
-  _scanlineTelemetry.drawCalls += bandCount;
-  if (workspace.geometryRebuilt) _scanlineTelemetry.geometryRebuilds++;
-  else _scanlineTelemetry.geometryReuses++;
-  if (workspace.bandsRebuilt) _scanlineTelemetry.bandRebuilds++;
-  else _scanlineTelemetry.bandReuses++;
-  if (workspace.directHorizontal) _scanlineTelemetry.directFrames++;
-  else _scanlineTelemetry.transformedFrames++;
+  const workspace = _panelingBands;
+  _panelingTelemetry.frames++;
+  _panelingTelemetry.bands += bandCount;
+  _panelingTelemetry.drawCalls += bandCount;
+  if (workspace.geometryRebuilt) _panelingTelemetry.geometryRebuilds++;
+  else _panelingTelemetry.geometryReuses++;
+  if (workspace.bandsRebuilt) _panelingTelemetry.bandRebuilds++;
+  else _panelingTelemetry.bandReuses++;
+  if (workspace.directHorizontal) _panelingTelemetry.directFrames++;
+  else _panelingTelemetry.transformedFrames++;
 }
 
 // Deterministic per-panel seeds for FIELD layout. These are intentionally
 // independent of p5 random()/noise() state so switching layouts does not disturb
-// Corrupt, Flow, or the ScanlineBandWorkspace sequence. The luma plane
+// Vista, Sift, or the PanelingBandWorkspace sequence. The luma plane
 // caches them instead of recomputing six integer hashes per panel per render.
-function _scanPanelFieldSeed01(index, salt) {
+function _panelFieldSeed01(index, salt) {
   let x = (((index + 1) * 0x9e3779b1) ^ salt) >>> 0;
   x ^= x >>> 16;
   x = Math.imul(x, 0x7feb352d) >>> 0;
@@ -1574,7 +1574,7 @@ function _scanPanelFieldSeed01(index, salt) {
   return x / 4294967295;
 }
 
-class ScanPanelFieldSeedWorkspace {
+class PanelFieldSeedWorkspace {
   constructor() {
     this.capacity = 0;
     this.x = new Float64Array(0);
@@ -1598,12 +1598,12 @@ class ScanPanelFieldSeedWorkspace {
     x.set(this.x); y.set(this.y); z.set(this.z); size.set(this.size);
     phaseA.set(this.phaseA); phaseB.set(this.phaseB);
     for (let i = this.capacity; i < cap; i++) {
-      x[i] = _scanPanelFieldSeed01(i, 0x13579bdf) * 2 - 1;
-      y[i] = _scanPanelFieldSeed01(i, 0x2468ace1) * 2 - 1;
-      z[i] = _scanPanelFieldSeed01(i, 0x51f15e5d) * 2 - 1;
-      size[i] = _scanPanelFieldSeed01(i, 0xa5a5f00d) * 2 - 1;
-      phaseA[i] = _scanPanelFieldSeed01(i, 0xc001d00d) * Math.PI * 2;
-      phaseB[i] = _scanPanelFieldSeed01(i, 0x7f4a7c15) * Math.PI * 2;
+      x[i] = _panelFieldSeed01(i, 0x13579bdf) * 2 - 1;
+      y[i] = _panelFieldSeed01(i, 0x2468ace1) * 2 - 1;
+      z[i] = _panelFieldSeed01(i, 0x51f15e5d) * 2 - 1;
+      size[i] = _panelFieldSeed01(i, 0xa5a5f00d) * 2 - 1;
+      phaseA[i] = _panelFieldSeed01(i, 0xc001d00d) * Math.PI * 2;
+      phaseB[i] = _panelFieldSeed01(i, 0x7f4a7c15) * Math.PI * 2;
     }
     this.capacity = cap;
     this.x = x; this.y = y; this.z = z; this.size = size;
@@ -1612,9 +1612,9 @@ class ScanPanelFieldSeedWorkspace {
   }
 }
 
-const _scanPanelFieldSeeds = new ScanPanelFieldSeedWorkspace();
+const _panelFieldSeeds = new PanelFieldSeedWorkspace();
 
-function _scanMagnetLocalInfluence(t, position, radius, falloff) {
+function _panelMagnetLocalInfluence(t, position, radius, falloff) {
   const r = Math.max(0.001, radius);
   const u = Math.abs(t - position) / r;
   if (u >= 1) return 0;
@@ -1622,9 +1622,9 @@ function _scanMagnetLocalInfluence(t, position, radius, falloff) {
   return Math.pow(Math.max(0, cosine), Math.max(0.1, falloff));
 }
 
-function _scanMagnetInfluence(index, count, position, radius, falloff, mode) {
+function _panelMagnetInfluence(index, count, position, radius, falloff, mode) {
   const t = count > 1 ? index / (count - 1) : 0.5;
-  const local = _scanMagnetLocalInfluence(t, position, radius, falloff);
+  const local = _panelMagnetLocalInfluence(t, position, radius, falloff);
   if (mode !== 'fold') return local;
 
   // FOLD turns the magnet into a moving split through the ordered stack:
@@ -1636,44 +1636,44 @@ function _scanMagnetInfluence(index, count, position, radius, falloff, mode) {
   return Math.max(0, Math.min(1, smooth * 0.72 + local * 0.28));
 }
 
-function applyScanlines(density, angleOverride = null, scanPriority = 1.0, state = window.HUFF_RENDER_STATE) {
+function applyPaneling(density, angleOverride = null, panelPriority = 1.0, state = window.HUFF_RENDER_STATE) {
   const rs = state || window.HUFF_RENDER_STATE || {};
   if (!rs.clusters) return;
 
-  const scanBands = Math.trunc(rs.clusterCount);
-  if (scanBands <= 0) return;
+  const panelBands = Math.trunc(rs.clusterCount);
+  if (panelBands <= 0) return;
 
-  const bandAlpha = rs.scanAlpha * scanPriority;
+  const bandAlpha = rs.panelAlpha * panelPriority;
   if (!(bandAlpha > 0)) return;
-  const lumaTargetsScan =
+  const lumaTargetsPanel =
     !!rs.lumaKeyOn &&
-    String(rs.lumaKeyTarget || 'composite') === 'scan' &&
+    String(rs.lumaKeyTarget || 'composite') === 'panel' &&
     Number(rs.lumaKeyMix) > 0;
 
-  const angleDeg = angleOverride !== null ? angleOverride : rs.scanAngle;
-  const shiftScale = rs.scanShift;
-  const driftAmt = rs.scanDrift;
-  const scanGap = Math.trunc(rs.scanGap);
-  const scanSkew = rs.scanSkew;
-  const focus = rs.scanFocus;
-  const roll = rs.scanRoll;
+  const angleDeg = angleOverride !== null ? angleOverride : rs.panelAngle;
+  const shiftScale = rs.panelShift;
+  const driftAmt = rs.panelDrift;
+  const panelGap = Math.trunc(rs.panelGap);
+  const panelSkew = rs.panelSkew;
+  const focus = rs.panelFocus;
+  const roll = rs.panelRoll;
   const bandSize = Math.max(4, Math.floor(Math.trunc(rs.clusterRadius) * 3));
-  const phX = nPhaseScanX;
-  const phY = nPhaseScanY;
+  const phX = nPhasePanelX;
+  const phY = nPhasePanelY;
 
-  const baseX = Number(rs.scanPlaceX) || 0;
-  const baseY = Number(rs.scanPlaceY) || 0;
-  const motionX = Number(rs.__scanMotionX) || 0;
-  const motionY = Number(rs.__scanMotionY) || 0;
-  const baseZoom = Math.max(0.25, Math.min(4, Number.isFinite(Number(rs.scanZoom)) ? Number(rs.scanZoom) : 1));
-  const motionZoomOffset = Number(rs.__scanMotionZoomOffset) || 0;
+  const baseX = Number(rs.panelPlaceX) || 0;
+  const baseY = Number(rs.panelPlaceY) || 0;
+  const motionX = Number(rs.__panelMotionX) || 0;
+  const motionY = Number(rs.__panelMotionY) || 0;
+  const baseZoom = Math.max(0.25, Math.min(4, Number.isFinite(Number(rs.panelZoom)) ? Number(rs.panelZoom) : 1));
+  const motionZoomOffset = Number(rs.__panelMotionZoomOffset) || 0;
   const placeX = baseX + motionX;
   const placeY = baseY + motionY;
   const zoom = Math.max(0.25, Math.min(4, baseZoom + motionZoomOffset));
-  const panelLayout = String(rs.scanPanelLayout || 'bands');
+  const panelLayout = String(rs.panelLayout || 'bands');
   const fieldMode = panelLayout === 'field';
 
-  const workspace = _scanlineBands.resolveGeometry(width, height, angleDeg);
+  const workspace = _panelingBands.resolveGeometry(width, height, angleDeg);
   const dim = workspace.dim;
   const cross = workspace.cross;
   if (!(dim > 0) || !(cross > 0)) return;
@@ -1686,32 +1686,32 @@ function applyScanlines(density, angleOverride = null, scanPriority = 1.0, state
   // Every blind owns one stable source slice, while destination spacing and
   // deformation remain independently playable.
   if (!fieldMode) {
-    const spread = Math.max(0, Math.min(1, Number(rs.scanBandSpread ?? 1)));
-    const expandX = Math.max(0, Math.min(4, Number(rs.scanExpandX) || 0));
-    const expandY = Math.max(0, Math.min(3, Number(rs.scanExpandY) || 0));
-    const expandZ = Math.max(-3, Math.min(3, Number(rs.scanExpandZ) || 0));
-    const magnetOn = !!rs.scanMagnetOn;
-    const magnetMode = String(rs.scanMagnetMode || 'local');
+    const spread = Math.max(0, Math.min(1, Number(rs.panelBandSpread ?? 1)));
+    const expandX = Math.max(0, Math.min(4, Number(rs.panelExpandX) || 0));
+    const expandY = Math.max(0, Math.min(3, Number(rs.panelExpandY) || 0));
+    const expandZ = Math.max(-3, Math.min(3, Number(rs.panelExpandZ) || 0));
+    const magnetOn = !!rs.panelMagnetOn;
+    const magnetMode = String(rs.panelMagnetMode || 'local');
     const magnetPosition = Math.max(0, Math.min(1,
-      Number.isFinite(Number(rs.__scanMagnetPosition))
-        ? Number(rs.__scanMagnetPosition)
-        : Number(rs.scanMagnetPosition ?? 0.5)
+      Number.isFinite(Number(rs.__panelMagnetPosition))
+        ? Number(rs.__panelMagnetPosition)
+        : Number(rs.panelMagnetPosition ?? 0.5)
     ));
-    const magnetStrength = Math.max(-6, Math.min(6, Number(rs.scanMagnetStrength) || 0));
-    const magnetPerspective = Math.max(-3, Math.min(3, Number(rs.scanMagnetPerspective) || 0));
-    const magnetRadius = Math.max(0.02, Math.min(1, Number(rs.scanMagnetRadius ?? 0.28)));
-    const rollAmount = Math.max(-3, Math.min(3, Number(rs.scanRoll) || 0));
-    const magnetFalloff = Math.max(0.25, Math.min(4, Number(rs.scanMagnetFalloff ?? 1)));
+    const magnetStrength = Math.max(-6, Math.min(6, Number(rs.panelMagnetStrength) || 0));
+    const magnetPerspective = Math.max(-3, Math.min(3, Number(rs.panelMagnetPerspective) || 0));
+    const magnetRadius = Math.max(0.02, Math.min(1, Number(rs.panelMagnetRadius ?? 0.28)));
+    const rollAmount = Math.max(-3, Math.min(3, Number(rs.panelRoll) || 0));
+    const magnetFalloff = Math.max(0.25, Math.min(4, Number(rs.panelMagnetFalloff ?? 1)));
 
     const bandCount = workspace.prepareBlinds(
-      scanBands,
+      panelBands,
       bandSize,
-      scanGap,
+      panelGap,
       spread,
-      scanSkew,
+      panelSkew,
       focus,
       roll,
-      Number(rs.__scanBandTravel) || 0,
+      Number(rs.__panelBandTravel) || 0,
       shiftScale,
       driftAmt,
       phX,
@@ -1738,7 +1738,7 @@ function applyScanlines(density, angleOverride = null, scanPriority = 1.0, state
 
     // Dedicated BANDS LFO: a global sine wobble across the plane's cross-axis.
     // It is independent from SPEED, DRIFT, ROLL, and explicit XYZ movement.
-    const lfoAmount = Math.max(-2, Math.min(2, Number(rs.__scanBandLfo) || 0));
+    const lfoAmount = Math.max(-2, Math.min(2, Number(rs.__panelBandLfo) || 0));
     if (lfoAmount !== 0) ctx.translate(lfoAmount * cross * 0.35, 0);
 
     ctx.globalAlpha = bandAlpha;
@@ -1753,7 +1753,7 @@ function applyScanlines(density, angleOverride = null, scanPriority = 1.0, state
       const bandCross = crossLengths[i];
 
       const influence = magnetOn
-        ? _scanMagnetInfluence(i, bandCount, magnetPosition, magnetRadius, magnetFalloff, magnetMode)
+        ? _panelMagnetInfluence(i, bandCount, magnetPosition, magnetRadius, magnetFalloff, magnetMode)
         : 0;
 
       // EXPAND Z, ROLL, and MAGNET are separate dimensional layers. EXPAND Z
@@ -1808,7 +1808,7 @@ function applyScanlines(density, angleOverride = null, scanPriority = 1.0, state
       // this height, so EXPAND Y and EXPAND Z cannot collapse into the same look.
       const destinationY = bandStart;
 
-      if (lumaTargetsScan) {
+      if (lumaTargetsPanel) {
         const keyAlpha = _pipelineLumaObjectRegionAlpha(
           safeSourceOffset, sourceStart, sampledWidth, sampledHeight,
           width, height,
@@ -1829,28 +1829,28 @@ function applyScanlines(density, angleOverride = null, scanPriority = 1.0, state
       );
     }
 
-    _scanlineProfileFrame(bandCount);
+    _panelingProfileFrame(bandCount);
     ctx.restore();
     return;
   }
 
-  // ── FIELD: distributed scan-panel collage ────────────────────────────────
-  const fieldSpreadX = Math.max(0, Math.min(1, Number(rs.scanFieldSpreadX) || 0));
-  const fieldSpreadY = Math.max(0, Math.min(1, Number(rs.scanFieldSpreadY) || 0));
-  const fieldSpreadZ = Math.max(0, Math.min(1, Number(rs.scanFieldSpreadZ) || 0));
-  const fieldSizeVar = Math.max(0, Math.min(1, Number(rs.scanFieldSizeVar) || 0));
-  const fieldDrift = Math.max(0, Math.min(1, Number(rs.scanFieldDrift) || 0));
-  const fieldDepthDrift = Math.max(0, Math.min(1, Number(rs.scanFieldDepthDrift) || 0));
+  // ── FIELD: distributed panel-panel collage ────────────────────────────────
+  const fieldSpreadX = Math.max(0, Math.min(1, Number(rs.panelFieldSpreadX) || 0));
+  const fieldSpreadY = Math.max(0, Math.min(1, Number(rs.panelFieldSpreadY) || 0));
+  const fieldSpreadZ = Math.max(0, Math.min(1, Number(rs.panelFieldSpreadZ) || 0));
+  const fieldSizeVar = Math.max(0, Math.min(1, Number(rs.panelFieldSizeVar) || 0));
+  const fieldDrift = Math.max(0, Math.min(1, Number(rs.panelFieldDrift) || 0));
+  const fieldDepthDrift = Math.max(0, Math.min(1, Number(rs.panelFieldDepthDrift) || 0));
   const neutralZoom = Math.abs(zoom - 1) < 1e-9;
   const neutralField = fieldSpreadX === 0 && fieldSpreadY === 0 && fieldSpreadZ === 0 && fieldSizeVar === 0 && fieldDrift === 0 && fieldDepthDrift === 0;
   const neutralSpatial = placeX === 0 && placeY === 0 && neutralZoom && neutralField;
   const sourceAspect = Math.max(0.0001, width / Math.max(1, height));
 
   const bandCount = workspace.prepare(
-    scanBands,
+    panelBands,
     bandSize,
-    scanGap,
-    scanSkew,
+    panelGap,
+    panelSkew,
     focus,
     roll,
     shiftScale,
@@ -1859,7 +1859,7 @@ function applyScanlines(density, angleOverride = null, scanPriority = 1.0, state
     phY,
   );
   if (bandCount <= 0) return;
-  _scanPanelFieldSeeds.ensure(bandCount);
+  _panelFieldSeeds.ensure(bandCount);
 
   const starts = workspace.start;
   const lengths = workspace.length;
@@ -1875,7 +1875,7 @@ function applyScanlines(density, angleOverride = null, scanPriority = 1.0, state
         const bandStart = starts[i];
         const bandLength = lengths[i];
         const bandCross = crossLengths[i];
-        if (lumaTargetsScan) {
+        if (lumaTargetsPanel) {
           const keyAlpha = _pipelineLumaObjectRegionAlpha(
             sourceOffsets[i], bandStart, bandCross, bandLength,
             width, height,
@@ -1895,7 +1895,7 @@ function applyScanlines(density, angleOverride = null, scanPriority = 1.0, state
     } finally {
       ctx.globalAlpha = previousAlpha;
     }
-    _scanlineProfileFrame(bandCount);
+    _panelingProfileFrame(bandCount);
     return;
   }
 
@@ -1922,12 +1922,12 @@ function applyScanlines(density, angleOverride = null, scanPriority = 1.0, state
     let fieldOffsetY = 0;
     let sizeScale = 1;
 
-    const seedX = _scanPanelFieldSeeds.x[i];
-    const seedY = _scanPanelFieldSeeds.y[i];
-    const seedZ = _scanPanelFieldSeeds.z[i];
-    const seedSize = _scanPanelFieldSeeds.size[i];
-    const phaseA = _scanPanelFieldSeeds.phaseA[i];
-    const phaseB = _scanPanelFieldSeeds.phaseB[i];
+    const seedX = _panelFieldSeeds.x[i];
+    const seedY = _panelFieldSeeds.y[i];
+    const seedZ = _panelFieldSeeds.z[i];
+    const seedSize = _panelFieldSeeds.size[i];
+    const phaseA = _panelFieldSeeds.phaseA[i];
+    const phaseB = _panelFieldSeeds.phaseB[i];
 
     fieldOffsetX = seedX * cross * 0.46 * fieldSpreadX;
     fieldOffsetY = seedY * dim * 0.46 * fieldSpreadY;
@@ -1947,7 +1947,7 @@ function applyScanlines(density, angleOverride = null, scanPriority = 1.0, state
     const panelMix = localZoomDepth * localZoomDepth * (3 - 2 * localZoomDepth);
 
     if (localNeutralZoom && fieldOffsetX === 0 && fieldOffsetY === 0 && sizeScale === 1) {
-      if (lumaTargetsScan) {
+      if (lumaTargetsPanel) {
         const keyAlpha = _pipelineLumaObjectRegionAlpha(
           sourceOffset, bandStart, bandCross, bandLength,
           width, height,
@@ -1981,7 +1981,7 @@ function applyScanlines(density, angleOverride = null, scanPriority = 1.0, state
     const destinationX = destinationCenterX - destinationWidth * 0.5;
     const destinationY = destinationCenterY - destinationHeight * 0.5;
 
-    if (lumaTargetsScan) {
+    if (lumaTargetsPanel) {
       const keyAlpha = _pipelineLumaObjectRegionAlpha(
         sourceOffset, sourceY, bandCross, sampledHeight,
         width, height,
@@ -2002,19 +2002,19 @@ function applyScanlines(density, angleOverride = null, scanPriority = 1.0, state
     );
   }
 
-  _scanlineProfileFrame(bandCount);
+  _panelingProfileFrame(bandCount);
   ctx.restore();
 }
 
 
-// ─── CORRUPT (implemented by the applyGlitch runtime entry point) ─────────────
+// ─── VISTA (implemented by the applyGlitch runtime entry point) ─────────────
 // Note: randomSeed is set by draw() once per frame. No re-seeding here.
 
-// ─── CORRUPT region eligibility ─────────────────────────────────────────────
+// ─── VISTA region eligibility ─────────────────────────────────────────────
 // FULL accepts all targets. STENCIL reuses the already-captured bounded
 // Fairlight-inspired Luma stencil as a process mask. No new image readback is
 // introduced here: candidate positions only sample the stored 8-bit luminance.
-function _corruptStencilAllows(x, y, canvasW, canvasH, threshold, brightSide) {
+function _vistaStencilAllows(x, y, canvasW, canvasH, threshold, brightSide) {
   if (!_plkStencilLuma || _plkStencilW <= 0 || _plkStencilH <= 0) return false;
   const sx = Math.max(0, Math.min(_plkStencilW - 1, Math.floor((x / Math.max(1, canvasW)) * _plkStencilW)));
   const sy = Math.max(0, Math.min(_plkStencilH - 1, Math.floor((y / Math.max(1, canvasH)) * _plkStencilH)));
@@ -2027,7 +2027,7 @@ function applyGlitch(density = 1, baseDX = 0, baseDY = 0, glitchPriority = 1.0, 
   const block     = Math.trunc(rs.block);
   const size      = Math.trunc(rs.glitchSize);
   const smearLen  = Math.trunc(rs.glitchSmear);
-  const corrupt   = rs.corrupt;
+  const vista   = rs.vista;
   const tileAlpha = Math.floor(rs.glitchAlpha * 255);
   const jitter    = rs.glitchJitter;
 
@@ -2057,21 +2057,22 @@ function applyGlitch(density = 1, baseDX = 0, baseDY = 0, glitchPriority = 1.0, 
   const depthScatter = rs.depthScatter;
   const baseBack     = Math.max(1, Math.floor(maxBack * (0.3 + 0.7 * noise(nPhaseX * 0.1 + nPhaseY * 0.07))));
 
-  const corruptDrift = rs.corruptDrift;
-  const driftMod     = corruptDrift > 0 ? (noise(nPhaseX * 0.08, nPhaseY * 0.08) * 2 - 1) : 0;
-  const corruptMul   = Math.max(0.05, 1.0 + corruptDrift * driftMod);
-  let count = Math.max(1, Math.floor(total * corrupt * corruptMul));
+  const vistaDrift = rs.vistaDrift;
+  const driftMod     = vistaDrift > 0 ? (noise(nPhaseX * 0.08, nPhaseY * 0.08) * 2 - 1) : 0;
+  const vistaMul   = Math.max(0.05, 1.0 + vistaDrift * driftMod);
+  let count = Math.max(1, Math.floor(total * vista * vistaMul));
 
-  const corruptMaskMode = String(rs.corruptMaskMode || 'full');
-  const useStencilMask = corruptMaskMode === 'stencil';
-  const corruptMaskThreshold = Math.max(0, Math.min(255, Math.trunc(Number(rs.corruptMaskThreshold) || 128)));
-  const corruptMaskBright = String(rs.corruptMaskSide || 'bright') !== 'dark';
+  const vistaMaskMode = String(rs.vistaMaskMode || 'full');
+  const useStencilMask = vistaMaskMode === 'stencil';
+  const vistaMaskThresholdRaw = Number(rs.vistaMaskThreshold);
+  const vistaMaskThreshold = Math.max(0, Math.min(255, Math.trunc(Number.isFinite(vistaMaskThresholdRaw) ? vistaMaskThresholdRaw : 128)));
+  const vistaMaskBright = String(rs.vistaMaskSide || 'bright') !== 'dark';
   if (useStencilMask && (!_plkStencilLuma || _plkStencilW <= 0 || _plkStencilH <= 0)) return;
 
   const gap          = Math.trunc(rs.spatialGap);
   const useCluTiles  = (typeof rs.clusterTiles === 'boolean')
     ? rs.clusterTiles
-    : String(rs.corruptDistribution || 'random') === 'cluster';
+    : String(rs.vistaDistribution || 'random') === 'cluster';
   const cluCenters   = Math.trunc(rs.cluCenters);
   const cluSpread    = Math.trunc(rs.cluSpread);
   const cluMinSpread = Math.trunc(rs.cluMinSpread);
@@ -2087,13 +2088,13 @@ function applyGlitch(density = 1, baseDX = 0, baseDY = 0, glitchPriority = 1.0, 
   const cluSteer     = rs.cluSteer;
   const cluBreathe   = rs.cluBreathe;
   const cluBounce    = (rs.cluBounds || 'bounce') === 'bounce';
-  const corruptMotion = window.HUFF_CORRUPT_MOTION || { x:0, y:0, z:0, dt:1/60, speed:1, timeSec:0, clusterSpeed:1, clusterTimeSec:0 };
-  // CLUSTER SPEED is intentionally independent from the general CORRUPT SPEED.
+  const vistaMotion = window.HUFF_VISTA_MOTION || { x:0, y:0, z:0, dt:1/60, speed:1, timeSec:0, clusterSpeed:1, clusterTimeSec:0 };
+  // CLUSTER SPEED is intentionally independent from the general VISTA SPEED.
   // It is a single time-scale for cluster evolution: Group XYZ, organic center
   // travel/steering/wander, kick cadence and pulse-size breathing all slow down,
-  // freeze, or accelerate together without changing RANDOM Corrupt motion.
-  const masterSpeed = Math.max(0, Math.min(4, Number.isFinite(Number(corruptMotion.clusterSpeed)) ? Number(corruptMotion.clusterSpeed) : 1));
-  const motionTimeSec = Number.isFinite(Number(corruptMotion.clusterTimeSec)) ? Number(corruptMotion.clusterTimeSec) : 0;
+  // freeze, or accelerate together without changing RANDOM Vista motion.
+  const masterSpeed = Math.max(0, Math.min(4, Number.isFinite(Number(vistaMotion.clusterSpeed)) ? Number(vistaMotion.clusterSpeed) : 1));
+  const motionTimeSec = Number.isFinite(Number(vistaMotion.clusterTimeSec)) ? Number(vistaMotion.clusterTimeSec) : 0;
   const cluBreatheF  = cluBreathe > 0 ? (1 + Math.sin(motionTimeSec * 0.6) * cluBreathe) : 1;
   // COHERENCE — how much each center's tile offsets persist frame to frame, so a
   // cluster reads as a BODY that travels with its center instead of re-rolling
@@ -2116,20 +2117,20 @@ function applyGlitch(density = 1, baseDX = 0, baseDY = 0, glitchPriority = 1.0, 
   const targets = _glitchTargets;
   targets.begin(count, width, height, gap);
 
-  const addCorruptTarget = (x, y, z = 0) => {
+  const addVistaTarget = (x, y, z = 0) => {
     const tx = Math.floor(x), ty = Math.floor(y);
-    if (useStencilMask && !_corruptStencilAllows(tx, ty, width, height, corruptMaskThreshold, corruptMaskBright)) return false;
+    if (useStencilMask && !_vistaStencilAllows(tx, ty, width, height, vistaMaskThreshold, vistaMaskBright)) return false;
     return targets.add(tx, ty, z);
   };
 
   // Note: randomSeed is set by draw() once per frame; no re-seeding here.
-  // applyScanlines ran first and consumed some random state — that ordering is intentional.
+  // applyPaneling ran first and consumed some random state — that ordering is intentional.
 
   const cluSpeedVar = rs.cluSpeedVar;
   const cluPulse    = rs.cluPulse;
 
   // ── Cluster center physics ─────────────────────────────────────────────────
-  // Filled by a module-level helper so normal Corrupt frames do not allocate a
+  // Filled by a module-level helper so normal Vista frames do not allocate a
   // new closure. The call remains at the same point in the seeded random stream.
 
   // ── Tile placement ─────────────────────────────────────────────────────────
@@ -2141,7 +2142,7 @@ function applyGlitch(density = 1, baseDX = 0, baseDY = 0, glitchPriority = 1.0, 
     const centers = updateClusterPhysics(
       cluCenters, cluSpeedVar, cluSteer, cluPulse, cluTravel,
       cluInertia, cluDrift, cluBounce, width, height,
-      cluMoveX, cluMoveY, cluMoveZ, masterSpeed, corruptMotion.dt, motionTimeSec
+      cluMoveX, cluMoveY, cluMoveZ, masterSpeed, vistaMotion.dt, motionTimeSec
     );
     const biasCount  = Math.round(count * cluBias);
     const per        = Math.max(1, Math.floor(biasCount / cluCenters));
@@ -2176,12 +2177,12 @@ function applyGlitch(density = 1, baseDX = 0, baseDY = 0, glitchPriority = 1.0, 
         const targetZ = Math.max(-1.5, Math.min(1.5,
           (Number(c.zBase) || 0) * cluDepth + (Number(c.zMotion) || 0)
         ));
-        let ok = addCorruptTarget(x, y, targetZ), tries = 0;
+        let ok = addVistaTarget(x, y, targetZ), tries = 0;
         while (!ok && tries++ < 6) {
           // Collision fallback — transient random probe, doesn't disturb the body
           const a2 = random(TWO_PI);
           const r2 = effMin + random() * Math.max(1, effSpread - effMin);
-          ok = addCorruptTarget(
+          ok = addVistaTarget(
             (c.x + Math.cos(a2) * r2 + width)  % width,
             (c.y + Math.sin(a2) * r2 + height) % height,
             targetZ
@@ -2192,11 +2193,11 @@ function applyGlitch(density = 1, baseDX = 0, baseDY = 0, glitchPriority = 1.0, 
     }
     let guard = 0;
     while (targets.count < count && guard++ < count * 4)
-      addCorruptTarget(Math.floor(random(cols)) * block, Math.floor(random(rows)) * block);
+      addVistaTarget(Math.floor(random(cols)) * block, Math.floor(random(rows)) * block);
   } else {
     let attempts = 0;
     while (targets.count < count && attempts++ < count * 8)
-      addCorruptTarget(Math.floor(random(cols)) * block, Math.floor(random(rows)) * block);
+      addVistaTarget(Math.floor(random(cols)) * block, Math.floor(random(rows)) * block);
   }
 
   // ── Blit tiles ─────────────────────────────────────────────────────────────
@@ -2210,13 +2211,13 @@ function applyGlitch(density = 1, baseDX = 0, baseDY = 0, glitchPriority = 1.0, 
   const smearX = _glitchBlits.smearX;
   const smearY = _glitchBlits.smearY;
 
-  // tileAlpha is constant unless Luma is explicitly targeted at CORRUPT.
+  // tileAlpha is constant unless Luma is explicitly targeted at VISTA.
   // Targeted keying modulates each patch from the bounded clean/stencil luma
   // plane without a full-resolution intermediate layer.
   const baseTileAlpha = (tileAlpha / 255) * glitchPriority;
-  const lumaTargetsCorrupt =
+  const lumaTargetsVista =
     !!rs.lumaKeyOn &&
-    String(rs.lumaKeyTarget || 'composite') === 'corrupt' &&
+    String(rs.lumaKeyTarget || 'composite') === 'vista' &&
     Number(rs.lumaKeyMix) > 0;
   ctx.globalAlpha = baseTileAlpha;
 
@@ -2241,12 +2242,12 @@ function applyGlitch(density = 1, baseDX = 0, baseDY = 0, glitchPriority = 1.0, 
     const h = Math.min(tileSpan, height - cy);
     if (w <= 0 || h <= 0) continue;
 
-    const motionX = Number(corruptMotion.x) || 0;
-    const motionY = Number(corruptMotion.y) || 0;
+    const motionX = Number(vistaMotion.x) || 0;
+    const motionY = Number(vistaMotion.y) || 0;
     const dynamicX = motionX === 0 ? cx : ((cx + motionX) % width + width) % width;
     const dynamicY = motionY === 0 ? cy : ((cy + motionY) % height + height) % height;
     const staticZ = Number(rs.glitchBaseZ) || 0;
-    const dynamicZ = Number(corruptMotion.z) || 0;
+    const dynamicZ = Number(vistaMotion.z) || 0;
     const clusterZ = Number(targets.z[i]) || 0;
     const z = Math.max(-1.5, Math.min(1.5, staticZ + dynamicZ + clusterZ));
 
@@ -2273,14 +2274,14 @@ function applyGlitch(density = 1, baseDX = 0, baseDY = 0, glitchPriority = 1.0, 
       dstY = projectedCenterY - dstH * 0.5;
     }
 
-    // Historical age selection follows Corrupt's speed-scaled decoded
+    // Historical age selection follows Vista's speed-scaled decoded
     // source clock, not the live _vfc directly. This is the layering half of the
-    // CONTINUOUS repair: Corrupt can be redrawn every render (so Scan cannot
+    // CONTINUOUS repair: Vista can be redrawn every render (so Panel cannot
     // erase it between slow updates) while RANDOM/CLUSTER SPEED still controls
     // how quickly each patch chooses a different historical delay. At 0x the
     // chosen delay is fixed, but the video at that fixed delay remains live.
-    const sourceSerial = Number.isFinite(Number(corruptMotion.sourceSerial))
-      ? Math.trunc(Number(corruptMotion.sourceSerial))
+    const sourceSerial = Number.isFinite(Number(vistaMotion.sourceSerial))
+      ? Math.trunc(Number(vistaMotion.sourceSerial))
       : (typeof _vfc === 'number' ? _vfc : 0);
     const randBack  = Math.max(1, (((sourceSerial * 1664525) + i * 1013904223) >>> 0) % maxBack + 1);
     const blendBack = Math.round(baseBack + (randBack - baseBack) * depthScatter);
@@ -2288,7 +2289,7 @@ function applyGlitch(density = 1, baseDX = 0, baseDY = 0, glitchPriority = 1.0, 
     const src       = ringFrames[idx];
     if (!src) continue;
 
-    if (lumaTargetsCorrupt) {
+    if (lumaTargetsVista) {
       const keyAlpha = _pipelineLumaObjectAlpha(
         cx + w * 0.5, cy + h * 0.5, width, height,
         rs.lumaKeyAB, !!rs.lumaKeyInvert, rs.lumaKeyGain,
@@ -2323,12 +2324,12 @@ function applyGlitch(density = 1, baseDX = 0, baseDY = 0, glitchPriority = 1.0, 
   _glitchProfileFrame(targets.count, smearLen, _glitchBlits.ringRebuilt);
 }
 
-// ─── Flow warp ────────────────────────────────────────────────────────────────
+// ─── Sift warp ────────────────────────────────────────────────────────────────
 // Computes displacement and draws each tile immediately. Static grid geometry is
 // cached by render size + cell size, so normal frames no longer repeat divisions,
 // edge-size checks, radial normalisation, or atan2 work for every tile.
 
-class FlowGridWorkspace {
+class SiftGridWorkspace {
   constructor() {
     this.width = 0;
     this.height = 0;
@@ -2410,11 +2411,11 @@ class FlowGridWorkspace {
   }
 }
 
-// Dynamic Flow terms that depend on stable grid geometry plus slowly changing
+// Dynamic Sift terms that depend on stable grid geometry plus slowly changing
 // controls. Keeping them in reusable typed arrays follows the same persistent-
 // resource discipline used throughout the Junkpile examples and avoids repeating
 // frequency multiplication and radial sin/cos work for every tile on every frame.
-class FlowFieldWorkspace {
+class SiftFieldWorkspace {
   constructor() {
     this.capacity = 0;
     this.frequencyGeneration = -1;
@@ -2485,11 +2486,11 @@ class FlowFieldWorkspace {
   }
 }
 
-const _flowGrid = new FlowGridWorkspace();
-const _flowField = new FlowFieldWorkspace();
-let _flowLastFrequencyRebuilt = false;
-let _flowLastSwirlRebuilt = false;
-const _flowTelemetry = window.__huffFlowTelemetry || {
+const _siftGrid = new SiftGridWorkspace();
+const _siftField = new SiftFieldWorkspace();
+let _siftLastFrequencyRebuilt = false;
+let _siftLastSwirlRebuilt = false;
+const _siftTelemetry = window.__huffSiftTelemetry || {
   frames: 0,
   tiles: 0,
   drawCalls: 0,
@@ -2500,22 +2501,22 @@ const _flowTelemetry = window.__huffFlowTelemetry || {
   swirlRebuilds: 0,
   swirlReuses: 0,
 };
-window.__huffFlowTelemetry = _flowTelemetry;
+window.__huffSiftTelemetry = _siftTelemetry;
 
-function _flowProfileFrame(tileCount, gridRebuilt) {
+function _siftProfileFrame(tileCount, gridRebuilt) {
   if (window.__huffProfilerActive !== true) return;
-  _flowTelemetry.frames++;
-  _flowTelemetry.tiles += tileCount;
-  _flowTelemetry.drawCalls += tileCount;
-  if (gridRebuilt) _flowTelemetry.gridRebuilds++;
-  else _flowTelemetry.gridReuses++;
-  if (_flowLastFrequencyRebuilt) _flowTelemetry.frequencyRebuilds++;
-  else _flowTelemetry.frequencyReuses++;
-  if (_flowLastSwirlRebuilt) _flowTelemetry.swirlRebuilds++;
-  else _flowTelemetry.swirlReuses++;
+  _siftTelemetry.frames++;
+  _siftTelemetry.tiles += tileCount;
+  _siftTelemetry.drawCalls += tileCount;
+  if (gridRebuilt) _siftTelemetry.gridRebuilds++;
+  else _siftTelemetry.gridReuses++;
+  if (_siftLastFrequencyRebuilt) _siftTelemetry.frequencyRebuilds++;
+  else _siftTelemetry.frequencyReuses++;
+  if (_siftLastSwirlRebuilt) _siftTelemetry.swirlRebuilds++;
+  else _siftTelemetry.swirlReuses++;
 }
 
-function applyFlowWarp(src, dst, strength = 6, scale = 80, pulse = 0, implode = 0, speed = 1, turb = 0, swirl = 0, spread = 1) {
+function applySiftWarp(src, dst, strength = 6, scale = 80, pulse = 0, implode = 0, speed = 1, turb = 0, swirl = 0, spread = 1) {
   let srcFrame = src;
   if (pulse > 0 && frameRing.length > pulse) {
     const ringFrame = frameRing.fromEnd(pulse);
@@ -2540,13 +2541,13 @@ function applyFlowWarp(src, dst, strength = 6, scale = 80, pulse = 0, implode = 
   // genuinely fast top end. speed=1 maps to the original tempo; speed=0 freezes.
   const t    = frameCount * 0.005 * Math.pow(Math.max(0, speed), 1.6);
   const w = width, h = height;
-  const flowGridRebuilt = _flowGrid.configure(w, h, cell);
+  const siftGridRebuilt = _siftGrid.configure(w, h, cell);
 
-  // SPREAD scales the flow-field noise frequency: low = large coherent zones all
+  // SPREAD scales the sift-field noise frequency: low = large coherent zones all
   // drifting together (watery), high = many small independent eddies.
   const freq = 0.9 * Math.max(0.05, spread);
-  _flowLastFrequencyRebuilt = _flowField.configureFrequency(_flowGrid, freq);
-  _flowLastSwirlRebuilt = _flowField.configureSwirl(_flowGrid, swirl);
+  _siftLastFrequencyRebuilt = _siftField.configureFrequency(_siftGrid, freq);
+  _siftLastSwirlRebuilt = _siftField.configureSwirl(_siftGrid, swirl);
 
   const turbulenceMix = turb * 0.5;
   const turbulenceBaseMix = 1 - turbulenceMix;
@@ -2557,21 +2558,21 @@ function applyFlowWarp(src, dst, strength = 6, scale = 80, pulse = 0, implode = 
 
   // Resolve reusable typed arrays once per render rather than repeatedly walking
   // workspace properties inside the per-tile loop.
-  const count = _flowGrid.count;
-  const xs = _flowGrid.x;
-  const ys = _flowGrid.y;
-  const tileWidths = _flowGrid.tileW;
-  const tileHeights = _flowGrid.tileH;
-  const maxSourceXs = _flowGrid.maxSourceX;
-  const maxSourceYs = _flowGrid.maxSourceY;
-  const inwardXs = _flowGrid.inwardX;
-  const inwardYs = _flowGrid.inwardY;
-  const noiseXs = _flowField.noiseX;
-  const noiseYs = _flowField.noiseY;
-  const turbulenceXs = _flowField.turbulenceX;
-  const turbulenceYs = _flowField.turbulenceY;
-  const swirlCosines = _flowField.swirlCos;
-  const swirlSines = _flowField.swirlSin;
+  const count = _siftGrid.count;
+  const xs = _siftGrid.x;
+  const ys = _siftGrid.y;
+  const tileWidths = _siftGrid.tileW;
+  const tileHeights = _siftGrid.tileH;
+  const maxSourceXs = _siftGrid.maxSourceX;
+  const maxSourceYs = _siftGrid.maxSourceY;
+  const inwardXs = _siftGrid.inwardX;
+  const inwardYs = _siftGrid.inwardY;
+  const noiseXs = _siftField.noiseX;
+  const noiseYs = _siftField.noiseY;
+  const turbulenceXs = _siftField.turbulenceX;
+  const turbulenceYs = _siftField.turbulenceY;
+  const swirlCosines = _siftField.swirlCos;
+  const swirlSines = _siftField.swirlSin;
 
   for (let i = 0; i < count; i++) {
     const x = xs[i];
@@ -2609,7 +2610,7 @@ function applyFlowWarp(src, dst, strength = 6, scale = 80, pulse = 0, implode = 
     const sy2 = Math.max(0, Math.min(maxSourceYs[i], Math.floor(y + dy2)));
     dctx.drawImage(srcEl, sx2, sy2, tileW, tileH, x, y, tileW, tileH);
   }
-  _flowProfileFrame(_flowGrid.count, flowGridRebuilt);
+  _siftProfileFrame(_siftGrid.count, siftGridRebuilt);
   dctx.restore();
 }
 
@@ -2935,7 +2936,7 @@ function _presentSolarizeFluidCache(ctx, sourceCanvas, width, height) {
 }
 
 function _posterizeChromaPixelsBytes(pix, levelPct, softPct, phaseDeg, amount) {
-  const steps = Math.max(2, Math.min(64, Math.round(64 - 62 * (Math.max(0, Math.min(100, Number(levelPct) || 0)) / 100))));
+  const steps = Math.max(2, Math.min(256, Math.round(Math.pow(2, 8 - 7 * (Math.max(0, Math.min(100, Number(levelPct) || 0)) / 100)))));
   const soft = Math.max(0, Math.min(1, (Number(softPct) || 0) / 100));
   const wet = Math.max(0, Math.min(1, Number(amount) || 0));
   const phase = (Number(phaseDeg) || 0) * Math.PI / 180;
@@ -3260,7 +3261,7 @@ function applySymmetry(src, dst, modeOrOptions = 'v', legacyPos = 0.5) {
 //   - INVERT preserves the application matte polarity without forcing
 //     a redundant LIVE source readback on same-frame key-shaping edits.
 //   - COMPOSITE preserves the established clean-patch overlay behavior.
-//   - CORRUPT and SCAN targets use the same bounded luminance plane as an
+//   - VISTA and PANELING targets use the same bounded luminance plane as an
 //     object-level eligibility/opacity gate inside those effects. They add no
 //     full-resolution layer, mask upload, or gBuf→CPU readback.
 //   - STENCIL remains a one-shot luminance capture and never silently falls back
@@ -3291,8 +3292,8 @@ let _plkLiveSourceAlpha = null;
 let _plkLiveLumaFrame = -1;
 let _plkLiveLumaW = 0, _plkLiveLumaH = 0;
 
-// Targeted CORRUPT/SCAN keying only needs object-level luminance eligibility.
-// Keep that readback on its own smaller scratch surface so a dense Scan FIELD
+// Targeted VISTA/PANELING keying only needs object-level luminance eligibility.
+// Keep that readback on its own smaller scratch surface so a dense Panel FIELD
 // does not force the 640px COMPOSITE key handoff. This uses bounded CPU scratch,
 // not a full-resolution render layer.
 let _plkObjectCanvas = null, _plkObjectCtx = null;
@@ -3877,8 +3878,8 @@ function _pipelineLumaObjectAlpha(
 window.pipelineLumaObjectAlpha = _pipelineLumaObjectAlpha;
 
 // Large FIELD panels can span very different luminance regions. A center-only
-// sample made Luma appear disconnected from the panel contents. Scan uses this
-// five-point coverage estimate (center + quadrant centers) while Corrupt keeps
+// sample made Luma appear disconnected from the panel contents. Panel uses this
+// five-point coverage estimate (center + quadrant centers) while Vista keeps
 // the cheaper center sample for small patches.
 function _pipelineLumaObjectRegionAlpha(
   x, y, w, h, canvasW, canvasH,

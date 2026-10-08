@@ -298,48 +298,48 @@ let baseSeed = 1, seededOnce = false;
 let _bypassSyncedVfc = -1;
 let _renderWasBypassed = true;
 let nPhaseX = 0, nPhaseY = 1000;
-// Corrupt uses an explicit motion clock. SPEED scales autonomous movement
+// Vista uses an explicit motion clock. SPEED scales autonomous movement
 // without changing decoded-frame STROBE / MULTIGRAB timing.
-let _corruptClock = 0;
-// Corrupt separates visual presence from effect evolution. CONTINUOUS mode
+let _vistaClock = 0;
+// Vista separates visual presence from effect evolution. CONTINUOUS mode
 // remains composited every render while a decoded-frame source clock advances at the
 // active Random/Cluster SPEED and chooses a stable historical age per patch.
-let _corruptSourceClock = 0;
-let _corruptSourceLastVfc = -1;
-const _corruptMotion = Object.seal({ x:0, y:0, z:0, zDir:1, dt:1/60, speed:1, timeSec:0, serial:0, sourceSerial:0, clusterSpeed:1, clusterTimeSec:0 });
-window.HUFF_CORRUPT_MOTION = _corruptMotion;
-function _resetCorruptAxisMotion() {
-  _corruptClock = 0;
-  _corruptMotion.x = 0;
-  _corruptMotion.y = 0;
-  _corruptMotion.z = 0;
-  _corruptMotion.zDir = 1;
-  _corruptMotion.dt = 1/60;
-  _corruptMotion.speed = 1;
-  _corruptMotion.timeSec = 0;
-  _corruptMotion.serial = 0;
-  _corruptSourceClock = 0;
-  _corruptSourceLastVfc = -1;
-  _corruptMotion.sourceSerial = 0;
-  _corruptMotion.clusterSpeed = 1;
-  _corruptMotion.clusterTimeSec = 0;
+let _vistaSourceClock = 0;
+let _vistaSourceLastVfc = -1;
+const _vistaMotion = Object.seal({ x:0, y:0, z:0, zDir:1, dt:1/60, speed:1, timeSec:0, serial:0, sourceSerial:0, clusterSpeed:1, clusterTimeSec:0 });
+window.HUFF_VISTA_MOTION = _vistaMotion;
+function _resetVistaAxisMotion() {
+  _vistaClock = 0;
+  _vistaMotion.x = 0;
+  _vistaMotion.y = 0;
+  _vistaMotion.z = 0;
+  _vistaMotion.zDir = 1;
+  _vistaMotion.dt = 1/60;
+  _vistaMotion.speed = 1;
+  _vistaMotion.timeSec = 0;
+  _vistaMotion.serial = 0;
+  _vistaSourceClock = 0;
+  _vistaSourceLastVfc = -1;
+  _vistaMotion.sourceSerial = 0;
+  _vistaMotion.clusterSpeed = 1;
+  _vistaMotion.clusterTimeSec = 0;
 }
-let nPhaseScanX = 0, nPhaseScanY = 2000; // FIELD motion phase only; BANDS autonomous motion has explicit clocks
-const _scanSpatialMotion = { x:0, y:0, zoomOffset:0, zDir:1 };
-const _scanBandMotion = { travel:0, lfoPhase:0 };
-const _scanMagnetMotion = { position:0.5, dir:1, lastControl:0.5 };
-function _resetScanSpatialMotion() {
-  _scanSpatialMotion.x = 0;
-  _scanSpatialMotion.y = 0;
-  _scanSpatialMotion.zoomOffset = 0;
-  _scanSpatialMotion.zDir = 1;
-  _scanBandMotion.travel = 0;
-  _scanBandMotion.lfoPhase = 0;
-  const rawMagnetPosition = Number(renderState.scanMagnetPosition ?? 0.5);
+let nPhasePanelX = 0, nPhasePanelY = 2000; // FIELD motion phase only; BANDS autonomous motion has explicit clocks
+const _panelSpatialMotion = { x:0, y:0, zoomOffset:0, zDir:1 };
+const _panelBandMotion = { travel:0, lfoPhase:0 };
+const _panelMagnetMotion = { position:0.5, dir:1, lastControl:0.5 };
+function _resetPanelSpatialMotion() {
+  _panelSpatialMotion.x = 0;
+  _panelSpatialMotion.y = 0;
+  _panelSpatialMotion.zoomOffset = 0;
+  _panelSpatialMotion.zDir = 1;
+  _panelBandMotion.travel = 0;
+  _panelBandMotion.lfoPhase = 0;
+  const rawMagnetPosition = Number(renderState.panelMagnetPosition ?? 0.5);
   const p = Math.max(0, Math.min(1, Number.isFinite(rawMagnetPosition) ? rawMagnetPosition : 0.5));
-  _scanMagnetMotion.position = p;
-  _scanMagnetMotion.lastControl = p;
-  _scanMagnetMotion.dir = 1;
+  _panelMagnetMotion.position = p;
+  _panelMagnetMotion.lastControl = p;
+  _panelMagnetMotion.dir = 1;
 }
 
 // ─── FrameRing ────────────────────────────────────────────────────────────────
@@ -559,24 +559,24 @@ function toggleUI() {
 // loadPresetFromFile(f)  — load snapshot from a File object
 
 const PRESET_IDS = [
-  'quality','historyFrames','depth','corrupt','block','glitchSpeed','glitchSpeedFine','glitchSpeedMul',
-  'glitchSize','glitchSmear','glitchBaseX','glitchBaseY','glitchBaseZ','corruptMoveX','corruptMoveY','corruptMoveZ',
+  'quality','historyFrames','depth','vista','block','glitchSpeed','glitchSpeedFine','glitchSpeedMul',
+  'glitchSize','glitchSmear','glitchBaseX','glitchBaseY','glitchBaseZ','vistaMoveX','vistaMoveY','vistaMoveZ',
   'glitchAlpha','glitchJitter','glitchSmearAngle','glitchStrobeEvery',
-  'corruptUpdateMode','corruptHoldFrames','corruptLiveFrames','corruptSpeed',
-  'corruptMaskMode','corruptMaskThreshold','corruptMaskSide','corruptDistribution',
-  'corruptOn','feedbackEnabled','feedback','persistence','feedbackMotionRange','fbX','fbY','fbZ','fbTheta','feedbackStrobe','feedbackStrobeEvery','feedbackRestore',
+  'vistaUpdateMode','vistaHoldFrames','vistaLiveFrames','vistaSpeed',
+  'vistaMaskMode','vistaMaskThreshold','vistaMaskSide','vistaDistribution',
+  'vistaOn','feedbackEnabled','feedback','persistence','feedbackMotionRange','fbX','fbY','fbZ','fbTheta','feedbackStrobe','feedbackStrobeEvery','feedbackRestore',
   'clusters','clusterCount','clusterRadius','spatialGap',
   'cluCenters','cluSpread','cluMinSpread','cluDepth','cluBias','cluDrift','cluSpeed','cluInertia','clusterMasterSpeed','cluMoveX','cluMoveY','cluMoveZ',
-  'flowOn','flowStrength','flowScale','flowPulse','flowImpl','flowSpeed','flowTurb','flowSwirl','flowSpread',
+  'siftOn','siftStrength','siftScale','siftPulse','siftImpl','siftSpeed','siftTurb','siftSwirl','siftSpread',
   'baseOn','baseMix',
   'symOn','symMode','symPos','symPosX','symPosY','symMix','symVDir','symHDir','symFlipH','symFlipV',
   'solarizeOn','solarizeMode','solarizeThresh','solarizeLevel','solarizeSoft','solarizeInvert','solarizePosterLevel','solarizePosterSoft','solarizePosterPhase','solarizeAmt','solarizeFluidity','solarizeR','solarizeG','solarizeB',
-  'scanAlpha','scanShift','scanDrift','scanSpeed','scanGap','scanSkew',
-  'scanAngle','scanFocus','scanRoll',
-  'scanPlaceX','scanPlaceY','scanZoom','scanMoveX','scanMoveY','scanMoveZ',
-  'scanPanelLayout','scanBandSpread','scanExpandX','scanExpandY','scanExpandZ','scanLfoAmount','scanLfoRate',
-  'scanMagnetOn','scanMagnetMode','scanMagnetPosition','scanMagnetStrength','scanMagnetPerspective','scanMagnetRadius','scanMagnetFalloff','scanMagnetSpeed','scanMagnetEdge',
-  'scanFieldSpreadX','scanFieldSpreadY','scanFieldSpreadZ','scanFieldSizeVar','scanFieldDrift','scanFieldDepthDrift',
+  'panelAlpha','panelShift','panelDrift','panelSpeed','panelGap','panelSkew',
+  'panelAngle','panelFocus','panelRoll',
+  'panelPlaceX','panelPlaceY','panelZoom','panelMoveX','panelMoveY','panelMoveZ',
+  'panelLayout','panelBandSpread','panelExpandX','panelExpandY','panelExpandZ','panelLfoAmount','panelLfoRate',
+  'panelMagnetOn','panelMagnetMode','panelMagnetPosition','panelMagnetStrength','panelMagnetPerspective','panelMagnetRadius','panelMagnetFalloff','panelMagnetSpeed','panelMagnetEdge',
+  'panelFieldSpreadX','panelFieldSpreadY','panelFieldSpreadZ','panelFieldSizeVar','panelFieldDrift','panelFieldDepthDrift',
   'bgMode',
   'cluSpeedVar','cluPulse',
   'cluSteer','cluBreathe','cluBounds','cluCohere',
@@ -648,18 +648,18 @@ function applyPreset(data) {
     sourceData.pipelineRecipe = 'classic';
   }
   // Imported presets with Glitch Strobe fields are translated to the equivalent
-  // CORRUPT update mode.
+  // VISTA update mode.
   if (!('glitchStrobeEvery' in sourceData)) sourceData.glitchStrobeEvery = '4';
-  if (!('corruptUpdateMode' in sourceData)) {
-    sourceData.corruptUpdateMode = sourceData.glitchStrobe ? 'strobe' : 'continuous';
+  if (!('vistaUpdateMode' in sourceData)) {
+    sourceData.vistaUpdateMode = sourceData.glitchStrobe ? 'strobe' : 'continuous';
   }
-  if (!('corruptHoldFrames' in sourceData)) sourceData.corruptHoldFrames = '8';
-  if (!('corruptLiveFrames' in sourceData)) sourceData.corruptLiveFrames = '2';
-  if (!('corruptSpeed' in sourceData)) sourceData.corruptSpeed = '1';
+  if (!('vistaHoldFrames' in sourceData)) sourceData.vistaHoldFrames = '8';
+  if (!('vistaLiveFrames' in sourceData)) sourceData.vistaLiveFrames = '2';
+  if (!('vistaSpeed' in sourceData)) sourceData.vistaSpeed = '1';
   if (!('glitchBaseZ' in sourceData)) sourceData.glitchBaseZ = '0';
-  if (!('corruptMoveX' in sourceData)) sourceData.corruptMoveX = '0';
-  if (!('corruptMoveY' in sourceData)) sourceData.corruptMoveY = '0';
-  if (!('corruptMoveZ' in sourceData)) sourceData.corruptMoveZ = '0';
+  if (!('vistaMoveX' in sourceData)) sourceData.vistaMoveX = '0';
+  if (!('vistaMoveY' in sourceData)) sourceData.vistaMoveY = '0';
+  if (!('vistaMoveZ' in sourceData)) sourceData.vistaMoveZ = '0';
 
   // Missing Feedback merge fields receive neutral defaults. FEEDBACK, PERSISTENCE
   // and FB X/Y/Z/theta retain their stored IDs, values, and equations.
@@ -670,8 +670,8 @@ function applyPreset(data) {
   if (!('feedbackRestore' in sourceData)) sourceData.feedbackRestore = '0';
 
   // Clusters are now a distribution mode rather than a separate effect block.
-  if (!('corruptDistribution' in sourceData)) {
-    sourceData.corruptDistribution = sourceData.clusterTiles ? 'cluster' : 'random';
+  if (!('vistaDistribution' in sourceData)) {
+    sourceData.vistaDistribution = sourceData.clusterTiles ? 'cluster' : 'random';
   }
   // Imported presets without cluster-depth data stay flat. New sessions use the
   // UI default so enabling Clusters immediately exposes the depth plane.
@@ -680,9 +680,9 @@ function applyPreset(data) {
   if (!('cluMoveX' in sourceData)) sourceData.cluMoveX = '0';
   if (!('cluMoveY' in sourceData)) sourceData.cluMoveY = '0';
   if (!('cluMoveZ' in sourceData)) sourceData.cluMoveZ = '0';
-  if (!('corruptMaskMode' in sourceData)) sourceData.corruptMaskMode = 'full';
-  if (!('corruptMaskThreshold' in sourceData)) sourceData.corruptMaskThreshold = '128';
-  if (!('corruptMaskSide' in sourceData)) sourceData.corruptMaskSide = 'bright';
+  if (!('vistaMaskMode' in sourceData)) sourceData.vistaMaskMode = 'full';
+  if (!('vistaMaskThreshold' in sourceData)) sourceData.vistaMaskThreshold = '128';
+  if (!('vistaMaskSide' in sourceData)) sourceData.vistaMaskSide = 'bright';
 
   // Imported presets with only `symPos` apply that value to both symmetry axes.
   const legacySymPos = String(sourceData.symPos ?? '0.5');
@@ -696,39 +696,39 @@ function applyPreset(data) {
   if (!('symFlipV' in sourceData)) sourceData.symFlipV = false;
   if (!new Set(['v','h','hv','quad']).has(String(sourceData.symMode || ''))) sourceData.symMode = 'v';
 
-  // Scanline spatial controls use neutral defaults when absent from an imported preset.
-  if (!('scanPlaceX' in sourceData)) sourceData.scanPlaceX = '0';
-  if (!('scanPlaceY' in sourceData)) sourceData.scanPlaceY = '0';
-  if (!('scanZoom' in sourceData)) sourceData.scanZoom = '1';
-  if (!('scanMoveX' in sourceData)) sourceData.scanMoveX = '0';
-  if (!('scanMoveY' in sourceData)) sourceData.scanMoveY = '0';
-  if (!('scanMoveZ' in sourceData)) sourceData.scanMoveZ = '0';
-  // Scan panels support BANDS and FIELD organizations. Imported presets default
+  // paneling spatial controls use neutral defaults when absent from an imported preset.
+  if (!('panelPlaceX' in sourceData)) sourceData.panelPlaceX = '0';
+  if (!('panelPlaceY' in sourceData)) sourceData.panelPlaceY = '0';
+  if (!('panelZoom' in sourceData)) sourceData.panelZoom = '1';
+  if (!('panelMoveX' in sourceData)) sourceData.panelMoveX = '0';
+  if (!('panelMoveY' in sourceData)) sourceData.panelMoveY = '0';
+  if (!('panelMoveZ' in sourceData)) sourceData.panelMoveZ = '0';
+  // Panel panels support BANDS and FIELD organizations. Imported presets default
   // to BANDS; FIELD controls receive useful defaults for immediate switching.
-  if (!('scanPanelLayout' in sourceData)) sourceData.scanPanelLayout = 'bands';
+  if (!('panelLayout' in sourceData)) sourceData.panelLayout = 'bands';
   // Ordered BANDS additions are neutral/additive for existing presets. SPREAD 1
   // means full-frame ordered lanes; EXPAND and MAGNET remain off until used.
-  if (!('scanBandSpread' in sourceData)) sourceData.scanBandSpread = '1';
-  if (!('scanExpandX' in sourceData)) sourceData.scanExpandX = '0';
-  if (!('scanExpandY' in sourceData)) sourceData.scanExpandY = '0';
-  if (!('scanExpandZ' in sourceData)) sourceData.scanExpandZ = '0';
-  if (!('scanLfoAmount' in sourceData)) sourceData.scanLfoAmount = '0';
-  if (!('scanLfoRate' in sourceData)) sourceData.scanLfoRate = '0.5';
-  if (!('scanMagnetOn' in sourceData)) sourceData.scanMagnetOn = false;
-  if (!('scanMagnetMode' in sourceData)) sourceData.scanMagnetMode = 'local';
-  if (!('scanMagnetPosition' in sourceData)) sourceData.scanMagnetPosition = '0.5';
-  if (!('scanMagnetStrength' in sourceData)) sourceData.scanMagnetStrength = '0.65';
-  if (!('scanMagnetPerspective' in sourceData)) sourceData.scanMagnetPerspective = '0';
-  if (!('scanMagnetRadius' in sourceData)) sourceData.scanMagnetRadius = '0.28';
-  if (!('scanMagnetFalloff' in sourceData)) sourceData.scanMagnetFalloff = '1';
-  if (!('scanMagnetSpeed' in sourceData)) sourceData.scanMagnetSpeed = '0';
-  if (!('scanMagnetEdge' in sourceData)) sourceData.scanMagnetEdge = 'bounce';
-  if (!('scanFieldSpreadX' in sourceData)) sourceData.scanFieldSpreadX = '0.55';
-  if (!('scanFieldSpreadY' in sourceData)) sourceData.scanFieldSpreadY = '0.45';
-  if (!('scanFieldSpreadZ' in sourceData)) sourceData.scanFieldSpreadZ = '0.50';
-  if (!('scanFieldSizeVar' in sourceData)) sourceData.scanFieldSizeVar = '0.20';
-  if (!('scanFieldDrift' in sourceData)) sourceData.scanFieldDrift = '0.15';
-  if (!('scanFieldDepthDrift' in sourceData)) sourceData.scanFieldDepthDrift = '0.10';
+  if (!('panelBandSpread' in sourceData)) sourceData.panelBandSpread = '1';
+  if (!('panelExpandX' in sourceData)) sourceData.panelExpandX = '0';
+  if (!('panelExpandY' in sourceData)) sourceData.panelExpandY = '0';
+  if (!('panelExpandZ' in sourceData)) sourceData.panelExpandZ = '0';
+  if (!('panelLfoAmount' in sourceData)) sourceData.panelLfoAmount = '0';
+  if (!('panelLfoRate' in sourceData)) sourceData.panelLfoRate = '0.5';
+  if (!('panelMagnetOn' in sourceData)) sourceData.panelMagnetOn = false;
+  if (!('panelMagnetMode' in sourceData)) sourceData.panelMagnetMode = 'local';
+  if (!('panelMagnetPosition' in sourceData)) sourceData.panelMagnetPosition = '0.5';
+  if (!('panelMagnetStrength' in sourceData)) sourceData.panelMagnetStrength = '0.65';
+  if (!('panelMagnetPerspective' in sourceData)) sourceData.panelMagnetPerspective = '0';
+  if (!('panelMagnetRadius' in sourceData)) sourceData.panelMagnetRadius = '0.28';
+  if (!('panelMagnetFalloff' in sourceData)) sourceData.panelMagnetFalloff = '1';
+  if (!('panelMagnetSpeed' in sourceData)) sourceData.panelMagnetSpeed = '0';
+  if (!('panelMagnetEdge' in sourceData)) sourceData.panelMagnetEdge = 'bounce';
+  if (!('panelFieldSpreadX' in sourceData)) sourceData.panelFieldSpreadX = '0.55';
+  if (!('panelFieldSpreadY' in sourceData)) sourceData.panelFieldSpreadY = '0.45';
+  if (!('panelFieldSpreadZ' in sourceData)) sourceData.panelFieldSpreadZ = '0.50';
+  if (!('panelFieldSizeVar' in sourceData)) sourceData.panelFieldSizeVar = '0.20';
+  if (!('panelFieldDrift' in sourceData)) sourceData.panelFieldDrift = '0.15';
+  if (!('panelFieldDepthDrift' in sourceData)) sourceData.panelFieldDepthDrift = '0.10';
   // Unsupported SELF/GLITCH key-source values map to LIVE. Stored stencil pixels
   // are not serialized in presets; only the selected key source is stored.
   if (!('lumaKeyTarget' in sourceData)) sourceData.lumaKeyTarget = 'composite';
@@ -741,9 +741,9 @@ function applyPreset(data) {
   if (!validLumaFades.has(String(sourceData.lumaKeyFade || ''))) sourceData.lumaKeyFade = 'xfade';
   if (!('lumaKeyCleanup' in sourceData)) sourceData.lumaKeyCleanup = '0';
   if (!('lumaKeyDensity' in sourceData)) sourceData.lumaKeyDensity = '0';
-  // Layer Priority accepts only SCAN TOP or CORRUPT TOP. Imported unsupported
-  // values map deterministically to SCAN TOP.
-  if (sourceData.layerPriority !== 'glitch' && sourceData.layerPriority !== 'scan') sourceData.layerPriority = 'scan';
+  // Layer Priority accepts only PANELING TOP or VISTA TOP. Imported unsupported
+  // values map deterministically to PANELING TOP.
+  if (sourceData.layerPriority !== 'glitch' && sourceData.layerPriority !== 'panel') sourceData.layerPriority = 'panel';
   if (!('globalMixCurve' in sourceData)) sourceData.globalMixCurve = 'linear';
   if (!new Set(['linear','smooth','punch']).has(String(sourceData.globalMixCurve || ''))) sourceData.globalMixCurve = 'linear';
 
@@ -763,8 +763,8 @@ function applyPreset(data) {
     });
     // FIELD RATE is a derived view over SPEED/FINE/MULT. Preset recall keeps
     // those underlying control values intact.
-    _syncCorruptRateFromLegacy();
-    _resetScanSpatialMotion();
+    _syncVistaRateFromLegacy();
+    _resetPanelSpatialMotion();
     updateLabels();
     setSeedFromUI();
   } finally {
@@ -1643,7 +1643,7 @@ function _pushToRing() {
 // Each decode callback checks its captured session token on every tick and
 // terminates if it no longer matches — ensuring only one active pump exists.
 let _pumpSession = 0;
-let _vfc = 0; // increments once per decoded video frame — used to stabilise scanline ring selection
+let _vfc = 0; // increments once per decoded video frame — used to stabilise paneling ring selection
 
 function pumpVideoFrames() {
   if (!videoEl?.elt) return;
@@ -1877,14 +1877,14 @@ function clearAll() {
   _bypassSyncedVfc = -1;
   _renderWasBypassed = true;
   if (typeof resetClusterPhysics === 'function') resetClusterPhysics();
-  _resetCorruptAxisMotion();
+  _resetVistaAxisMotion();
 }
 
 function refreshGlitch() {
   clearAll();
   nPhaseX = 0; nPhaseY = 1000;
-  nPhaseScanX = 0; nPhaseScanY = 2000;
-  _resetScanSpatialMotion();
+  nPhasePanelX = 0; nPhasePanelY = 2000;
+  _resetPanelSpatialMotion();
 }
 
 // ─── Canvas still capture ────────────────────────────────────────────────────
@@ -1962,17 +1962,17 @@ window.captureCanvasScreenshot = captureCanvasScreenshot;
 function hookUI() {
   [
     'file','playBtn','pauseBtn','refreshBtn','resetBtn','clearBufBtn','canvasShot169Btn','canvasShot43Btn','canvasShot916Btn',
-    'camStartBtn','camStopBtn','camRefreshBtn','cams','corruptOn','sourceInfo',
-    'quality','historyFrames','historyFramesVal','depth','depthVal','corrupt','corruptVal','block','blockVal',
-    'glitchSpeed','glitchSpeedVal','glitchSpeedFine','glitchSpeedFineVal','corruptRate','corruptRateVal','corruptSpeed','corruptSpeedVal',
+    'camStartBtn','camStopBtn','camRefreshBtn','cams','vistaOn','sourceInfo',
+    'quality','historyFrames','historyFramesVal','depth','depthVal','vista','vistaVal','block','blockVal',
+    'glitchSpeed','glitchSpeedVal','glitchSpeedFine','glitchSpeedFineVal','vistaRate','vistaRateVal','vistaSpeed','vistaSpeedVal',
     'glitchSize','glitchSizeVal','glitchSmear','glitchSmearVal',
     'glitchBaseX','glitchBaseXVal','glitchBaseY','glitchBaseYVal','glitchBaseZ','glitchBaseZVal',
-    'corruptMoveX','corruptMoveXVal','corruptMoveY','corruptMoveYVal','corruptMoveZ','corruptMoveZVal','corruptResetXYZBtn',
+    'vistaMoveX','vistaMoveXVal','vistaMoveY','vistaMoveYVal','vistaMoveZ','vistaMoveZVal','vistaResetXYZBtn',
     'glitchSpeedMul','glitchSpeedMulVal','glitchAlpha','glitchAlphaVal',
     'glitchJitter','glitchJitterVal','glitchSmearAngle','glitchSmearAngleVal',
     'glitchStrobe','glitchStrobeEvery','glitchStrobeEveryVal',
-    'corruptUpdateMode','corruptHoldFrames','corruptHoldFramesVal','corruptLiveFrames','corruptLiveFramesVal',
-    'corruptDistribution','clusterModeStatus','corruptMaskMode','corruptMaskThreshold','corruptMaskThresholdVal','corruptMaskSide','corruptMaskStatus',
+    'vistaUpdateMode','vistaHoldFrames','vistaHoldFramesVal','vistaLiveFrames','vistaLiveFramesVal',
+    'vistaDistribution','clusterModeStatus','vistaMaskMode','vistaMaskThreshold','vistaMaskThresholdVal','vistaMaskSide','vistaMaskStatus',
     'feedbackEnabled','feedback','feedbackVal','persistence','persistenceVal','feedbackMotionRange','feedbackStrobe','feedbackStrobeEvery','feedbackStrobeEveryVal','feedbackRestore','feedbackRestoreVal',
     'fbX','fbXVal','fbY','fbYVal','fbZ','fbZVal','fbTheta','fbThetaVal',
     'clusters','clusterTiles','clusterCount','clusterCountVal',
@@ -1981,27 +1981,27 @@ function hookUI() {
     'cluMinSpread','cluMinSpreadVal','cluBias','cluBiasVal','cluDrift','cluDriftVal',
     'clusterMasterSpeed','clusterMasterSpeedVal','cluSpeed','cluSpeedVal','cluSteer','cluSteerVal','cluInertia','cluInertiaVal','cluCohere','cluCohereVal',
     'cluMoveX','cluMoveXVal','cluMoveY','cluMoveYVal','cluMoveZ','cluMoveZVal',
-    'flowOn','flowStrength','flowStrengthVal','flowScale','flowScaleVal',
-    'flowPulse','flowPulseVal','flowImpl','flowImplVal',
-    'flowSpeed','flowSpeedVal','flowTurb','flowTurbVal','flowSwirl','flowSwirlVal','flowSpread','flowSpreadVal',
+    'siftOn','siftStrength','siftStrengthVal','siftScale','siftScaleVal',
+    'siftPulse','siftPulseVal','siftImpl','siftImplVal',
+    'siftSpeed','siftSpeedVal','siftTurb','siftTurbVal','siftSwirl','siftSwirlVal','siftSpread','siftSpreadVal',
     'baseOn','baseMix','baseMixVal',
     'symOn','symMode','symPos','symPosVal','symPosX','symPosXVal','symPosY','symPosYVal','symMix','symMixVal','symVDir','symHDir','symFlipH','symFlipV',
     'solarizeOn','solarizeMode','solarizeThresh','solarizeThreshVal','solarizeLevel','solarizeLevelVal','solarizeSoft','solarizeSoftVal','solarizeInvert','solarizePosterLevel','solarizePosterLevelVal','solarizePosterSoft','solarizePosterSoftVal','solarizePosterPhase','solarizePosterPhaseVal','solarizeAmt','solarizeAmtVal','solarizeFluidity','solarizeFluidityVal',
     'solarizeR','solarizeRVal','solarizeG','solarizeGVal','solarizeB','solarizeBVal',
-    'scanAlpha','scanAlphaVal','scanShift','scanShiftVal','scanDrift','scanDriftVal',
-    'scanSpeed','scanSpeedVal','scanGap','scanGapVal','scanSkew','scanSkewVal',
-    'scanAngle','scanAngleVal','scanFocus','scanFocusVal','scanRoll','scanRollVal',
-    'scanPlaceX','scanPlaceXVal','scanPlaceY','scanPlaceYVal','scanZoom','scanZoomVal',
-    'scanMoveX','scanMoveXVal','scanMoveY','scanMoveYVal','scanMoveZ','scanMoveZVal','scanResetXYZBtn',
-    'scanPanelLayout','scanBandSpread','scanBandSpreadVal','scanExpandX','scanExpandXVal','scanExpandY','scanExpandYVal','scanExpandZ','scanExpandZVal','scanLfoAmount','scanLfoAmountVal','scanLfoRate','scanLfoRateVal',
-    'scanMagnetOn','scanMagnetMode','scanMagnetPosition','scanMagnetPositionVal','scanMagnetStrength','scanMagnetStrengthVal','scanMagnetPerspective','scanMagnetPerspectiveVal','scanMagnetRadius','scanMagnetRadiusVal','scanMagnetFalloff','scanMagnetFalloffVal','scanMagnetSpeed','scanMagnetSpeedVal','scanMagnetEdge',
-    'scanFieldSpreadX','scanFieldSpreadXVal','scanFieldSpreadY','scanFieldSpreadYVal','scanFieldSpreadZ','scanFieldSpreadZVal',
-    'scanFieldSizeVar','scanFieldSizeVarVal','scanFieldDrift','scanFieldDriftVal','scanFieldDepthDrift','scanFieldDepthDriftVal','scanFieldResetBtn',
-    'depthScatter','depthScatterVal','corruptDrift','corruptDriftVal',
-    'scanAngle','bgMode','dim',
+    'panelAlpha','panelAlphaVal','panelShift','panelShiftVal','panelDrift','panelDriftVal',
+    'panelSpeed','panelSpeedVal','panelGap','panelGapVal','panelSkew','panelSkewVal',
+    'panelAngle','panelAngleVal','panelFocus','panelFocusVal','panelRoll','panelRollVal',
+    'panelPlaceX','panelPlaceXVal','panelPlaceY','panelPlaceYVal','panelZoom','panelZoomVal',
+    'panelMoveX','panelMoveXVal','panelMoveY','panelMoveYVal','panelMoveZ','panelMoveZVal','panelResetXYZBtn',
+    'panelLayout','panelBandSpread','panelBandSpreadVal','panelExpandX','panelExpandXVal','panelExpandY','panelExpandYVal','panelExpandZ','panelExpandZVal','panelLfoAmount','panelLfoAmountVal','panelLfoRate','panelLfoRateVal',
+    'panelMagnetOn','panelMagnetMode','panelMagnetPosition','panelMagnetPositionVal','panelMagnetStrength','panelMagnetStrengthVal','panelMagnetPerspective','panelMagnetPerspectiveVal','panelMagnetRadius','panelMagnetRadiusVal','panelMagnetFalloff','panelMagnetFalloffVal','panelMagnetSpeed','panelMagnetSpeedVal','panelMagnetEdge',
+    'panelFieldSpreadX','panelFieldSpreadXVal','panelFieldSpreadY','panelFieldSpreadYVal','panelFieldSpreadZ','panelFieldSpreadZVal',
+    'panelFieldSizeVar','panelFieldSizeVarVal','panelFieldDrift','panelFieldDriftVal','panelFieldDepthDrift','panelFieldDepthDriftVal','panelFieldResetBtn',
+    'depthScatter','depthScatterVal','vistaDrift','vistaDriftVal',
+    'panelAngle','bgMode','dim',
     'cluSpeedVar','cluSpeedVarVal','cluPulse','cluPulseVal','cluBreathe','cluBreatheVal','cluBounds',
     'pipelineRecipe','layerPriority','layerPriorityState',
-    'pipelineFeedCorrupt','pipelineFeedScan','pipelineFeedLuma','pipelineFeedSummary','pipelineDiagram','pipelineRouteSummary','symPipelineState','solarizePipelineState',
+    'pipelineFeedVista','pipelineFeedPanel','pipelineFeedLuma','pipelineFeedSummary','pipelineDiagram','pipelineRouteSummary','symPipelineState','solarizePipelineState',
     'lumaKeyOn','lumaKeyTarget','lumaKeyTargetState','lumaKeyMix','lumaKeyMixVal','lumaKeyAB','lumaKeyABVal','lumaKeyInvert',
     'lumaKeyGain','lumaKeyGainVal','lumaKeySource','lumaKeyFade','lumaKeyCleanup','lumaKeyCleanupVal','lumaKeyDensity','lumaKeyDensityVal','lumaKeyCaptureBtn','lumaKeyStencilState',
     'globalMixOn','globalMixBlend','globalMixAmt','globalMixAmtVal','globalMixCurve','globalMixPos',
@@ -2262,28 +2262,28 @@ function _updateLumaStencilStatus(forcedText = '') {
     els.lumaKeyCaptureBtn.style.color = isReady ? '#000000' : '';
     els.lumaKeyCaptureBtn.style.textShadow = 'none';
   }
-  if (typeof _syncCorruptContextUI === 'function') _syncCorruptContextUI();
+  if (typeof _syncVistaContextUI === 'function') _syncVistaContextUI();
 }
 
-// CORRUPT RATE presents the internal SPEED × FINE × MULT² stack as one
+// VISTA RATE presents the internal SPEED × FINE × MULT² stack as one
 // performance control. The logarithmic mapping preserves useful low-speed
 // resolution while still spanning the complete internal range.
-let _syncingCorruptRate = false;
-function _legacyCorruptEffectiveRate() {
+let _syncingVistaRate = false;
+function _legacyVistaEffectiveRate() {
   const speed = Number(els.glitchSpeed?.value ?? 0) || 0;
   const fine = Number(els.glitchSpeedFine?.value ?? 0) || 0;
   const mul = Number(els.glitchSpeedMul?.value ?? 0) || 0;
   return Math.max(0, speed * fine * mul * mul);
 }
-function _corruptRateKnobToEffective(value) {
+function _vistaRateKnobToEffective(value) {
   const k = Math.max(0, Math.min(1, Number(value) || 0));
   return 0.5 * (Math.pow(10, 4 * k) - 1);
 }
-function _corruptEffectiveToRateKnob(rate) {
+function _vistaEffectiveToRateKnob(rate) {
   const r = Math.max(0, Math.min(4999.5, Number(rate) || 0));
   return Math.max(0, Math.min(1, Math.log10(1 + r / 0.5) / 4));
 }
-function _setLegacyCorruptRate(rate) {
+function _setLegacyVistaRate(rate) {
   const r = Math.max(0, Math.min(5000, Number(rate) || 0));
   let speed = 0, fine = 1, mul = 1;
   if (r <= 5) {
@@ -2296,7 +2296,7 @@ function _setLegacyCorruptRate(rate) {
     fine = 10;
     mul = Math.sqrt(r / 50);
   }
-  _syncingCorruptRate = true;
+  _syncingVistaRate = true;
   try {
     if (els.glitchSpeed) els.glitchSpeed.value = String(speed);
     if (els.glitchSpeedFine) els.glitchSpeedFine.value = String(fine);
@@ -2305,16 +2305,16 @@ function _setLegacyCorruptRate(rate) {
     _syncRenderControl('glitchSpeedFine');
     _syncRenderControl('glitchSpeedMul');
   } finally {
-    _syncingCorruptRate = false;
+    _syncingVistaRate = false;
   }
 }
-function _syncCorruptRateFromLegacy() {
-  if (!els.corruptRate || _syncingCorruptRate) return;
-  _syncingCorruptRate = true;
+function _syncVistaRateFromLegacy() {
+  if (!els.vistaRate || _syncingVistaRate) return;
+  _syncingVistaRate = true;
   try {
-    els.corruptRate.value = String(_corruptEffectiveToRateKnob(_legacyCorruptEffectiveRate()));
+    els.vistaRate.value = String(_vistaEffectiveToRateKnob(_legacyVistaEffectiveRate()));
   } finally {
-    _syncingCorruptRate = false;
+    _syncingVistaRate = false;
   }
 }
 
@@ -2337,21 +2337,21 @@ function _applyFeedbackMotionRange() {
 
 function hookSliders() {
   const sliderIds = [
-    'historyFrames','depth','corrupt','block','glitchSpeed','glitchSpeedFine','glitchSpeedMul','corruptSpeed',
-    'glitchSize','glitchSmear','glitchBaseX','glitchBaseY','glitchBaseZ','corruptMoveX','corruptMoveY','corruptMoveZ','glitchStrobeEvery',
-    'corruptHoldFrames','corruptLiveFrames','corruptMaskThreshold',
+    'historyFrames','depth','vista','block','glitchSpeed','glitchSpeedFine','glitchSpeedMul','vistaSpeed',
+    'glitchSize','glitchSmear','glitchBaseX','glitchBaseY','glitchBaseZ','vistaMoveX','vistaMoveY','vistaMoveZ','glitchStrobeEvery',
+    'vistaHoldFrames','vistaLiveFrames','vistaMaskThreshold',
     'feedback','persistence','fbX','fbY','fbZ','fbTheta','feedbackStrobeEvery','feedbackRestore',
     'spatialGap','clusterCount','clusterRadius','cluCenters','cluSpread','cluDepth','clusterMasterSpeed','cluMoveX','cluMoveY','cluMoveZ',
     'cluMinSpread','cluBias','cluDrift','cluSpeed','cluSteer','cluInertia','cluCohere',
-    'scanAlpha','scanShift','scanDrift','scanSpeed','scanGap','scanSkew','scanFocus','scanRoll','scanPlaceX','scanPlaceY','scanZoom','scanMoveX','scanMoveY','scanMoveZ',
-    'scanBandSpread','scanExpandX','scanExpandY','scanExpandZ','scanLfoAmount','scanLfoRate','scanMagnetPosition','scanMagnetStrength','scanMagnetPerspective','scanMagnetRadius','scanMagnetFalloff','scanMagnetSpeed',
-    'scanFieldSpreadX','scanFieldSpreadY','scanFieldSpreadZ','scanFieldSizeVar','scanFieldDrift','scanFieldDepthDrift',
+    'panelAlpha','panelShift','panelDrift','panelSpeed','panelGap','panelSkew','panelFocus','panelRoll','panelPlaceX','panelPlaceY','panelZoom','panelMoveX','panelMoveY','panelMoveZ',
+    'panelBandSpread','panelExpandX','panelExpandY','panelExpandZ','panelLfoAmount','panelLfoRate','panelMagnetPosition','panelMagnetStrength','panelMagnetPerspective','panelMagnetRadius','panelMagnetFalloff','panelMagnetSpeed',
+    'panelFieldSpreadX','panelFieldSpreadY','panelFieldSpreadZ','panelFieldSizeVar','panelFieldDrift','panelFieldDepthDrift',
     'glitchAlpha','glitchJitter','glitchSmearAngle',
-    'flowStrength','flowScale','flowPulse','flowImpl','flowSpeed','flowTurb','flowSwirl','flowSpread','baseMix','symPos','symPosX','symPosY','symMix',
-    'depthScatter','corruptDrift',
+    'siftStrength','siftScale','siftPulse','siftImpl','siftSpeed','siftTurb','siftSwirl','siftSpread','baseMix','symPos','symPosX','symPosY','symMix',
+    'depthScatter','vistaDrift',
     'solarizeThresh','solarizeLevel','solarizeSoft','solarizePosterLevel','solarizePosterSoft','solarizePosterPhase','solarizeAmt','solarizeFluidity','solarizeR','solarizeG','solarizeB',
     'cluSpeedVar','cluPulse','cluBreathe',
-    'lumaKeyMix','lumaKeyAB','lumaKeyGain','lumaKeyCleanup','lumaKeyDensity','globalMixAmt','scanAngle',
+    'lumaKeyMix','lumaKeyAB','lumaKeyGain','lumaKeyCleanup','lumaKeyDensity','globalMixAmt','panelAngle',
   ];
 
   sliderIds.forEach(id => {
@@ -2378,50 +2378,50 @@ function hookSliders() {
   els.historyFrames?.addEventListener('input', syncLegacyQualityFromHistory);
   els.historyFrames?.addEventListener('change', syncLegacyQualityFromHistory);
 
-  els.corruptRate?.addEventListener('input', () => {
-    if (_syncingCorruptRate) return;
-    _setLegacyCorruptRate(_corruptRateKnobToEffective(els.corruptRate.value));
+  els.vistaRate?.addEventListener('input', () => {
+    if (_syncingVistaRate) return;
+    _setLegacyVistaRate(_vistaRateKnobToEffective(els.vistaRate.value));
     updateLabels();
     snapshotForUndo();
   });
   for (const id of ['glitchSpeed','glitchSpeedFine','glitchSpeedMul']) {
     els[id]?.addEventListener('input', () => {
-      if (_syncingCorruptRate) return;
-      _syncCorruptRateFromLegacy();
+      if (_syncingVistaRate) return;
+      _syncVistaRateFromLegacy();
       updateLabels();
     });
   }
 
-  els.scanResetXYZBtn?.addEventListener('click', () => {
-    if (els.scanPlaceX) els.scanPlaceX.value = '0';
-    if (els.scanPlaceY) els.scanPlaceY.value = '0';
-    if (els.scanZoom) els.scanZoom.value = '1';
-    if (els.scanMoveX) els.scanMoveX.value = '0';
-    if (els.scanMoveY) els.scanMoveY.value = '0';
-    if (els.scanMoveZ) els.scanMoveZ.value = '0';
-    for (const id of ['scanPlaceX','scanPlaceY','scanZoom','scanMoveX','scanMoveY','scanMoveZ']) _syncRenderControl(id);
-    _resetScanSpatialMotion();
-    window.invalidateScanlineCache?.();
+  els.panelResetXYZBtn?.addEventListener('click', () => {
+    if (els.panelPlaceX) els.panelPlaceX.value = '0';
+    if (els.panelPlaceY) els.panelPlaceY.value = '0';
+    if (els.panelZoom) els.panelZoom.value = '1';
+    if (els.panelMoveX) els.panelMoveX.value = '0';
+    if (els.panelMoveY) els.panelMoveY.value = '0';
+    if (els.panelMoveZ) els.panelMoveZ.value = '0';
+    for (const id of ['panelPlaceX','panelPlaceY','panelZoom','panelMoveX','panelMoveY','panelMoveZ']) _syncRenderControl(id);
+    _resetPanelSpatialMotion();
+    window.invalidatePanelingCache?.();
     updateLabels();
     snapshotForUndo();
   });
 
-  const syncScanFieldUI = () => {
-    const active = String(els.scanPanelLayout?.value || 'bands') === 'field';
-    document.querySelectorAll('.scan-field-control').forEach(node => {
+  const syncPanelFieldUI = () => {
+    const active = String(els.panelLayout?.value || 'bands') === 'field';
+    document.querySelectorAll('.panel-field-control').forEach(node => {
       node.style.display = active ? '' : 'none';
     });
-    document.querySelectorAll('.scan-band-control').forEach(node => {
+    document.querySelectorAll('.panel-band-control').forEach(node => {
       node.style.display = active ? 'none' : '';
     });
   };
-  els.scanPanelLayout?.addEventListener('change', () => {
-    syncScanFieldUI();
+  els.panelLayout?.addEventListener('change', () => {
+    syncPanelFieldUI();
     updateLabels();
-    window.invalidateScanlineCache?.();
+    window.invalidatePanelingCache?.();
   });
-  els.scanFieldResetBtn?.addEventListener('click', () => {
-    const zeros = ['scanFieldSpreadX','scanFieldSpreadY','scanFieldSpreadZ','scanFieldSizeVar','scanFieldDrift','scanFieldDepthDrift'];
+  els.panelFieldResetBtn?.addEventListener('click', () => {
+    const zeros = ['panelFieldSpreadX','panelFieldSpreadY','panelFieldSpreadZ','panelFieldSizeVar','panelFieldDrift','panelFieldDepthDrift'];
     for (const id of zeros) {
       if (!els[id]) continue;
       els[id].value = '0';
@@ -2430,12 +2430,12 @@ function hookSliders() {
     updateLabels();
     snapshotForUndo();
   });
-  syncScanFieldUI();
+  syncPanelFieldUI();
 
   const syncLayerPriorityUI = () => {
-    const mode = String(els.layerPriority?.value || 'scan');
+    const mode = String(els.layerPriority?.value || 'panel');
     if (els.layerPriorityState) {
-      els.layerPriorityState.textContent = mode === 'glitch' ? 'STABLE · CORRUPT TOP' : 'STABLE · SCAN TOP';
+      els.layerPriorityState.textContent = mode === 'glitch' ? 'STABLE · VISTA TOP' : 'STABLE · PANELING TOP';
       els.layerPriorityState.classList.remove('warn');
     }
   };
@@ -2478,21 +2478,21 @@ function hookSliders() {
   syncSolarizeModeUI();
 
   // Reflect the active source in HUFF Classic's three-source image-feed model.
-  // without changing the render graph. Corrupt, Scanlines, and Luma/Composite
+  // without changing the render graph. Vista, paneling, and Luma/Composite
   // are the primary live-image entry points; Symmetry and Solarize remain
   // downstream processors. This is UI awareness only.
   const getPrimaryImageFeeds = () => {
     const feeds = [];
-    if (els.corruptOn?.checked) feeds.push('CORRUPT');
+    if (els.vistaOn?.checked) feeds.push('VISTA');
 
     // Keep Pipeline awareness in lockstep with _resolveFrameActivity().
-    // Scanlines is only an effective image feed when it is enabled AND has
+    // paneling is only an effective image feed when it is enabled AND has
     // at least one band AND non-zero opacity.
-    const scanlinesActive =
+    const panelingActive =
       !!els.clusters?.checked &&
       Math.trunc(Number(els.clusterCount?.value || 0)) > 0 &&
-      Number(els.scanAlpha?.value || 0) > 0;
-    if (scanlinesActive) feeds.push('SCANLINES');
+      Number(els.panelAlpha?.value || 0) > 0;
+    if (panelingActive) feeds.push('paneling');
 
     const lumaComposite = !!els.lumaKeyOn?.checked
       && String(els.lumaKeyTarget?.value || 'composite') === 'composite'
@@ -2507,13 +2507,13 @@ function hookSliders() {
     if (recipe === 'crisp-finish') {
       el.textContent = enabled ? 'CRISP · PRE-FEED' : 'DOWNSTREAM · PRE-FEED';
       if (enabled) el.classList.add('warn');
-      el.title = 'CRISP FINISH places Corrupt, Luma/Composite, and Scanlines after Symmetry/Solarize. Switch to CLASSIC when you want those three image feeds processed by this stage.';
+      el.title = 'CRISP FINISH places Vista, Luma/Composite, and paneling after Symmetry/Solarize. Switch to CLASSIC when you want those three image feeds processed by this stage.';
       return;
     }
     if (!feeds.length) {
       el.textContent = enabled ? 'NEEDS IMAGE FEED' : 'WAITING FOR FEED';
       if (enabled) el.classList.add('warn');
-      el.title = 'HUFF Classic downstream stage: enable Corrupt, Scanlines, or Luma Key with TARGET = COMPOSITE and MIX above 0 so live imagery enters the persistent image path.';
+      el.title = 'HUFF Classic downstream stage: enable Vista, paneling, or Luma Key with TARGET = COMPOSITE and MIX above 0 so live imagery enters the persistent image path.';
       return;
     }
     el.textContent = enabled ? `PROCESSING · ${feeds.join('+')}` : `READY · ${feeds.join('+')}`;
@@ -2522,14 +2522,40 @@ function hookSliders() {
   };
 
   const pipelineQuickRouteLabels = Object.freeze({
-    classic: 'CLASSIC: IMAGE FEED → FEEDBACK → FLOW → SYMMETRY → SOLARIZE',
-    'crisp-finish': 'CRISP: FEEDBACK → FLOW → SYMMETRY → SOLARIZE → IMAGE FEED',
-    'temporal-underlay': 'TEMPORAL UNDERLAY: FEEDBACK → FLOW → IMAGE FEED → SYMMETRY → SOLARIZE',
-    'symmetry-memory': 'SYMMETRY MEMORY: IMAGE FEED → SYMMETRY → FEEDBACK → FLOW → SOLARIZE',
-    'color-memory': 'COLOR MEMORY: IMAGE FEED → SOLARIZE → FEEDBACK → FLOW → SYMMETRY',
-    'flow-finish': 'FLOW FINISH: IMAGE FEED → FEEDBACK → SYMMETRY → SOLARIZE → FLOW',
-    'feedback-finish': 'FEEDBACK FINISH: IMAGE FEED → FLOW → SYMMETRY → SOLARIZE → FEEDBACK',
+    classic: 'CLASSIC: IMAGE FEED → FEEDBACK → SIFT → SYMMETRY → SOLARIZE',
+    'crisp-finish': 'CRISP: FEEDBACK → SIFT → SYMMETRY → SOLARIZE → IMAGE FEED',
+    'temporal-underlay': 'TEMPORAL UNDERLAY: FEEDBACK → SIFT → IMAGE FEED → SYMMETRY → SOLARIZE',
+    'symmetry-memory': 'SYMMETRY MEMORY: IMAGE FEED → SYMMETRY → FEEDBACK → SIFT → SOLARIZE',
+    'color-memory': 'COLOR MEMORY: IMAGE FEED → SOLARIZE → FEEDBACK → SIFT → SYMMETRY',
+    'sift-finish': 'SIFT FINISH: IMAGE FEED → FEEDBACK → SYMMETRY → SOLARIZE → SIFT',
+    'feedback-finish': 'FEEDBACK FINISH: IMAGE FEED → SIFT → SYMMETRY → SOLARIZE → FEEDBACK',
   });
+
+  const getPipelineDiagramActivity = () => Object.freeze({
+    vista: !!els.vistaOn?.checked,
+    paneling: !!els.clusters?.checked,
+    luma: !!els.lumaKeyOn?.checked && Number(els.lumaKeyMix?.value || 0) > 0.0001,
+    feedback: !!els.feedbackEnabled?.checked,
+    sift: !!els.siftOn?.checked,
+    symmetry: !!els.symOn?.checked,
+    solarize: !!els.solarizeOn?.checked,
+  });
+
+  const appendPipelineStage = (fragment, stageId, label, active) => {
+    const stage = document.createElement('span');
+    stage.className = `pipeline-diagram-stage pipeline-diagram-${stageId}`;
+    stage.classList.toggle('active', !!active);
+    stage.textContent = label;
+    fragment.appendChild(stage);
+  };
+
+  const appendPipelineArrow = fragment => {
+    const arrow = document.createElement('span');
+    arrow.className = 'pipeline-diagram-arrow';
+    arrow.setAttribute('aria-hidden', 'true');
+    arrow.textContent = '→';
+    fragment.appendChild(arrow);
+  };
 
   const renderPipelineDiagram = (recipeId, feeds) => {
     const runtime = window.HuffPipelineRuntime;
@@ -2539,24 +2565,32 @@ function hookSliders() {
 
     if (els.pipelineDiagram) {
       const labels = runtime?.DIAGRAM_STAGE_LABELS || {};
+      const activity = getPipelineDiagramActivity();
       const fragment = document.createDocumentFragment();
+      const spokenStages = [];
+
       definition.diagram.forEach((stageId, index) => {
-        if (index > 0) {
-          const arrow = document.createElement('span');
-          arrow.className = 'pipeline-diagram-arrow';
-          arrow.setAttribute('aria-hidden', 'true');
-          arrow.textContent = '→';
-          fragment.appendChild(arrow);
+        if (index > 0) appendPipelineArrow(fragment);
+
+        if (stageId === 'image-feed') {
+          const feedGroup = document.createElement('span');
+          feedGroup.className = 'pipeline-diagram-feed-group';
+          appendPipelineStage(feedGroup, 'vista', 'VISTA', activity.vista);
+          appendPipelineStage(feedGroup, 'luma', 'LUMA', activity.luma);
+          appendPipelineStage(feedGroup, 'paneling', 'PANELING', activity.paneling);
+          fragment.appendChild(feedGroup);
+          spokenStages.push('Vista, Luma, and Paneling image feed');
+          return;
         }
-        const stage = document.createElement('span');
-        stage.className = `pipeline-diagram-stage pipeline-diagram-${stageId}`;
-        if (stageId === 'image-feed' && feeds.length) stage.classList.add('active');
-        stage.textContent = labels[stageId] || stageId.toUpperCase();
-        fragment.appendChild(stage);
+
+        const active = !!activity[stageId];
+        const label = labels[stageId] || stageId.toUpperCase();
+        appendPipelineStage(fragment, stageId, label, active);
+        spokenStages.push(label);
       });
+
       els.pipelineDiagram.replaceChildren(fragment);
-      const spokenRoute = definition.diagram.map(stageId => labels[stageId] || stageId).join(' to ');
-      els.pipelineDiagram.setAttribute('aria-label', `${definition.label} pipeline: ${spokenRoute}`);
+      els.pipelineDiagram.setAttribute('aria-label', `${definition.label} pipeline: ${spokenStages.join(' to ')}`);
       els.pipelineDiagram.title = definition.description || definition.label;
     }
 
@@ -2570,11 +2604,11 @@ function hookSliders() {
   const syncPipelineAwarenessUI = () => {
     const recipe = String(els.pipelineRecipe?.value || 'classic');
     const feeds = getPrimaryImageFeeds();
-    const corruptActive = feeds.includes('CORRUPT');
-    const scanActive = feeds.includes('SCANLINES');
+    const vistaActive = feeds.includes('VISTA');
+    const panelActive = feeds.includes('paneling');
     const lumaActive = feeds.includes('LUMA/COMP');
-    els.pipelineFeedCorrupt?.classList.toggle('active', corruptActive);
-    els.pipelineFeedScan?.classList.toggle('active', scanActive);
+    els.pipelineFeedVista?.classList.toggle('active', vistaActive);
+    els.pipelineFeedPanel?.classList.toggle('active', panelActive);
     els.pipelineFeedLuma?.classList.toggle('active', lumaActive);
 
     if (els.pipelineFeedSummary) {
@@ -2582,7 +2616,7 @@ function hookSliders() {
       els.pipelineFeedSummary.textContent = feeds.length ? feeds.join(' + ') : 'NONE · ENABLE A FEED';
       els.pipelineFeedSummary.title = feeds.length
         ? `Primary image feed active: ${feeds.join(', ')}.`
-        : 'No primary image feed is active. Start with Corrupt, Scanlines, or Luma Key set to COMPOSITE with MIX above 0.';
+        : 'No primary image feed is active. Start with Vista, paneling, or Luma Key set to COMPOSITE with MIX above 0.';
     }
 
     renderPipelineDiagram(recipe, feeds);
@@ -2590,19 +2624,19 @@ function hookSliders() {
     setPipelineStageBadge(els.solarizePipelineState, !!els.solarizeOn?.checked, recipe, feeds);
   };
 
-  ['corruptOn','clusters','lumaKeyOn','lumaKeyTarget','pipelineRecipe','symOn','solarizeOn'].forEach(id => {
+  ['vistaOn','clusters','lumaKeyOn','lumaKeyTarget','pipelineRecipe','layerPriority','feedbackEnabled','siftOn','symOn','solarizeOn'].forEach(id => {
     els[id]?.addEventListener('change', syncPipelineAwarenessUI);
   });
-  ['lumaKeyMix','clusterCount','scanAlpha'].forEach(id => {
+  ['lumaKeyMix','clusterCount','panelAlpha'].forEach(id => {
     els[id]?.addEventListener('input', syncPipelineAwarenessUI);
   });
   syncPipelineAwarenessUI();
 
   // Checkboxes and selects also get snapshotted for undo
-  ['corruptOn','corruptUpdateMode','corruptDistribution','clusterTiles','corruptMaskMode','corruptMaskSide','clusters','feedbackEnabled','feedbackMotionRange','feedbackStrobe','flowOn','baseOn','symOn','solarizeOn','solarizeMode','solarizeInvert',
+  ['vistaOn','vistaUpdateMode','vistaDistribution','clusterTiles','vistaMaskMode','vistaMaskSide','clusters','feedbackEnabled','feedbackMotionRange','feedbackStrobe','siftOn','baseOn','symOn','solarizeOn','solarizeMode','solarizeInvert',
    'cluBounds','pipelineRecipe','layerPriority','bgMode','symMode','symVDir','symHDir','symFlipH','symFlipV',
-   'lumaKeyOn','lumaKeyTarget','lumaKeyInvert','lumaKeySource','lumaKeyFade','globalMixOn','globalMixBlend','globalMixCurve','globalMixPos','scanPanelLayout',
-   'scanMagnetOn','scanMagnetMode','scanMagnetEdge'].forEach(id => {
+   'lumaKeyOn','lumaKeyTarget','lumaKeyInvert','lumaKeySource','lumaKeyFade','globalMixOn','globalMixBlend','globalMixCurve','globalMixPos','panelLayout',
+   'panelMagnetOn','panelMagnetMode','panelMagnetEdge'].forEach(id => {
     _$(id)?.addEventListener('change', snapshotForUndo);
   });
 
@@ -2666,54 +2700,54 @@ function hookSliders() {
   els.symMode?.addEventListener('change', syncSymmetryUI);
   syncSymmetryUI();
 
-  let _syncingLegacyCorruptControls = false;
+  let _syncingLegacyVistaControls = false;
   const syncLegacyUpdateAlias = () => {
-    if (!els.glitchStrobe || !els.corruptUpdateMode) return;
-    _syncingLegacyCorruptControls = true;
-    els.glitchStrobe.checked = els.corruptUpdateMode.value === 'strobe';
-    _syncingLegacyCorruptControls = false;
+    if (!els.glitchStrobe || !els.vistaUpdateMode) return;
+    _syncingLegacyVistaControls = true;
+    els.glitchStrobe.checked = els.vistaUpdateMode.value === 'strobe';
+    _syncingLegacyVistaControls = false;
   };
   const syncLegacyDistributionAlias = () => {
-    if (!els.clusterTiles || !els.corruptDistribution) return;
-    _syncingLegacyCorruptControls = true;
-    els.clusterTiles.checked = els.corruptDistribution.value === 'cluster';
-    _syncingLegacyCorruptControls = false;
+    if (!els.clusterTiles || !els.vistaDistribution) return;
+    _syncingLegacyVistaControls = true;
+    els.clusterTiles.checked = els.vistaDistribution.value === 'cluster';
+    _syncingLegacyVistaControls = false;
   };
 
-  els.corruptUpdateMode?.addEventListener('change', () => {
+  els.vistaUpdateMode?.addEventListener('change', () => {
     syncLegacyUpdateAlias();
     _resetGlitchStrobeGate('mode');
     updateLabels();
   });
   els.glitchStrobe?.addEventListener('change', () => {
-    if (_syncingLegacyCorruptControls || !els.corruptUpdateMode) return;
-    els.corruptUpdateMode.value = els.glitchStrobe.checked ? 'strobe' : 'continuous';
-    els.corruptUpdateMode.dispatchEvent(new Event('change', { bubbles:true }));
+    if (_syncingLegacyVistaControls || !els.vistaUpdateMode) return;
+    els.vistaUpdateMode.value = els.glitchStrobe.checked ? 'strobe' : 'continuous';
+    els.vistaUpdateMode.dispatchEvent(new Event('change', { bubbles:true }));
   });
   els.glitchStrobeEvery?.addEventListener('input', () => _resetGlitchStrobeGate('interval'));
-  els.corruptHoldFrames?.addEventListener('input', () => _resetGlitchStrobeGate('hold'));
-  els.corruptLiveFrames?.addEventListener('input', () => _resetGlitchStrobeGate('live'));
+  els.vistaHoldFrames?.addEventListener('input', () => _resetGlitchStrobeGate('hold'));
+  els.vistaLiveFrames?.addEventListener('input', () => _resetGlitchStrobeGate('live'));
 
-  els.corruptDistribution?.addEventListener('change', () => {
+  els.vistaDistribution?.addEventListener('change', () => {
     syncLegacyDistributionAlias();
     updateLabels();
   });
   els.clusterTiles?.addEventListener('change', () => {
-    if (_syncingLegacyCorruptControls || !els.corruptDistribution) return;
-    els.corruptDistribution.value = els.clusterTiles.checked ? 'cluster' : 'random';
-    els.corruptDistribution.dispatchEvent(new Event('change', { bubbles:true }));
+    if (_syncingLegacyVistaControls || !els.vistaDistribution) return;
+    els.vistaDistribution.value = els.clusterTiles.checked ? 'cluster' : 'random';
+    els.vistaDistribution.dispatchEvent(new Event('change', { bubbles:true }));
   });
-  els.corruptMaskMode?.addEventListener('change', updateLabels);
-  els.corruptMaskSide?.addEventListener('change', updateLabels);
-  els.corruptResetXYZBtn?.addEventListener('click', () => {
+  els.vistaMaskMode?.addEventListener('change', updateLabels);
+  els.vistaMaskSide?.addEventListener('change', updateLabels);
+  els.vistaResetXYZBtn?.addEventListener('click', () => {
     snapshotForUndo();
-    const neutral = { glitchBaseX:0, glitchBaseY:0, glitchBaseZ:0, corruptMoveX:0, corruptMoveY:0, corruptMoveZ:0 };
+    const neutral = { glitchBaseX:0, glitchBaseY:0, glitchBaseZ:0, vistaMoveX:0, vistaMoveY:0, vistaMoveZ:0 };
     for (const [id, value] of Object.entries(neutral)) {
       if (!els[id]) continue;
       els[id].value = String(value);
       els[id].dispatchEvent(new Event('input', { bubbles:true }));
     }
-    _resetCorruptAxisMotion();
+    _resetVistaAxisMotion();
     updateLabels();
   });
 
@@ -2733,16 +2767,16 @@ function hookSliders() {
       els.lumaKeyFade.disabled = target !== 'composite';
       els.lumaKeyFade.title = target === 'composite'
         ? 'Choose how the keyed clean patch composites over the processed image.'
-        : 'Fade mode belongs to COMPOSITE target only. CORRUPT/SCAN target the effect objects directly.';
+        : 'Fade mode belongs to COMPOSITE target only. VISTA/PANELING target the effect objects directly.';
     }
     if (els.lumaKeyTargetState) {
-      const active = target === 'scan' ? !!els.clusters?.checked
-        : target === 'corrupt' ? !!els.corruptOn?.checked
+      const active = target === 'panel' ? !!els.clusters?.checked
+        : target === 'vista' ? !!els.vistaOn?.checked
         : true;
-      els.lumaKeyTargetState.textContent = target === 'scan'
-        ? (active ? 'SCAN PANELS' : 'SCAN OFF')
-        : target === 'corrupt'
-          ? (active ? 'CORRUPT PATCHES' : 'CORRUPT OFF')
+      els.lumaKeyTargetState.textContent = target === 'panel'
+        ? (active ? 'PANELING PANELS' : 'PANELING OFF')
+        : target === 'vista'
+          ? (active ? 'VISTA PATCHES' : 'VISTA OFF')
           : 'COMPOSITE';
       els.lumaKeyTargetState.classList.toggle('warn', !active);
     }
@@ -2753,7 +2787,7 @@ function hookSliders() {
     syncLumaTargetUI();
     updateLabels();
   });
-  els.corruptOn?.addEventListener('change', syncLumaTargetUI);
+  els.vistaOn?.addEventListener('change', syncLumaTargetUI);
   els.clusters?.addEventListener('change', syncLumaTargetUI);
 
   els.lumaKeySource?.addEventListener('change', () => {
@@ -2781,10 +2815,13 @@ function hookPresets() {
   refreshPresetList();
   void refreshRepositoryPresetCatalog();
 
-  // Dropdown recall covers built-ins, repository/folder presets, imported localStorage entries, and user JSON files.
+  // Selecting a preset recalls it immediately. The dropdown covers built-ins,
+  // repository/folder presets, imported localStorage entries, and JSON files
   // loaded into this session. SAVE and LOAD still always mean local file dialogs.
-  _$('presetBuiltinLoadBtn')?.addEventListener('click', () => { void recallPresetSelection(); });
-  _$('presetList')?.addEventListener('dblclick', () => { void recallPresetSelection(); });
+  _$('presetList')?.addEventListener('change', (event) => {
+    if (!event.currentTarget?.value) return;
+    void recallPresetSelection();
+  });
 
   _$('presetSaveBtn')?.addEventListener('click', () => { void savePresetToFile(); });
   _$('presetLoadBtn')?.addEventListener('click', () => { void loadPresetViaFileDialog(); });
@@ -2864,8 +2901,8 @@ function updateDim() {
   _updateSourceInfoStatus();
 }
 
-function _syncCorruptContextUI() {
-  const mode = els.corruptUpdateMode?.value || 'continuous';
+function _syncVistaContextUI() {
+  const mode = els.vistaUpdateMode?.value || 'continuous';
   document.querySelectorAll('.strobe-only').forEach(el => {
     el.style.display = mode === 'strobe' ? '' : 'none';
   });
@@ -2889,16 +2926,16 @@ function _syncCorruptContextUI() {
     if (clustered) els.clusterModeStatus.classList.add('ready');
   }
 
-  const stencilMask = els.corruptMaskMode?.value === 'stencil';
-  document.querySelectorAll('.corrupt-stencil-only').forEach(el => {
+  const stencilMask = els.vistaMaskMode?.value === 'stencil';
+  document.querySelectorAll('.vista-stencil-only').forEach(el => {
     el.style.display = stencilMask ? '' : 'none';
   });
 
   if (els.glitchStrobeEvery) els.glitchStrobeEvery.disabled = mode !== 'strobe';
-  if (els.corruptHoldFrames) els.corruptHoldFrames.disabled = mode !== 'multigrab';
-  if (els.corruptLiveFrames) els.corruptLiveFrames.disabled = mode !== 'multigrab';
+  if (els.vistaHoldFrames) els.vistaHoldFrames.disabled = mode !== 'multigrab';
+  if (els.vistaLiveFrames) els.vistaLiveFrames.disabled = mode !== 'multigrab';
 
-  const statusEl = els.corruptMaskStatus;
+  const statusEl = els.vistaMaskStatus;
   if (statusEl) {
     statusEl.classList.remove('ready', 'warn');
     if (!stencilMask) {
@@ -2917,17 +2954,17 @@ function _syncCorruptContextUI() {
 }
 
 function updateLabels() {
-  _syncCorruptRateFromLegacy();
+  _syncVistaRateFromLegacy();
   const f2  = v => (+v).toFixed(2);
   const pct = v => `${Math.round((+v) * 100)}%`;
   const set = (el, valEl, fmt) => { if (el && valEl) valEl.textContent = fmt(el.value); };
 
   _updateHistoryControlBounds();
   set(els.depth,            els.depthVal,            pct);
-  set(els.corrupt,          els.corruptVal,          v => `${(+v).toFixed(2)}×`);
-  set(els.corruptSpeed,     els.corruptSpeedVal,     v => `${(+v).toFixed(2)}×`);
+  set(els.vista,          els.vistaVal,          v => `${(+v).toFixed(2)}×`);
+  set(els.vistaSpeed,     els.vistaSpeedVal,     v => `${(+v).toFixed(2)}×`);
   set(els.block,            els.blockVal,            v => `${Math.round(+v)} px`);
-  if (els.corruptRateVal) els.corruptRateVal.textContent = `${_legacyCorruptEffectiveRate().toFixed(2)}×`;
+  if (els.vistaRateVal) els.vistaRateVal.textContent = `${_legacyVistaEffectiveRate().toFixed(2)}×`;
   set(els.glitchSize,       els.glitchSizeVal,       v => `${(+v / 20).toFixed(2)}×`);
   set(els.glitchSmear,      els.glitchSmearVal,      v => String(Math.max(0, Math.trunc(+v || 0))));
   set(els.feedback,         els.feedbackVal,         f2);
@@ -2955,64 +2992,64 @@ function updateLabels() {
   set(els.cluMoveX,         els.cluMoveXVal,         v => `${Math.trunc(+v || 0)} px/s`);
   set(els.cluMoveY,         els.cluMoveYVal,         v => `${Math.trunc(+v || 0)} px/s`);
   set(els.cluMoveZ,         els.cluMoveZVal,         v => `${(+v).toFixed(2)} z/s`);
-  set(els.flowStrength,     els.flowStrengthVal,     v => v);
-  set(els.flowScale,        els.flowScaleVal,        v => v);
-  set(els.flowPulse,        els.flowPulseVal,        v => (v|0));
-  set(els.flowImpl,         els.flowImplVal,         f2);
-  set(els.flowSpeed,        els.flowSpeedVal,        f2);
-  set(els.flowSpread,       els.flowSpreadVal,       f2);
-  set(els.flowTurb,         els.flowTurbVal,         f2);
-  set(els.flowSwirl,        els.flowSwirlVal,        f2);
+  set(els.siftStrength,     els.siftStrengthVal,     v => v);
+  set(els.siftScale,        els.siftScaleVal,        v => v);
+  set(els.siftPulse,        els.siftPulseVal,        v => (v|0));
+  set(els.siftImpl,         els.siftImplVal,         f2);
+  set(els.siftSpeed,        els.siftSpeedVal,        f2);
+  set(els.siftSpread,       els.siftSpreadVal,       f2);
+  set(els.siftTurb,         els.siftTurbVal,         f2);
+  set(els.siftSwirl,        els.siftSwirlVal,        f2);
   set(els.glitchBaseX,      els.glitchBaseXVal,      v => `${Math.trunc(+v || 0)} px`);
   set(els.glitchBaseY,      els.glitchBaseYVal,      v => `${Math.trunc(+v || 0)} px`);
   set(els.glitchBaseZ,      els.glitchBaseZVal,      v => `${Math.round((+v || 0) * 100)}%`);
-  set(els.corruptMoveX,     els.corruptMoveXVal,     v => `${Math.trunc(+v || 0)} px/s`);
-  set(els.corruptMoveY,     els.corruptMoveYVal,     v => `${Math.trunc(+v || 0)} px/s`);
-  set(els.corruptMoveZ,     els.corruptMoveZVal,     v => `${(+v).toFixed(2)} z/s`);
+  set(els.vistaMoveX,     els.vistaMoveXVal,     v => `${Math.trunc(+v || 0)} px/s`);
+  set(els.vistaMoveY,     els.vistaMoveYVal,     v => `${Math.trunc(+v || 0)} px/s`);
+  set(els.vistaMoveZ,     els.vistaMoveZVal,     v => `${(+v).toFixed(2)} z/s`);
   set(els.glitchSpeedFine,  els.glitchSpeedFineVal,  f2);
   set(els.glitchSpeedMul,   els.glitchSpeedMulVal,   f2);
   set(els.glitchAlpha,      els.glitchAlphaVal,      pct);
   set(els.glitchJitter,     els.glitchJitterVal,     pct);
   set(els.glitchSmearAngle, els.glitchSmearAngleVal, v => Math.trunc(+v || 0) === 0 ? 'AUTO' : `${Math.trunc(+v)}°`);
   set(els.glitchStrobeEvery, els.glitchStrobeEveryVal, v => `${Math.max(1, Math.trunc(+v || 1))} fr`);
-  set(els.corruptHoldFrames, els.corruptHoldFramesVal, v => `${Math.max(1, Math.trunc(+v || 1))} fr`);
-  set(els.corruptLiveFrames, els.corruptLiveFramesVal, v => `${Math.max(1, Math.trunc(+v || 1))} fr`);
-  set(els.corruptMaskThreshold, els.corruptMaskThresholdVal, v => String(Math.max(0, Math.min(255, Math.trunc(+v || 0)))));
-  set(els.scanAlpha,        els.scanAlphaVal,        f2);
-  set(els.scanShift,        els.scanShiftVal,        f2);
-  set(els.scanDrift,        els.scanDriftVal,        f2);
-  set(els.scanSpeed,        els.scanSpeedVal,        v => { const n=+v; return `${(n < 0.1 ? n.toFixed(3) : n.toFixed(2))}×`; });
-  set(els.scanPlaceX,       els.scanPlaceXVal,       v => `${Math.trunc(+v || 0)} px`);
-  set(els.scanPlaceY,       els.scanPlaceYVal,       v => `${Math.trunc(+v || 0)} px`);
-  set(els.scanZoom,         els.scanZoomVal,         v => `${(+v).toFixed(2)}×`);
-  set(els.scanMoveX,        els.scanMoveXVal,        v => `${Math.trunc(+v || 0)} px/s`);
-  set(els.scanMoveY,        els.scanMoveYVal,        v => `${Math.trunc(+v || 0)} px/s`);
-  set(els.scanMoveZ,        els.scanMoveZVal,        v => `${(+v).toFixed(2)}×/s`);
-  set(els.scanBandSpread,   els.scanBandSpreadVal,   pct);
-  set(els.scanExpandX,      els.scanExpandXVal,      pct);
-  set(els.scanExpandY,      els.scanExpandYVal,      pct);
-  set(els.scanExpandZ,      els.scanExpandZVal,      v => `${Math.round((+v || 0) * 100)}%`);
-  set(els.scanLfoAmount,     els.scanLfoAmountVal,     v => `${Math.round((+v || 0) * 100)}%`);
-  set(els.scanLfoRate,       els.scanLfoRateVal,       v => `${(+v || 0).toFixed(2)} Hz`);
-  set(els.scanMagnetPosition, els.scanMagnetPositionVal, pct);
-  set(els.scanMagnetStrength, els.scanMagnetStrengthVal, v => `${Math.round((+v || 0) * 100)}%`);
-  set(els.scanMagnetPerspective, els.scanMagnetPerspectiveVal, f2);
-  set(els.scanMagnetRadius, els.scanMagnetRadiusVal, pct);
-  set(els.scanMagnetFalloff, els.scanMagnetFalloffVal, f2);
-  set(els.scanMagnetSpeed, els.scanMagnetSpeedVal, v => `${(+v).toFixed(2)}×`);
-  set(els.scanFieldSpreadX, els.scanFieldSpreadXVal, pct);
-  set(els.scanFieldSpreadY, els.scanFieldSpreadYVal, pct);
-  set(els.scanFieldSpreadZ, els.scanFieldSpreadZVal, pct);
-  set(els.scanFieldSizeVar, els.scanFieldSizeVarVal, pct);
-  set(els.scanFieldDrift, els.scanFieldDriftVal, pct);
-  set(els.scanFieldDepthDrift, els.scanFieldDepthDriftVal, pct);
-  set(els.scanGap,          els.scanGapVal,          v => (v|0));
-  set(els.scanSkew,         els.scanSkewVal,         f2);
-  set(els.scanAngle,        els.scanAngleVal,        v => Math.round(v)+'°');
-  set(els.scanFocus,        els.scanFocusVal,        f2);
-  set(els.scanRoll,         els.scanRollVal,         f2);
+  set(els.vistaHoldFrames, els.vistaHoldFramesVal, v => `${Math.max(1, Math.trunc(+v || 1))} fr`);
+  set(els.vistaLiveFrames, els.vistaLiveFramesVal, v => `${Math.max(1, Math.trunc(+v || 1))} fr`);
+  set(els.vistaMaskThreshold, els.vistaMaskThresholdVal, v => String(Math.max(0, Math.min(255, Math.trunc(+v || 0)))));
+  set(els.panelAlpha,        els.panelAlphaVal,        f2);
+  set(els.panelShift,        els.panelShiftVal,        f2);
+  set(els.panelDrift,        els.panelDriftVal,        f2);
+  set(els.panelSpeed,        els.panelSpeedVal,        v => { const n=+v; return `${(n < 0.1 ? n.toFixed(3) : n.toFixed(2))}×`; });
+  set(els.panelPlaceX,       els.panelPlaceXVal,       v => `${Math.trunc(+v || 0)} px`);
+  set(els.panelPlaceY,       els.panelPlaceYVal,       v => `${Math.trunc(+v || 0)} px`);
+  set(els.panelZoom,         els.panelZoomVal,         v => `${(+v).toFixed(2)}×`);
+  set(els.panelMoveX,        els.panelMoveXVal,        v => `${Math.trunc(+v || 0)} px/s`);
+  set(els.panelMoveY,        els.panelMoveYVal,        v => `${Math.trunc(+v || 0)} px/s`);
+  set(els.panelMoveZ,        els.panelMoveZVal,        v => `${(+v).toFixed(2)}×/s`);
+  set(els.panelBandSpread,   els.panelBandSpreadVal,   pct);
+  set(els.panelExpandX,      els.panelExpandXVal,      pct);
+  set(els.panelExpandY,      els.panelExpandYVal,      pct);
+  set(els.panelExpandZ,      els.panelExpandZVal,      v => `${Math.round((+v || 0) * 100)}%`);
+  set(els.panelLfoAmount,     els.panelLfoAmountVal,     v => `${Math.round((+v || 0) * 100)}%`);
+  set(els.panelLfoRate,       els.panelLfoRateVal,       v => `${(+v || 0).toFixed(2)} Hz`);
+  set(els.panelMagnetPosition, els.panelMagnetPositionVal, pct);
+  set(els.panelMagnetStrength, els.panelMagnetStrengthVal, v => `${Math.round((+v || 0) * 100)}%`);
+  set(els.panelMagnetPerspective, els.panelMagnetPerspectiveVal, f2);
+  set(els.panelMagnetRadius, els.panelMagnetRadiusVal, pct);
+  set(els.panelMagnetFalloff, els.panelMagnetFalloffVal, f2);
+  set(els.panelMagnetSpeed, els.panelMagnetSpeedVal, v => `${(+v).toFixed(2)}×`);
+  set(els.panelFieldSpreadX, els.panelFieldSpreadXVal, pct);
+  set(els.panelFieldSpreadY, els.panelFieldSpreadYVal, pct);
+  set(els.panelFieldSpreadZ, els.panelFieldSpreadZVal, pct);
+  set(els.panelFieldSizeVar, els.panelFieldSizeVarVal, pct);
+  set(els.panelFieldDrift, els.panelFieldDriftVal, pct);
+  set(els.panelFieldDepthDrift, els.panelFieldDepthDriftVal, pct);
+  set(els.panelGap,          els.panelGapVal,          v => (v|0));
+  set(els.panelSkew,         els.panelSkewVal,         f2);
+  set(els.panelAngle,        els.panelAngleVal,        v => Math.round(v)+'°');
+  set(els.panelFocus,        els.panelFocusVal,        f2);
+  set(els.panelRoll,         els.panelRollVal,         f2);
   set(els.depthScatter,     els.depthScatterVal,     pct);
-  set(els.corruptDrift,     els.corruptDriftVal,     pct);
+  set(els.vistaDrift,     els.vistaDriftVal,     pct);
   set(els.symPos,           els.symPosVal,           f2);
   set(els.symPosX,          els.symPosXVal,          f2);
   set(els.symPosY,          els.symPosYVal,          f2);
@@ -3042,7 +3079,7 @@ function updateLabels() {
     if (els.baseMix) els.baseMix.disabled = !els.baseOn?.checked;
   }
   _updateLumaStencilStatus();
-  _syncCorruptContextUI();
+  _syncVistaContextUI();
 }
 
 function _newSessionSeed() {
@@ -3058,7 +3095,7 @@ function setSeedFromUI() {
   // Seed is session-owned in Web Classic: generated once per application load,
   // never exposed as a user control, and never restored from presets.
   noiseSeed(baseSeed);
-  window.invalidateScanlineCache?.();
+  window.invalidatePanelingCache?.();
 }
 
 // ─── file loading ─────────────────────────────────────────────────────────────
@@ -3230,11 +3267,11 @@ function enableTransport(en, { seekable = en, live = false } = {}) {
   if (!seekable) _resetSeekGestureState({ resetDisplay: true });
 }
 
-// ─── CORRUPT update-policy gate ──────────────────────────────────────────────
+// ─── VISTA update-policy gate ──────────────────────────────────────────────
 // Fairlight treats freeze/sample/strobe behavior as update policies applied to
 // image memory. Magic DaVE's MultiGrab separates frozen time from live time.
-// HUFF adapts those ideas only to the CORRUPT layer: the rest of the pipeline,
-// Luma Key, Scanlines, Flow, playback, and outputs continue independently.
+// HUFF adapts those ideas only to the VISTA layer: the rest of the pipeline,
+// Luma Key, paneling, Sift, playback, and outputs continue independently.
 const _glitchStrobeGate = Object.seal({
   wasGlitchActive: false,
   lastMode: 'continuous',
@@ -3252,14 +3289,14 @@ const _glitchStrobeGate = Object.seal({
   lastResetReason: 'startup',
 });
 window.HUFF_GLITCH_STROBE_TELEMETRY = _glitchStrobeGate; // compatibility name
-window.HUFF_CORRUPT_UPDATE_TELEMETRY = _glitchStrobeGate;
+window.HUFF_VISTA_UPDATE_TELEMETRY = _glitchStrobeGate;
 
 function _glitchStrobeRate(value) {
   const rate = Math.trunc(Number(value));
   return Number.isFinite(rate) ? Math.max(1, Math.min(30, rate)) : 4;
 }
 
-function _corruptFrameCount(value, fallback, max) {
+function _vistaFrameCount(value, fallback, max) {
   const n = Math.trunc(Number(value));
   return Number.isFinite(n) ? Math.max(1, Math.min(max, n)) : fallback;
 }
@@ -3281,17 +3318,17 @@ function _resetGlitchStrobeGate(reason = 'reset') {
 
 function _shouldApplyGlitchThisRender(state) {
   const gate = _glitchStrobeGate;
-  const glitchActive = !!state.corruptOn;
+  const glitchActive = !!state.vistaOn;
   if (!glitchActive) {
     gate.wasGlitchActive = false;
     return false;
   }
 
-  const mode = String(state.corruptUpdateMode || (state.glitchStrobe ? 'strobe' : 'continuous'));
+  const mode = String(state.vistaUpdateMode || (state.glitchStrobe ? 'strobe' : 'continuous'));
 
   if (mode === 'continuous') {
     const clustered = !!state.clusterTiles;
-    const rawSpeed = clustered ? Number(state.clusterMasterSpeed) : Number(state.corruptSpeed);
+    const rawSpeed = clustered ? Number(state.clusterMasterSpeed) : Number(state.vistaSpeed);
     const speed = Math.max(0, Math.min(4, Number.isFinite(rawSpeed) ? rawSpeed : 1));
 
     gate.wasGlitchActive = true;
@@ -3303,8 +3340,8 @@ function _shouldApplyGlitchThisRender(state) {
     gate.continuousAccumulator = 0;
 
     // CONTINUOUS describes layer presence rather than an intermittent draw gate.
-    // sample/hold compositor gate. Corrupt is therefore redrawn every render so
-    // SCAN TOP / CORRUPT TOP remain stable when both effects are active. SPEED
+    // sample/hold compositor gate. Vista is therefore redrawn every render so
+    // PANELING TOP / VISTA TOP remain stable when both effects are active. SPEED
     // controls geometry, motion, cluster evolution, and historical-age choice.
     // At 0x the patch layout and chosen age stay fixed while the delayed video
     // inside those patches remains live. STROBE and MULTIGRAB remain the explicit
@@ -3339,8 +3376,8 @@ function _shouldApplyGlitchThisRender(state) {
 
   if (mode === 'multigrab') {
     gate.continuousAccumulator = 0;
-    const hold = _corruptFrameCount(state.corruptHoldFrames, 8, 60);
-    const live = _corruptFrameCount(state.corruptLiveFrames, 2, 30);
+    const hold = _vistaFrameCount(state.vistaHoldFrames, 8, 60);
+    const live = _vistaFrameCount(state.vistaLiveFrames, 2, 30);
     const cycleLen = hold + live;
     const decoded = Math.max(0, _vfc);
     const cycle = Math.floor(decoded / cycleLen);
@@ -3356,7 +3393,7 @@ function _shouldApplyGlitchThisRender(state) {
     gate.lastCycle = cycle;
 
     // Always render once when entering MULTIGRAB so the hold begins with a
-    // visible Corrupt state instead of an empty layer.
+    // visible Vista state instead of an empty layer.
     if (enteringMode || timingChanged || inLiveWindow) {
       gate.updates++;
       return true;
@@ -3430,9 +3467,9 @@ function _shouldApplyFeedbackTransformThisRender(state) {
 // Defined once rather than recreated as closures on every render frame.
 function _emitGlitchGroup(state, density, glitchPriority, lumaMix) {
   const lumaTarget = String(state.lumaKeyTarget || 'composite');
-  const targetedCorruptLuma = !!state.lumaKeyOn && lumaMix > 0 && lumaTarget === 'corrupt';
-  if (targetedCorruptLuma) {
-    // Prime the bounded luminance source once before the Corrupt hot loop. Tile
+  const targetedVistaLuma = !!state.lumaKeyOn && lumaMix > 0 && lumaTarget === 'vista';
+  if (targetedVistaLuma) {
+    // Prime the bounded luminance source once before the Vista hot loop. Tile
     // sampling then stays CPU-local and adds no mask upload or full-resolution render layer.
     window.preparePipelineLumaObjectSource?.(_vfc, state.lumaKeySource, state.lumaKeyAB, !!state.lumaKeyInvert, state.lumaKeyGain, state.lumaKeyCleanup, state.lumaKeyDensity, lumaMix);
   }
@@ -3442,7 +3479,7 @@ function _emitGlitchGroup(state, density, glitchPriority, lumaMix) {
     applyGlitch(density, Math.trunc(state.glitchBaseX), Math.trunc(state.glitchBaseY), glitchPriority, state);
   }
 
-  // COMPOSITE applies the luma result to the full composition. Targeted CORRUPT/SCAN modes do not
+  // COMPOSITE applies the luma result to the full composition. Targeted VISTA/PANELING modes do not
   // also paint the clean key patch, so a user can unambiguously choose which
   // front-stage effect the key is processing.
   if (state.lumaKeyOn && lumaMix > 0 && lumaTarget === 'composite') {
@@ -3567,11 +3604,11 @@ function _solarizeHasVisibleEffect(state) {
 
 const _frameActivity = Object.seal({
   glitch: false,
-  scanlines: false,
+  paneling: false,
   luma: false,
   globalMix: false,
   feedback: false,
-  flow: false,
+  sift: false,
   symmetry: false,
   solarize: false,
   baseMix: false,
@@ -3579,17 +3616,17 @@ const _frameActivity = Object.seal({
 });
 
 function _resolveFrameActivity(state) {
-  const glitch = !!state.corruptOn;
-  const scanlines =
+  const glitch = !!state.vistaOn;
+  const paneling =
     !!state.clusters &&
     Math.trunc(state.clusterCount) > 0 &&
-    state.scanAlpha > 0;
+    state.panelAlpha > 0;
   const lumaRequested = !!state.lumaKeyOn && state.lumaKeyMix > 0;
   const lumaTarget = String(state.lumaKeyTarget || 'composite');
   const luma = lumaRequested && (
     lumaTarget === 'composite' ||
-    (lumaTarget === 'corrupt' && glitch) ||
-    (lumaTarget === 'scan' && scanlines)
+    (lumaTarget === 'vista' && glitch) ||
+    (lumaTarget === 'panel' && paneling)
   );
   const globalMix = !!state.globalMixOn && state.globalMixAmt > 0;
   // Feedback activity must represent an image-producing owner of gBuf.
@@ -3600,24 +3637,24 @@ function _resolveFrameActivity(state) {
   const feedback = state.feedbackEnabled !== false && (
     _feedbackHasVisibleEffect(state) || (Number(state.feedbackRestore) || 0) > 0
   );
-  const flow = !!state.flowOn && Math.trunc(state.flowStrength) > 0;
+  const sift = !!state.siftOn && Math.trunc(state.siftStrength) > 0;
   const symmetry = _symmetryHasVisibleEffect(state);
   const solarize = _solarizeHasVisibleEffect(state);
   const baseMix = !!state.baseOn && state.baseMix > 0;
 
   const activity = _frameActivity;
   activity.glitch = glitch;
-  activity.scanlines = scanlines;
+  activity.paneling = paneling;
   activity.luma = luma;
   activity.globalMix = globalMix;
   activity.feedback = feedback;
-  activity.flow = flow;
+  activity.sift = sift;
   activity.symmetry = symmetry;
   activity.solarize = solarize;
   activity.baseMix = baseMix;
   activity.any =
-    glitch || scanlines || luma || globalMix ||
-    feedback || flow || symmetry || solarize;
+    glitch || paneling || luma || globalMix ||
+    feedback || sift || symmetry || solarize;
   return activity;
 }
 
@@ -3648,7 +3685,7 @@ function _presentCleanFrame(curCanvas) {
 
 // ─── Validated serial recipe switching ─────────────────────────────────────
 // CLASSIC is the baseline serial route. CRISP FINISH moves only the existing
-// Glitch/Luma/Scanline ordered group into the validated final-overlays zone.
+// Glitch/Luma/paneling ordered group into the validated final-overlays zone.
 // Both plans compile once and use the same three full-resolution buffers.
 const _pipelineRuntime = window.HuffPipelineRuntime;
 if (!_pipelineRuntime?.validation?.valid || !_pipelineRuntime?.recipeValidations) {
@@ -3660,11 +3697,11 @@ const _pipelineFrame = Object.seal({
   bg: 'black',
   activity: null,
   density: 0,
-  scanAngleArg: null,
+  panelAngleArg: null,
   frontStageActive: false,
-  layerPriority: 'scan',
+  layerPriority: 'panel',
   glitchPriority: 1,
-  scanPriority: 1,
+  panelPriority: 1,
   lumaMix: 0,
   gmPos: 'after',
   recipeId: 'classic',
@@ -3716,23 +3753,23 @@ function _runGlitchLumaFrontGroup(frame) {
   }
 }
 
-function _runScanlineFrontGroup(frame) {
-  if (!frame.activity.scanlines) return;
+function _runPanelingFrontGroup(frame) {
+  if (!frame.activity.paneling) return;
   const s = frame.state;
   if (
     s.lumaKeyOn && frame.lumaMix > 0 &&
-    String(s.lumaKeyTarget || 'composite') === 'scan'
+    String(s.lumaKeyTarget || 'composite') === 'panel'
   ) {
     // Prepare once before the panel loop. FIELD mode samples this bounded plane
     // per panel, avoiding a full COMPOSITE mask upload.
     window.preparePipelineLumaObjectSource?.(_vfc, s.lumaKeySource, s.lumaKeyAB, !!s.lumaKeyInvert, s.lumaKeyGain, s.lumaKeyCleanup, s.lumaKeyDensity, frame.lumaMix);
   }
-  applyScanlines(frame.density, frame.scanAngleArg, frame.scanPriority, s);
+  applyPaneling(frame.density, frame.panelAngleArg, frame.panelPriority, s);
 }
 
 const _frontStageGroupHandlers = Object.freeze({
   'glitch-luma-group': _runGlitchLumaFrontGroup,
-  'scanline-group': _runScanlineFrontGroup,
+  'paneling-group': _runPanelingFrontGroup,
 });
 
 const _frontStagePriorityPlan = _pipelineRuntime.compileFrontStagePriority(
@@ -3749,7 +3786,7 @@ function _runFrontStagePriority(frame) {
 function _canFuseGlobalMixIntoSolarize(frame, position) {
   if (!frame.activity.solarize || !frame.activity.globalMix) return false;
   // Global Mix fusion is enabled only for routes whose stage ordering proves
-  // a safe relationship between Global Mix and Feedback -> Flow -> Symmetry ->
+  // a safe relationship between Global Mix and Feedback -> Sift -> Symmetry ->
   // Solarize. Other recipes execute Global Mix as an explicit serial stage.
   if (frame.recipeId !== _pipelineRuntime.CLASSIC_RECIPE_ID
       && frame.recipeId !== _pipelineRuntime.CRISP_FINISH_RECIPE_ID) return false;
@@ -3757,12 +3794,12 @@ function _canFuseGlobalMixIntoSolarize(frame, position) {
   // Other positions are safe only when no active transform remains between that
   // Global Mix position and Solarize. This preserves the serial Classic recipe.
   if (position === 'before') {
-    return !frame.activity.feedback && !frame.activity.flow && !frame.activity.symmetry;
+    return !frame.activity.feedback && !frame.activity.sift && !frame.activity.symmetry;
   }
   if (position === 'after') {
-    return !frame.activity.flow && !frame.activity.symmetry;
+    return !frame.activity.sift && !frame.activity.symmetry;
   }
-  if (position === 'afterflow') {
+  if (position === 'aftersift') {
     return !frame.activity.symmetry;
   }
   return false;
@@ -3836,16 +3873,16 @@ function _runFeedbackStage(frame) {
   _pipelineStageProfileEnd('feedback', startedAt);
 }
 
-function _runFlowStage(frame) {
+function _runSiftStage(frame) {
   const activity = frame.activity;
-  if (activity.flow) {
+  if (activity.sift) {
     const startedAt = _pipelineStageProfileStart();
     const s = frame.state;
-    applyFlowWarp(gBuf, gScratch, Math.trunc(s.flowStrength),
-      Math.trunc(s.flowScale), Math.trunc(s.flowPulse), s.flowImpl, s.flowSpeed,
-      s.flowTurb, s.flowSwirl, s.flowSpread);
+    applySiftWarp(gBuf, gScratch, Math.trunc(s.siftStrength),
+      Math.trunc(s.siftScale), Math.trunc(s.siftPulse), s.siftImpl, s.siftSpeed,
+      s.siftTurb, s.siftSwirl, s.siftSpread);
     [gBuf, gScratch] = [gScratch, gBuf];
-    _pipelineStageProfileEnd('flow', startedAt);
+    _pipelineStageProfileEnd('sift', startedAt);
   }
 }
 
@@ -3865,8 +3902,8 @@ function _symmetryShouldReadCleanLiveSource(frame) {
   // persistent gBuf from the prior render. Solarize is downstream, so an
   // active Solarize does not block this direct-live ownership path.
   return !(
-    activity.glitch || activity.scanlines || activity.luma ||
-    activity.globalMix || _feedbackActuallyOwnsBuffer(frame) || activity.flow
+    activity.glitch || activity.paneling || activity.luma ||
+    activity.globalMix || _feedbackActuallyOwnsBuffer(frame) || activity.sift
   );
 }
 
@@ -3899,9 +3936,9 @@ function _solarizeShouldReadCleanLiveSource(frame) {
   // persistent gBuf state. Disabled Feedback is not an ownership barrier because
   // _resolveFrameActivity() no longer marks it active.
   return !!activity.solarize && !(
-    activity.glitch || activity.scanlines || activity.luma ||
+    activity.glitch || activity.paneling || activity.luma ||
     activity.globalMix || _feedbackActuallyOwnsBuffer(frame) ||
-    activity.flow || activity.symmetry
+    activity.sift || activity.symmetry
   );
 }
 
@@ -3969,7 +4006,7 @@ const _pipelineStageHandlers = Object.freeze({
   'front-stage-priority': _runFrontStagePriority,
   'global-mix': _runGlobalMixStage,
   'feedback': _runFeedbackStage,
-  'flow': _runFlowStage,
+  'sift': _runSiftStage,
   'symmetry': _runSymmetryStage,
   'solarize': _runSolarizeStage,
   'presentation': _runPresentationStage,
@@ -4026,56 +4063,56 @@ function draw() {
   // neutral. Re-enabling an effect therefore resumes at the same temporal point
   // as if every stage were continuously active.
   // FIELD RATE controls the internal corruption field. RANDOM SPEED owns the
-  // RANDOM Corrupt clock; CLUSTER SPEED owns the CLUSTER Corrupt clock. Only the
-  // active mode advances autonomous Corrupt phase/XYZ motion.
+  // RANDOM Vista clock; CLUSTER SPEED owns the CLUSTER Vista clock. Only the
+  // active mode advances autonomous Vista phase/XYZ motion.
   // Hidden FINE/MULT aliases remain at 1 for
   // normal UI/preset use, while imported presets can still address those stable
   // control IDs directly.
   const legacyMul = Number(s.glitchSpeedMul) || 0;
   const density = Math.max(0, (Number(s.glitchSpeed) || 0) * (Number(s.glitchSpeedFine) || 0) * legacyMul * legacyMul);
-  const corruptSpeed = Math.max(0, Math.min(4, Number.isFinite(Number(s.corruptSpeed)) ? Number(s.corruptSpeed) : 1));
+  const vistaSpeed = Math.max(0, Math.min(4, Number.isFinite(Number(s.vistaSpeed)) ? Number(s.vistaSpeed) : 1));
   const clusterMasterSpeed = Math.max(0, Math.min(4, Number.isFinite(Number(s.clusterMasterSpeed)) ? Number(s.clusterMasterSpeed) : 1));
-  const clusteredCorrupt = !!s.clusterTiles;
-  const activeCorruptSpeed = clusteredCorrupt ? clusterMasterSpeed : corruptSpeed;
-  const corruptDt = Math.max(0, Math.min(0.05, (Number(deltaTime) || 16.6667) / 1000));
-  _corruptMotion.dt = corruptDt;
-  _corruptMotion.speed = activeCorruptSpeed;
-  _corruptClock += activeCorruptSpeed * corruptDt * 60;
-  _corruptMotion.timeSec = _corruptClock / 60;
-  _corruptMotion.serial = Math.floor(_corruptClock);
+  const clusteredVista = !!s.clusterTiles;
+  const activeVistaSpeed = clusteredVista ? clusterMasterSpeed : vistaSpeed;
+  const vistaDt = Math.max(0, Math.min(0.05, (Number(deltaTime) || 16.6667) / 1000));
+  _vistaMotion.dt = vistaDt;
+  _vistaMotion.speed = activeVistaSpeed;
+  _vistaClock += activeVistaSpeed * vistaDt * 60;
+  _vistaMotion.timeSec = _vistaClock / 60;
+  _vistaMotion.serial = Math.floor(_vistaClock);
 
-  // Slow the *selection* of historical patch ages without removing the Corrupt
+  // Slow the *selection* of historical patch ages without removing the Vista
   // layer from the compositor. At 1x this follows decoded source frames; below
   // 1x the selected delay changes more slowly; at 0x it stays fixed. The source
-  // video inside a fixed-delay patch remains live, matching Scan's stable-panel
+  // video inside a fixed-delay patch remains live, matching Panel's stable-panel
   // behavior while keeping the layer continuously present in the compositor.
-  if (_corruptSourceLastVfc < 0) {
-    _corruptSourceLastVfc = _vfc;
-    _corruptSourceClock = _vfc;
-  } else if (_vfc !== _corruptSourceLastVfc) {
-    const decodedDelta = Math.max(0, _vfc - _corruptSourceLastVfc);
-    _corruptSourceClock += decodedDelta * activeCorruptSpeed;
-    _corruptSourceLastVfc = _vfc;
+  if (_vistaSourceLastVfc < 0) {
+    _vistaSourceLastVfc = _vfc;
+    _vistaSourceClock = _vfc;
+  } else if (_vfc !== _vistaSourceLastVfc) {
+    const decodedDelta = Math.max(0, _vfc - _vistaSourceLastVfc);
+    _vistaSourceClock += decodedDelta * activeVistaSpeed;
+    _vistaSourceLastVfc = _vfc;
   }
-  _corruptMotion.sourceSerial = Math.floor(_corruptSourceClock);
-  _corruptMotion.clusterSpeed = clusterMasterSpeed;
-  if (clusteredCorrupt) _corruptMotion.clusterTimeSec += clusterMasterSpeed * corruptDt;
-  nPhaseX += density * activeCorruptSpeed * 0.01;
-  nPhaseY += density * activeCorruptSpeed * 0.011;
+  _vistaMotion.sourceSerial = Math.floor(_vistaSourceClock);
+  _vistaMotion.clusterSpeed = clusterMasterSpeed;
+  if (clusteredVista) _vistaMotion.clusterTimeSec += clusterMasterSpeed * vistaDt;
+  nPhaseX += density * activeVistaSpeed * 0.01;
+  nPhaseY += density * activeVistaSpeed * 0.011;
 
-  if (s.corruptOn) {
-    const moveX = Number(s.corruptMoveX) || 0;
-    const moveY = Number(s.corruptMoveY) || 0;
-    const moveZ = Number(s.corruptMoveZ) || 0;
-    if (width > 0) _corruptMotion.x = ((_corruptMotion.x + moveX * activeCorruptSpeed * corruptDt) % width + width) % width;
-    if (height > 0) _corruptMotion.y = ((_corruptMotion.y + moveY * activeCorruptSpeed * corruptDt) % height + height) % height;
-    if (moveZ !== 0 && activeCorruptSpeed > 0) {
-      let nz = _corruptMotion.z + moveZ * activeCorruptSpeed * corruptDt * _corruptMotion.zDir;
+  if (s.vistaOn) {
+    const moveX = Number(s.vistaMoveX) || 0;
+    const moveY = Number(s.vistaMoveY) || 0;
+    const moveZ = Number(s.vistaMoveZ) || 0;
+    if (width > 0) _vistaMotion.x = ((_vistaMotion.x + moveX * activeVistaSpeed * vistaDt) % width + width) % width;
+    if (height > 0) _vistaMotion.y = ((_vistaMotion.y + moveY * activeVistaSpeed * vistaDt) % height + height) % height;
+    if (moveZ !== 0 && activeVistaSpeed > 0) {
+      let nz = _vistaMotion.z + moveZ * activeVistaSpeed * vistaDt * _vistaMotion.zDir;
       while (nz > 1 || nz < -1) {
-        if (nz > 1) { nz = 2 - nz; _corruptMotion.zDir *= -1; }
-        if (nz < -1) { nz = -2 - nz; _corruptMotion.zDir *= -1; }
+        if (nz > 1) { nz = 2 - nz; _vistaMotion.zDir *= -1; }
+        if (nz < -1) { nz = -2 - nz; _vistaMotion.zDir *= -1; }
       }
-      _corruptMotion.z = nz;
+      _vistaMotion.z = nz;
     }
   }
 
@@ -4084,79 +4121,79 @@ function draw() {
   // It no longer drives the wobble/noise phases. A dedicated LFO provides the
   // optional sine-wave plane wobble. FIELD keeps its established phase-driven
   // collage motion and uses its own phase-driven movement.
-  const scanSpeed = Math.max(0, Number(s.scanSpeed) || 0);
-  const scanDt = Math.max(0, Math.min(0.05, (Number(deltaTime) || 16.6667) / 1000));
-  const scanFieldMode = String(s.scanPanelLayout || 'bands') === 'field';
-  if (scanFieldMode) {
-    nPhaseScanX += scanSpeed * 0.008;
-    nPhaseScanY += scanSpeed * 0.009;
+  const panelSpeed = Math.max(0, Number(s.panelSpeed) || 0);
+  const panelDt = Math.max(0, Math.min(0.05, (Number(deltaTime) || 16.6667) / 1000));
+  const panelFieldMode = String(s.panelLayout || 'bands') === 'field';
+  if (panelFieldMode) {
+    nPhasePanelX += panelSpeed * 0.008;
+    nPhasePanelY += panelSpeed * 0.009;
   } else {
     // BANDS has no hidden noise clock. SPEED is steady plane transport only;
     // LFO and automatic MAGNET motion are the explicit autonomous modulators.
     const travelSpan = Math.max(1, Math.hypot(width || 1, height || 1));
-    _scanBandMotion.travel = ((_scanBandMotion.travel + scanSpeed * scanDt * 150) % travelSpan + travelSpan) % travelSpan;
-    const lfoRate = Math.max(0, Number(s.scanLfoRate) || 0);
-    _scanBandMotion.lfoPhase = (_scanBandMotion.lfoPhase + Math.PI * 2 * lfoRate * scanDt) % (Math.PI * 2);
+    _panelBandMotion.travel = ((_panelBandMotion.travel + panelSpeed * panelDt * 150) % travelSpan + travelSpan) % travelSpan;
+    const lfoRate = Math.max(0, Number(s.panelLfoRate) || 0);
+    _panelBandMotion.lfoPhase = (_panelBandMotion.lfoPhase + Math.PI * 2 * lfoRate * panelDt) % (Math.PI * 2);
   }
 
   // MOVE X/Y/Z are direct physical controls. They no longer depend on SPEED,
   // which fixes the prior coupling where setting SPEED low/zero also disabled
   // explicit XYZ motion.
-  const scanMoveX = Number(s.scanMoveX) || 0;
-  const scanMoveY = Number(s.scanMoveY) || 0;
-  const scanMoveZ = Number(s.scanMoveZ) || 0;
+  const panelMoveX = Number(s.panelMoveX) || 0;
+  const panelMoveY = Number(s.panelMoveY) || 0;
+  const panelMoveZ = Number(s.panelMoveZ) || 0;
   if (width > 0) {
     const spanX = width * 2;
-    _scanSpatialMotion.x = (((_scanSpatialMotion.x + scanMoveX * scanDt + width) % spanX) + spanX) % spanX - width;
+    _panelSpatialMotion.x = (((_panelSpatialMotion.x + panelMoveX * panelDt + width) % spanX) + spanX) % spanX - width;
   }
   if (height > 0) {
     const spanY = height * 2;
-    _scanSpatialMotion.y = (((_scanSpatialMotion.y + scanMoveY * scanDt + height) % spanY) + spanY) % spanY - height;
+    _panelSpatialMotion.y = (((_panelSpatialMotion.y + panelMoveY * panelDt + height) % spanY) + spanY) % spanY - height;
   }
-  if (scanMoveZ !== 0) {
-    const baseZoom = Math.max(0.25, Math.min(4, Number.isFinite(Number(s.scanZoom)) ? Number(s.scanZoom) : 1));
-    let nz = baseZoom + _scanSpatialMotion.zoomOffset + scanMoveZ * scanDt * _scanSpatialMotion.zDir;
+  if (panelMoveZ !== 0) {
+    const baseZoom = Math.max(0.25, Math.min(4, Number.isFinite(Number(s.panelZoom)) ? Number(s.panelZoom) : 1));
+    let nz = baseZoom + _panelSpatialMotion.zoomOffset + panelMoveZ * panelDt * _panelSpatialMotion.zDir;
     while (nz > 4 || nz < 0.25) {
-      if (nz > 4) { nz = 8 - nz; _scanSpatialMotion.zDir *= -1; }
-      if (nz < 0.25) { nz = 0.5 - nz; _scanSpatialMotion.zDir *= -1; }
+      if (nz > 4) { nz = 8 - nz; _panelSpatialMotion.zDir *= -1; }
+      if (nz < 0.25) { nz = 0.5 - nz; _panelSpatialMotion.zDir *= -1; }
     }
-    _scanSpatialMotion.zoomOffset = nz - baseZoom;
+    _panelSpatialMotion.zoomOffset = nz - baseZoom;
   }
-  s.__scanMotionX = _scanSpatialMotion.x;
-  s.__scanMotionY = _scanSpatialMotion.y;
-  s.__scanMotionZoomOffset = _scanSpatialMotion.zoomOffset;
-  s.__scanBandTravel = _scanBandMotion.travel;
-  s.__scanBandLfo = Math.sin(_scanBandMotion.lfoPhase) * Math.max(0, Number(s.scanLfoAmount) || 0);
+  s.__panelMotionX = _panelSpatialMotion.x;
+  s.__panelMotionY = _panelSpatialMotion.y;
+  s.__panelMotionZoomOffset = _panelSpatialMotion.zoomOffset;
+  s.__panelBandTravel = _panelBandMotion.travel;
+  s.__panelBandLfo = Math.sin(_panelBandMotion.lfoPhase) * Math.max(0, Number(s.panelLfoAmount) || 0);
 
   // BANDS MAGNET has its own ordered-index clock. It is intentionally
   // independent from main SPEED so the magnet remains a separate creative tool.
-  const rawMagnetControl = Number(s.scanMagnetPosition ?? 0.5);
+  const rawMagnetControl = Number(s.panelMagnetPosition ?? 0.5);
   const magnetControl = Math.max(0, Math.min(1, Number.isFinite(rawMagnetControl) ? rawMagnetControl : 0.5));
-  if (Math.abs(magnetControl - _scanMagnetMotion.lastControl) > 1e-9) {
-    _scanMagnetMotion.position = magnetControl;
-    _scanMagnetMotion.lastControl = magnetControl;
-    _scanMagnetMotion.dir = 1;
+  if (Math.abs(magnetControl - _panelMagnetMotion.lastControl) > 1e-9) {
+    _panelMagnetMotion.position = magnetControl;
+    _panelMagnetMotion.lastControl = magnetControl;
+    _panelMagnetMotion.dir = 1;
   }
-  const magnetSpeed = Number(s.scanMagnetSpeed) || 0;
-  if (!s.scanMagnetOn || Math.abs(magnetSpeed) < 1e-9) {
-    if (Math.abs(magnetSpeed) < 1e-9) _scanMagnetMotion.position = magnetControl;
+  const magnetSpeed = Number(s.panelMagnetSpeed) || 0;
+  if (!s.panelMagnetOn || Math.abs(magnetSpeed) < 1e-9) {
+    if (Math.abs(magnetSpeed) < 1e-9) _panelMagnetMotion.position = magnetControl;
   } else {
-    let p = _scanMagnetMotion.position + magnetSpeed * scanDt * 0.35 * _scanMagnetMotion.dir;
-    if (String(s.scanMagnetEdge || 'bounce') === 'wrap') {
+    let p = _panelMagnetMotion.position + magnetSpeed * panelDt * 0.35 * _panelMagnetMotion.dir;
+    if (String(s.panelMagnetEdge || 'bounce') === 'wrap') {
       p = ((p % 1) + 1) % 1;
     } else {
       while (p > 1 || p < 0) {
-        if (p > 1) { p = 2 - p; _scanMagnetMotion.dir *= -1; }
-        if (p < 0) { p = -p; _scanMagnetMotion.dir *= -1; }
+        if (p > 1) { p = 2 - p; _panelMagnetMotion.dir *= -1; }
+        if (p < 0) { p = -p; _panelMagnetMotion.dir *= -1; }
       }
     }
-    _scanMagnetMotion.position = p;
+    _panelMagnetMotion.position = p;
   }
-  s.__scanMagnetPosition = _scanMagnetMotion.position;
+  s.__panelMagnetPosition = _panelMagnetMotion.position;
 
   // BANDS/FIELD use the explicit ANGLE control only; continuous spin is not part
-  // of the Scanlines control surface.
-  const scanAngleArg = null;
+  // of the paneling control surface.
+  const panelAngleArg = null;
 
   const activity = _resolveFrameActivity(s);
 
@@ -4180,7 +4217,7 @@ function draw() {
   _renderWasBypassed = false;
   _bypassSyncedVfc = -1;
 
-  if (activity.glitch) randomSeed(baseSeed + _corruptMotion.serial);
+  if (activity.glitch) randomSeed(baseSeed + _vistaMotion.serial);
 
   _pipelineFrame.activity = activity;
   const activePipelineStarted = window.__huffProfilerActive ? performance.now() : 0;
@@ -4188,12 +4225,12 @@ function draw() {
 
   // Paint order remains the exact Classic layer-priority model. The validated
   // Front-stage priority is deliberately stable and binary.
-  _pipelineFrame.frontStageActive = activity.scanlines || activity.glitch || activity.luma;
-  _pipelineFrame.layerPriority = s.layerPriority || 'scan';
+  _pipelineFrame.frontStageActive = activity.paneling || activity.glitch || activity.luma;
+  _pipelineFrame.layerPriority = s.layerPriority || 'panel';
   _pipelineFrame.density = density;
-  _pipelineFrame.scanAngleArg = scanAngleArg;
+  _pipelineFrame.panelAngleArg = panelAngleArg;
   _pipelineFrame.glitchPriority = 1.0;
-  _pipelineFrame.scanPriority = 1.0;
+  _pipelineFrame.panelPriority = 1.0;
   _pipelineFrame.lumaMix = s.lumaKeyMix;
   _pipelineFrame.gmPos = s.globalMixPos || 'after';
   _pipelineFrame.deferredGlobalMix = false;
@@ -4799,8 +4836,8 @@ window.addEventListener('beforeunload', _shutdownMediaLifecycle, { once:true });
   // is the ring-snapshot cost amortised across render frames.
   const NAMES = [
     '_syncGCur', '_pushToRing',
-    'applyGlitch', 'applyPipelineLumaKey', 'applyScanlines',
-    'applyFlowWarp', 'applySymmetry', 'applySolarize',
+    'applyGlitch', 'applyPipelineLumaKey', 'applyPaneling',
+    'applySiftWarp', 'applySymmetry', 'applySolarize',
   ];
   const acc = Object.create(null);
   NAMES.forEach(function (n) { acc[n] = 0; });
@@ -4876,7 +4913,7 @@ window.addEventListener('beforeunload', _shutdownMediaLifecycle, { once:true });
 
   function pipelineStageTelemetrySnapshot() {
     const t = window.__huffPipelineStageTelemetry || {};
-    const names = ['persistence','front','globalMix','feedback','flow','symmetry','solarize','presentation'];
+    const names = ['persistence','front','globalMix','feedback','sift','symmetry','solarize','presentation'];
     const out = Object.create(null);
     for (const name of names) {
       const rec = t[name] || {};
@@ -4927,8 +4964,8 @@ window.addEventListener('beforeunload', _shutdownMediaLifecycle, { once:true });
     };
   }
 
-  function scanlineTelemetrySnapshot() {
-    const t = window.__huffScanlineTelemetry || {};
+  function panelingTelemetrySnapshot() {
+    const t = window.__huffPanelingTelemetry || {};
     return {
       frames: t.frames || 0,
       bands: t.bands || 0,
@@ -4942,8 +4979,8 @@ window.addEventListener('beforeunload', _shutdownMediaLifecycle, { once:true });
     };
   }
 
-  function flowTelemetrySnapshot() {
-    const t = window.__huffFlowTelemetry || {};
+  function siftTelemetrySnapshot() {
+    const t = window.__huffSiftTelemetry || {};
     return {
       frames: t.frames || 0,
       tiles: t.tiles || 0,
@@ -4980,8 +5017,8 @@ window.addEventListener('beforeunload', _shutdownMediaLifecycle, { once:true });
   let lastGpuColorTelemetry = gpuColorTelemetrySnapshot();
   let lastLumaTelemetry = lumaTelemetrySnapshot();
   let lastGlitchTelemetry = glitchTelemetrySnapshot();
-  let lastScanlineTelemetry = scanlineTelemetrySnapshot();
-  let lastFlowTelemetry = flowTelemetrySnapshot();
+  let lastPanelingTelemetry = panelingTelemetrySnapshot();
+  let lastSiftTelemetry = siftTelemetrySnapshot();
   let lastCapabilityTelemetry = capabilityTelemetrySnapshot();
 
   function report() {
@@ -5074,30 +5111,30 @@ window.addEventListener('beforeunload', _shutdownMediaLifecycle, { once:true });
       const glitchRingReuseDelta = glitchNow.ringReuses - lastGlitchTelemetry.ringReuses;
       const glitchTilesAvg = glitchFramesDelta > 0 ? glitchTilesDelta / glitchFramesDelta : 0;
       const glitchDrawCallsAvg = glitchFramesDelta > 0 ? glitchDrawCallsDelta / glitchFramesDelta : 0;
-      const scanlineNow = scanlineTelemetrySnapshot();
-      const scanlineFramesDelta = scanlineNow.frames - lastScanlineTelemetry.frames;
-      const scanlineBandsDelta = scanlineNow.bands - lastScanlineTelemetry.bands;
-      const scanlineDrawCallsDelta = scanlineNow.drawCalls - lastScanlineTelemetry.drawCalls;
-      const scanlineGeometryRebuildDelta = scanlineNow.geometryRebuilds - lastScanlineTelemetry.geometryRebuilds;
-      const scanlineGeometryReuseDelta = scanlineNow.geometryReuses - lastScanlineTelemetry.geometryReuses;
-      const scanlineBandRebuildDelta = scanlineNow.bandRebuilds - lastScanlineTelemetry.bandRebuilds;
-      const scanlineBandReuseDelta = scanlineNow.bandReuses - lastScanlineTelemetry.bandReuses;
-      const scanlineDirectDelta = scanlineNow.directFrames - lastScanlineTelemetry.directFrames;
-      const scanlineTransformedDelta = scanlineNow.transformedFrames - lastScanlineTelemetry.transformedFrames;
-      const scanlineBandsAvg = scanlineFramesDelta > 0 ? scanlineBandsDelta / scanlineFramesDelta : 0;
-      const scanlineDrawCallsAvg = scanlineFramesDelta > 0 ? scanlineDrawCallsDelta / scanlineFramesDelta : 0;
-      const flowNow = flowTelemetrySnapshot();
-      const flowFramesDelta = flowNow.frames - lastFlowTelemetry.frames;
-      const flowTilesDelta = flowNow.tiles - lastFlowTelemetry.tiles;
-      const flowDrawCallsDelta = flowNow.drawCalls - lastFlowTelemetry.drawCalls;
-      const flowGridRebuildDelta = flowNow.gridRebuilds - lastFlowTelemetry.gridRebuilds;
-      const flowGridReuseDelta = flowNow.gridReuses - lastFlowTelemetry.gridReuses;
-      const flowFrequencyRebuildDelta = flowNow.frequencyRebuilds - lastFlowTelemetry.frequencyRebuilds;
-      const flowFrequencyReuseDelta = flowNow.frequencyReuses - lastFlowTelemetry.frequencyReuses;
-      const flowSwirlRebuildDelta = flowNow.swirlRebuilds - lastFlowTelemetry.swirlRebuilds;
-      const flowSwirlReuseDelta = flowNow.swirlReuses - lastFlowTelemetry.swirlReuses;
-      const flowTilesAvg = flowFramesDelta > 0 ? flowTilesDelta / flowFramesDelta : 0;
-      const flowDrawCallsAvg = flowFramesDelta > 0 ? flowDrawCallsDelta / flowFramesDelta : 0;
+      const panelingNow = panelingTelemetrySnapshot();
+      const panelingFramesDelta = panelingNow.frames - lastPanelingTelemetry.frames;
+      const panelingBandsDelta = panelingNow.bands - lastPanelingTelemetry.bands;
+      const panelingDrawCallsDelta = panelingNow.drawCalls - lastPanelingTelemetry.drawCalls;
+      const panelingGeometryRebuildDelta = panelingNow.geometryRebuilds - lastPanelingTelemetry.geometryRebuilds;
+      const panelingGeometryReuseDelta = panelingNow.geometryReuses - lastPanelingTelemetry.geometryReuses;
+      const panelingBandRebuildDelta = panelingNow.bandRebuilds - lastPanelingTelemetry.bandRebuilds;
+      const panelingBandReuseDelta = panelingNow.bandReuses - lastPanelingTelemetry.bandReuses;
+      const panelingDirectDelta = panelingNow.directFrames - lastPanelingTelemetry.directFrames;
+      const panelingTransformedDelta = panelingNow.transformedFrames - lastPanelingTelemetry.transformedFrames;
+      const panelingBandsAvg = panelingFramesDelta > 0 ? panelingBandsDelta / panelingFramesDelta : 0;
+      const panelingDrawCallsAvg = panelingFramesDelta > 0 ? panelingDrawCallsDelta / panelingFramesDelta : 0;
+      const siftNow = siftTelemetrySnapshot();
+      const siftFramesDelta = siftNow.frames - lastSiftTelemetry.frames;
+      const siftTilesDelta = siftNow.tiles - lastSiftTelemetry.tiles;
+      const siftDrawCallsDelta = siftNow.drawCalls - lastSiftTelemetry.drawCalls;
+      const siftGridRebuildDelta = siftNow.gridRebuilds - lastSiftTelemetry.gridRebuilds;
+      const siftGridReuseDelta = siftNow.gridReuses - lastSiftTelemetry.gridReuses;
+      const siftFrequencyRebuildDelta = siftNow.frequencyRebuilds - lastSiftTelemetry.frequencyRebuilds;
+      const siftFrequencyReuseDelta = siftNow.frequencyReuses - lastSiftTelemetry.frequencyReuses;
+      const siftSwirlRebuildDelta = siftNow.swirlRebuilds - lastSiftTelemetry.swirlRebuilds;
+      const siftSwirlReuseDelta = siftNow.swirlReuses - lastSiftTelemetry.swirlReuses;
+      const siftTilesAvg = siftFramesDelta > 0 ? siftTilesDelta / siftFramesDelta : 0;
+      const siftDrawCallsAvg = siftFramesDelta > 0 ? siftDrawCallsDelta / siftFramesDelta : 0;
       const capabilityNow = capabilityTelemetrySnapshot();
       const capabilityRenderSamples = capabilityNow.renderSamples - lastCapabilityTelemetry.renderSamples;
       const capabilitySourceSamples = capabilityNow.sourceSyncSamples - lastCapabilityTelemetry.sourceSyncSamples;
@@ -5169,7 +5206,7 @@ window.addEventListener('beforeunload', _shutdownMediaLifecycle, { once:true });
         'stage front' + stageAvg('front').toFixed(2).padStart(6) + ' ms\n' +
         'stage mix  ' + stageAvg('globalMix').toFixed(2).padStart(6) + ' ms\n' +
         'stage fb   ' + stageAvg('feedback').toFixed(2).padStart(6) + ' ms\n' +
-        'stage flow ' + stageAvg('flow').toFixed(2).padStart(6) + ' ms\n' +
+        'stage sift ' + stageAvg('sift').toFixed(2).padStart(6) + ' ms\n' +
         'stage sym  ' + stageAvg('symmetry').toFixed(2).padStart(6) + ' ms\n' +
         'stage solar' + stageAvg('solarize').toFixed(2).padStart(6) + ' ms\n' +
         'stage pres ' + stageAvg('presentation').toFixed(2).padStart(6) + ' ms\n' +
@@ -5204,16 +5241,16 @@ window.addEventListener('beforeunload', _shutdownMediaLifecycle, { once:true });
         'gl tiles   ' + glitchTilesAvg.toFixed(0).padStart(6) + ' / frame\n' +
         'gl draws   ' + glitchDrawCallsAvg.toFixed(0).padStart(6) + ' / frame\n' +
         'gl ring    ' + `${glitchRingRebuildDelta}/${glitchRingReuseDelta}`.padStart(6) + ' rebuild/reuse\n' +
-        'scan bands ' + scanlineBandsAvg.toFixed(0).padStart(6) + ' / frame\n' +
-        'scan draws ' + scanlineDrawCallsAvg.toFixed(0).padStart(6) + ' / frame\n' +
-        'scan geom  ' + `${scanlineGeometryRebuildDelta}/${scanlineGeometryReuseDelta}`.padStart(6) + ' rebuild/reuse\n' +
-        'scan prep  ' + `${scanlineBandRebuildDelta}/${scanlineBandReuseDelta}`.padStart(6) + ' rebuild/reuse\n' +
-        'scan path  ' + `${scanlineDirectDelta}/${scanlineTransformedDelta}`.padStart(6) + ' direct/xform\n' +
-        'flow tiles ' + flowTilesAvg.toFixed(0).padStart(6) + ' / frame\n' +
-        'flow draws ' + flowDrawCallsAvg.toFixed(0).padStart(6) + ' / frame\n' +
-        'flow grid  ' + `${flowGridRebuildDelta}/${flowGridReuseDelta}`.padStart(6) + ' rebuild/reuse\n' +
-        'flow freq  ' + `${flowFrequencyRebuildDelta}/${flowFrequencyReuseDelta}`.padStart(6) + ' rebuild/reuse\n' +
-        'flow swirl ' + `${flowSwirlRebuildDelta}/${flowSwirlReuseDelta}`.padStart(6) + ' rebuild/reuse\n' +
+        'panel bands ' + panelingBandsAvg.toFixed(0).padStart(6) + ' / frame\n' +
+        'panel draws ' + panelingDrawCallsAvg.toFixed(0).padStart(6) + ' / frame\n' +
+        'panel geom  ' + `${panelingGeometryRebuildDelta}/${panelingGeometryReuseDelta}`.padStart(6) + ' rebuild/reuse\n' +
+        'panel prep  ' + `${panelingBandRebuildDelta}/${panelingBandReuseDelta}`.padStart(6) + ' rebuild/reuse\n' +
+        'panel path  ' + `${panelingDirectDelta}/${panelingTransformedDelta}`.padStart(6) + ' direct/xform\n' +
+        'sift tiles ' + siftTilesAvg.toFixed(0).padStart(6) + ' / frame\n' +
+        'sift draws ' + siftDrawCallsAvg.toFixed(0).padStart(6) + ' / frame\n' +
+        'sift grid  ' + `${siftGridRebuildDelta}/${siftGridReuseDelta}`.padStart(6) + ' rebuild/reuse\n' +
+        'sift freq  ' + `${siftFrequencyRebuildDelta}/${siftFrequencyReuseDelta}`.padStart(6) + ' rebuild/reuse\n' +
+        'sift swirl ' + `${siftSwirlRebuildDelta}/${siftSwirlReuseDelta}`.padStart(6) + ' rebuild/reuse\n' +
         '──────────────────────\n' +
         (rows.length ? rows.map(function (r) { return fmt(r[0], r[1]); }).join('\n')
                      : '(no effects active)') + '\n' +
@@ -5231,8 +5268,8 @@ window.addEventListener('beforeunload', _shutdownMediaLifecycle, { once:true });
       lastGpuColorTelemetry = gpuColorTelemetrySnapshot();
       lastLumaTelemetry = lumaTelemetrySnapshot();
       lastGlitchTelemetry = glitchTelemetrySnapshot();
-      lastScanlineTelemetry = scanlineTelemetrySnapshot();
-      lastFlowTelemetry = flowTelemetrySnapshot();
+      lastPanelingTelemetry = panelingTelemetrySnapshot();
+      lastSiftTelemetry = siftTelemetrySnapshot();
       lastCapabilityTelemetry = capabilityTelemetrySnapshot();
     }
   }
@@ -5254,8 +5291,8 @@ window.addEventListener('beforeunload', _shutdownMediaLifecycle, { once:true });
     lastGpuColorTelemetry = gpuColorTelemetrySnapshot();
     lastLumaTelemetry = lumaTelemetrySnapshot();
     lastGlitchTelemetry = glitchTelemetrySnapshot();
-    lastScanlineTelemetry = scanlineTelemetrySnapshot();
-    lastFlowTelemetry = flowTelemetrySnapshot();
+    lastPanelingTelemetry = panelingTelemetrySnapshot();
+    lastSiftTelemetry = siftTelemetrySnapshot();
     lastCapabilityTelemetry = capabilityTelemetrySnapshot();
     if (!visible) overlay.textContent = '';
   }
