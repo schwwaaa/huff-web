@@ -8,7 +8,8 @@
 
 </head>
 <body>
-  <canvas id="mirror" aria-label="HUFF canvas output"></canvas>
+  <video id="streamOutput" class="output-surface" autoplay muted playsinline aria-label="HUFF canvas output"></video>
+  <canvas id="mirror" class="output-surface" aria-label="HUFF canvas output"></canvas>
   <script>
     function qs(name) {
       const q = new URLSearchParams(location.search);
@@ -20,8 +21,11 @@
     const MIRROR_CHANNEL_NAME = 'huff-canvas-mirror-v1';
     const autofs = qs('autofs') === '1';
     const fullscreenMode = qs('fullscreen') === '1';
+    let autofsTimer = 0;
 
     const cvs = document.getElementById('mirror');
+    const streamOutput = document.getElementById('streamOutput');
+    let directStreamActive = false;
     // Keep the backing store at the encoded frame's native dimensions and let
     // CSS/GPU composition scale it to the output window.
     const bitmapCtx = cvs.getContext('bitmaprenderer');
@@ -31,28 +35,27 @@
 
     const embeddedInPip = window.parent !== window && !!window.parent;
 
+    function activeSurface() { return directStreamActive ? streamOutput : cvs; }
     function isFullscreen(){ return !!(document.fullscreenElement || document.webkitFullscreenElement); }
     async function togglePopupFullscreen(){
-      // Fullscreen targets the canvas element in this detached output document.
-      // The main HUFF control document is never used as the fullscreen target.
+      // Fullscreen targets only the detached output surface. The HUFF controls
+      // document is never used as the fullscreen target.
       if (embeddedInPip) return;
       if (isFullscreen()) {
         const ex = document.exitFullscreen || document.webkitExitFullscreen;
         if (ex) await ex.call(document);
         return;
       }
+      const surface = activeSurface();
       try {
-        if (cvs.requestFullscreen) {
-          try {
-            await cvs.requestFullscreen({ navigationUI:'hide' });
-          } catch {
-            await cvs.requestFullscreen();
-          }
-        } else if (cvs.webkitRequestFullscreen) {
-          await cvs.webkitRequestFullscreen();
+        if (surface.requestFullscreen) {
+          try { await surface.requestFullscreen({ navigationUI:'hide' }); }
+          catch { await surface.requestFullscreen(); }
+        } else if (surface.webkitRequestFullscreen) {
+          await surface.webkitRequestFullscreen();
         }
       } catch (e) {
-        console.warn('[canvas web] canvas fullscreen request rejected', e);
+        console.warn('[canvas web] output fullscreen request rejected', e);
       }
     }
 
@@ -61,7 +64,7 @@
     // fullscreen on the canvas element; Escape exits through the browser.
     if (!embeddedInPip) {
       if (fullscreenMode) {
-        cvs.addEventListener('click', () => { if (!isFullscreen()) void togglePopupFullscreen(); });
+        document.addEventListener('click', () => { if (!isFullscreen()) void togglePopupFullscreen(); });
       } else {
         document.addEventListener('dblclick', () => { void togglePopupFullscreen(); });
       }
@@ -71,8 +74,37 @@
           void togglePopupFullscreen();
         }
       });
-      if (autofs) setTimeout(() => { void togglePopupFullscreen(); }, 120);
+      if (autofs) autofsTimer = setTimeout(() => { autofsTimer = 0; void togglePopupFullscreen(); }, 120);
     }
+
+// Prefer a browser-native canvas MediaStream from the opener. This removes the
+// per-frame JPEG encode, Blob transfer, JPEG decode, and bitmap reconstruction
+// costs from the normal WINDOW path while keeping the existing encoded transport
+// as a fallback for browsers without canvas capture support.
+async function tryDirectCanvasStream() {
+  if (!window.opener || window.opener.closed) return false;
+  try {
+    const getStream = window.opener.__huffGetCanvasStream;
+    if (typeof getStream !== 'function') return false;
+    const stream = getStream();
+    if (!stream || typeof stream.getVideoTracks !== 'function' || stream.getVideoTracks().length === 0) return false;
+    streamOutput.srcObject = stream;
+    streamOutput.muted = true;
+    streamOutput.playsInline = true;
+    streamOutput.controls = false;
+    await streamOutput.play().catch(() => {});
+    directStreamActive = true;
+    streamOutput.style.display = 'block';
+    cvs.style.display = 'none';
+    console.log('[canvas web] direct canvas MediaStream active');
+    return true;
+  } catch (error) {
+    console.warn('[canvas web] direct canvas MediaStream unavailable; using encoded fallback', error);
+    try { streamOutput.srcObject = null; } catch {}
+    directStreamActive = false;
+    return false;
+  }
+}
 
 // ── Pure-browser canvas transport ──────────────────────────────────────────
 let channel = null;
@@ -133,6 +165,9 @@ function drainPending() {
 
 function connectMirror() {
   if (viewerShutdown) return;
+  directStreamActive = false;
+  streamOutput.style.display = 'none';
+  cvs.style.display = 'block';
   if (typeof BroadcastChannel !== 'function') {
     console.error('[canvas web] BroadcastChannel is unavailable in this browser');
     return;
@@ -177,11 +212,19 @@ function shutdownViewer() {
     try { channel.close(); } catch {}
   }
   channel = null;
+  try { streamOutput.pause(); } catch {}
+  try { streamOutput.srcObject = null; } catch {}
+  if (directStreamActive && window.opener && !window.opener.closed) {
+    try { window.opener.__huffReleaseCanvasStream?.(); } catch {}
+  }
+  directStreamActive = false;
 }
 
 window.addEventListener('pagehide', shutdownViewer, { once:true });
 window.addEventListener('beforeunload', shutdownViewer, { once:true });
-connectMirror();
+(async () => {
+  if (!(await tryDirectCanvasStream())) connectMirror();
+})();
   </script>
 </body>
 </html>

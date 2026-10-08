@@ -799,12 +799,11 @@ const _sessionLoadedPresets = new Map();
 let _sessionLoadedPresetSerial = 0;
 
 // Repository/folder presets are discovered at page load instead of being
-// hard-coded into the menu. Plain browsers cannot enumerate an arbitrary
-// static directory, so discovery uses three progressively broader sources:
-//   1) a local directory listing when the development server exposes one;
-//   2) presets/manifest.json for static/offline hosting;
-//   3) the public GitHub Contents API so newly-pushed preset files can appear
-//      on the live website without editing canvas.js or index.html.
+// hard-coded into the menu. `presets/manifest.json` is the canonical catalog
+// because normal static web servers cannot reliably enumerate directories.
+// The manifest is validated against the actual JSON files before the menu is
+// populated. A local directory index and the public GitHub Contents API are
+// fallback discovery sources only when the manifest is unavailable.
 // Preset JSON is fetched lazily only when the user recalls it.
 const PRESET_REPOSITORY = Object.freeze({
   owner: 'schwwaaa',
@@ -852,10 +851,10 @@ function _upsertRepositoryPreset(item, prefer=false) {
 
 async function _discoverPresetDirectoryIndex() {
   try {
-    const res = await fetch(`${PRESET_REPOSITORY.directory}/`, { cache:'no-store' });
-    if (!res.ok) return [];
+    const res = await fetch(`${PRESET_REPOSITORY.directory}/?_=${Date.now()}`, { cache:'no-store' });
+    if (!res.ok) return { available:false, entries:[] };
     const type = String(res.headers.get('content-type') || '').toLowerCase();
-    if (!type.includes('text/html')) return [];
+    if (!type.includes('text/html')) return { available:false, entries:[] };
     const html = await res.text();
     const doc = new DOMParser().parseFromString(html, 'text/html');
     const out = [];
@@ -875,9 +874,11 @@ async function _discoverPresetDirectoryIndex() {
         source: 'local-folder',
       });
     });
-    return out;
+    // The distinction between an available empty directory and an unavailable
+    // directory listing is important: an empty preset folder must clear the menu.
+    return { available:true, entries:out };
   } catch {
-    return [];
+    return { available:false, entries:[] };
   }
 }
 
@@ -932,9 +933,25 @@ async function _discoverPresetGitHub() {
   }
 }
 
+async function _validateManifestPresetEntries(entries) {
+  const checked = await Promise.all(entries.map(async entry => {
+    try {
+      const separator = entry.url.includes('?') ? '&' : '?';
+      const res = await fetch(`${entry.url}${separator}huff_catalog=${Date.now()}`, { cache:'no-store' });
+      if (!res.ok) return null;
+      const parsed = await res.json();
+      _parsePresetDocument(parsed, _presetDisplayNameFromPath(entry.path));
+      return entry;
+    } catch {
+      return null;
+    }
+  }));
+  return checked.filter(Boolean);
+}
+
 async function refreshRepositoryPresetCatalog() {
   const isLocalHost = /^(localhost|127(?:\.\d+){3}|0\.0\.0\.0|::1)$/i.test(location.hostname || '');
-  const [folderEntries, manifestEntries, githubEntries] = await Promise.all([
+  const [folderResult, manifestEntries, githubEntries] = await Promise.all([
     _discoverPresetDirectoryIndex(),
     _discoverPresetManifest(),
     _discoverPresetGitHub(),
@@ -942,27 +959,41 @@ async function refreshRepositoryPresetCatalog() {
 
   _repositoryPresets.clear();
 
-  // A committed manifest is the deterministic baseline for static/offline use.
-  manifestEntries.forEach(item => _upsertRepositoryPreset(item));
+  let source = 'none';
+  let activeEntries = [];
 
-  if (isLocalHost) {
-    // Local development should reflect files currently present on disk even if
-    // they have not yet been pushed to GitHub or added to the manifest.
-    githubEntries.forEach(item => _upsertRepositoryPreset(item));
-    folderEntries.forEach(item => _upsertRepositoryPreset(item, true));
-  } else {
-    // On the deployed site GitHub is authoritative, allowing a newly pushed
-    // preset to appear after reload even before a new site bundle is published.
-    folderEntries.forEach(item => _upsertRepositoryPreset(item));
-    githubEntries.forEach(item => _upsertRepositoryPreset(item, true));
+  if (manifestEntries.length) {
+    // The manifest is the canonical catalog for both local and deployed builds.
+    // Every entry is fetched and parsed before it is exposed, so a stale manifest
+    // cannot keep a deleted preset visible after reload.
+    source = 'validated-manifest';
+    activeEntries = await _validateManifestPresetEntries(manifestEntries);
+  } else if (isLocalHost && folderResult.available) {
+    // Development servers that expose a directory index can still discover
+    // presets when no manifest exists.
+    source = 'local-folder-fallback';
+    activeEntries = folderResult.entries;
+  } else if (githubEntries.length) {
+    // GitHub directory enumeration is a deployment fallback only. It must not
+    // override a manifest that intentionally defines the current preset set.
+    source = 'github-fallback';
+    activeEntries = githubEntries;
+  } else if (folderResult.available) {
+    source = 'folder-fallback';
+    activeEntries = folderResult.entries;
   }
+
+  activeEntries.forEach(item => _upsertRepositoryPreset(item, true));
 
   _repositoryPresetCatalogLoaded = true;
   refreshPresetList();
   console.info(`[huff] preset catalog: ${_repositoryPresets.size} repository presets`, {
-    localFolder: folderEntries.length,
+    source,
+    localFolderAvailable: folderResult.available,
+    localFolder: folderResult.entries.length,
     manifest: manifestEntries.length,
     github: githubEntries.length,
+    active: activeEntries.length,
   });
 }
 
@@ -975,7 +1006,8 @@ async function _loadRepositoryPreset(entry) {
   const parsed = await res.json();
   const doc = _parsePresetDocument(parsed, entry.name);
   if (doc.kind !== 'single') throw new Error('Folder preset files must contain one preset');
-  entry.name = String(doc.name || entry.name);
+  // Keep the catalog/filename name visible in the menu. Many portable preset
+  // documents retain older internal names after the file has been renamed.
   entry.preset = doc.preset;
   return entry.preset;
 }
@@ -4339,14 +4371,53 @@ window.addEventListener('beforeunload', _shutdownMediaLifecycle, { once:true });
     return cachedRenderCanvas;
   }
 
+  // Prefer the browser's native canvas MediaStream path for the detached
+  // WINDOW output. The encoded BroadcastChannel mirror remains available as a
+  // compatibility fallback when captureStream() is unavailable.
+  let directCanvasStream = null;
+  let directCanvasTrack = null;
+  let canvasPopup = null;
+
+  function getDirectCanvasStream() {
+    const cnv = findCanvas();
+    if (!cnv || typeof cnv.captureStream !== 'function') return null;
+    if (directCanvasStream && directCanvasTrack?.readyState === 'live') return directCanvasStream;
+    try {
+      directCanvasStream = cnv.captureStream(60);
+      directCanvasTrack = directCanvasStream.getVideoTracks?.()[0] || null;
+      if (directCanvasTrack && 'contentHint' in directCanvasTrack) {
+        try { directCanvasTrack.contentHint = 'motion'; } catch {}
+      }
+      return directCanvasStream;
+    } catch (error) {
+      console.warn('[huff mirror] canvas captureStream unavailable:', error?.message || error);
+      directCanvasStream = null;
+      directCanvasTrack = null;
+      return null;
+    }
+  }
+
+  function releaseDirectCanvasStream() {
+    try { directCanvasStream?.getTracks?.().forEach(track => track.stop()); } catch {}
+    directCanvasStream = null;
+    directCanvasTrack = null;
+  }
+
+  window.__huffGetCanvasStream = getDirectCanvasStream;
+  window.__huffReleaseCanvasStream = releaseDirectCanvasStream;
+
   const openBtn = _$('openCanvasBtn');
   if (openBtn) {
-    openBtn.addEventListener('click', () =>
-      window.open(
+    openBtn.addEventListener('click', () => {
+      if (canvasPopup && !canvasPopup.closed) {
+        try { canvasPopup.focus(); } catch {}
+        return;
+      }
+      canvasPopup = window.open(
         'canvas.html?mode=stretch&autofs=1',
-        'canvas-mirror', 'popup=yes,noopener,noreferrer,width=1280,height=720'
-      )
-    );
+        'canvas-mirror', 'popup=yes,width=1280,height=720'
+      );
+    });
   }
 
   const tcv = document.createElement('canvas');
@@ -4706,6 +4777,7 @@ window.addEventListener('beforeunload', _shutdownMediaLifecycle, { once:true });
     }
     mirrorChannel = null;
     cachedRenderCanvas = null;
+    releaseDirectCanvasStream();
     tcv.width = 1;
     tcv.height = 1;
   }

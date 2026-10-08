@@ -5,56 +5,112 @@
   "branch": "main",
   "presets": [
     {
-      "file": "factory-chaos.json",
-      "name": "factory:chaos"
+      "file": "airplane glue.json",
+      "name": "airplane glue"
     },
     {
-      "file": "factory-clean.json",
-      "name": "factory:clean"
+      "file": "babagoogalon.json",
+      "name": "babagoogalon"
     },
     {
-      "file": "factory-melt.json",
-      "name": "factory:melt"
+      "file": "benzene.json",
+      "name": "benzene"
     },
     {
-      "file": "factory-mirror.json",
-      "name": "factory:mirror"
+      "file": "bleech.json",
+      "name": "bleech"
     },
     {
-      "file": "factory-pulse.json",
-      "name": "factory:pulse"
+      "file": "carburetor cleaner.json",
+      "name": "carburetor cleaner"
     },
     {
-      "file": "factory-solar.json",
-      "name": "factory:solar"
+      "file": "chloroform.json",
+      "name": "chloroform"
     },
     {
-      "file": "factory-vapor.json",
-      "name": "factory:vapor"
+      "file": "cooking oil spray.json",
+      "name": "cooking oil spray"
     },
     {
-      "file": "Preset1.json",
-      "name": "Preset1"
+      "file": "cyclohexane.json",
+      "name": "cyclohexane"
+    },
+    {
+      "file": "diethyl-ether.json",
+      "name": "diethyl-ether"
+    },
+    {
+      "file": "enflurane.json",
+      "name": "enflurane"
+    },
+    {
+      "file": "esters.json",
+      "name": "esters"
+    },
+    {
+      "file": "fabric spray.json",
+      "name": "fabric spray"
+    },
+    {
+      "file": "felt tip marker fluid.json",
+      "name": "felt tip marker fluid"
+    },
+    {
+      "file": "fluorocarbon.json",
+      "name": "fluorocarbon"
+    },
+    {
+      "file": "galaxy gas.json",
+      "name": "galaxy gas"
+    },
+    {
+      "file": "gasoline.json",
+      "name": "gasoline"
+    },
+    {
+      "file": "hair spray.json",
+      "name": "hair spray"
+    },
+    {
+      "file": "halothane.json",
+      "name": "halothane"
+    },
+    {
+      "file": "hobby glue.json",
+      "name": "hobby glue"
+    },
+    {
+      "file": "mek.json",
+      "name": "mek"
+    },
+    {
+      "file": "methanol.json",
+      "name": "methanol"
+    },
+    {
+      "file": "methoxyflurane.json",
+      "name": "methoxyflurane"
+    },
+    {
+      "file": "mibk.json",
+      "name": "mibk"
+    },
+    {
+      "file": "oven cleaner.json",
+      "name": "oven cleaner"
+    },
+    {
+      "file": "paint thinner.json",
+      "name": "paint thinner"
+    },
+    {
+      "file": "pc cleaner.json",
+      "name": "pc cleaner"
     },
     {
       "file": "Preset10.json",
       "name": "Preset10"
-    },
-    {
-      "file": "Preset101.json",
-      "name": "Preset101"
-    },
-    {
-      "file": "Preset102.json",
-      "name": "Preset102"
-    },
-    {
-      "file": "Preset103.json",
-      "name": "Preset103"
-    },
-    {
-      "file": "Preset104.json",
-      "name": "Preset103"
     },
     {
       "file": "Preset11.json",
@@ -90,171 +146,27 @@
     },
     {
       "file": "preset19.json",
-      "name": "preset 15"
+      "name": "preset19"
     },
     {
-      "file": "Preset2.json",
-      "name": "Preset2"
+      "file": "propylene.json",
+      "name": "propylene"
     },
     {
-      "file": "Preset20.json",
-      "name": "Preset19"
+      "file": "refrigerant gas.json",
+      "name": "refrigerant gas"
     },
     {
-      "file": "Preset21.json",
-      "name": "Preset21"
+      "file": "sulfur hexafluoride.json",
+      "name": "sulfur hexafluoride"
     },
     {
-      "file": "Preset22.json",
-      "name": "Preset22"
+      "file": "toluene.json",
+      "name": "toluene"
     },
     {
-      "file": "Preset23.json",
-      "name": "Preset24"
-    },
-    {
-      "file": "Preset25.json",
-      "name": "Preset25"
-    },
-    {
-      "file": "Preset26.json",
-      "name": "Preset26"
-    },
-    {
-      "file": "Preset3.json",
-      "name": "Preset3"
-    },
-    {
-      "file": "Preset30.json",
-      "name": "Preset30"
-    },
-    {
-      "file": "Preset31.json",
-      "name": "Preset31"
-    },
-    {
-      "file": "Preset4.json",
-      "name": "Preset4"
-    },
-    {
-      "file": "Preset40.json",
-      "name": "Preset40"
-    },
-    {
-      "file": "Preset41.json",
-      "name": "Preset41"
-    },
-    {
-      "file": "Preset42.json",
-      "name": "Preset43"
-    },
-    {
-      "file": "Preset46.json",
-      "name": "Preset49"
-    },
-    {
-      "file": "Preset47.json",
-      "name": "Preset47"
-    },
-    {
-      "file": "Preset48.json",
-      "name": "Preset48"
-    },
-    {
-      "file": "Preset49.json",
-      "name": "Preset49"
-    },
-    {
-      "file": "Preset5.json",
-      "name": "Preset5"
-    },
-    {
-      "file": "Preset51.json",
-      "name": "Preset51"
-    },
-    {
-      "file": "preset52.json",
-      "name": "preset52"
-    },
-    {
-      "file": "preset53.json",
-      "name": "preset53"
-    },
-    {
-      "file": "preset54.json",
-      "name": "preset54"
-    },
-    {
-      "file": "Preset55.json",
-      "name": "Preset54"
-    },
-    {
-      "file": "Preset56.json",
-      "name": "Preset55"
-    },
-    {
-      "file": "Preset57.json",
-      "name": "Preset57"
-    },
-    {
-      "file": "Preset58.json",
-      "name": "Preset58"
-    },
-    {
-      "file": "Preset6.json",
-      "name": "Preset6"
-    },
-    {
-      "file": "Preset60.json",
-      "name": "Preset60"
-    },
-    {
-      "file": "Preset61.json",
-      "name": "Preset61"
-    },
-    {
-      "file": "Preset62.json",
-      "name": "Preser31"
-    },
-    {
-      "file": "Preset63.json",
-      "name": "Preser32"
-    },
-    {
-      "file": "Preset64.json",
-      "name": "Preser33"
-    },
-    {
-      "file": "Preset65.json",
-      "name": "Preset65"
-    },
-    {
-      "file": "Preset67.json",
-      "name": "Preset67"
-    },
-    {
-      "file": "Preset68.json",
-      "name": "Preset68"
-    },
-    {
-      "file": "Preset69.json",
-      "name": "Preset69"
-    },
-    {
-      "file": "Preset7.json",
-      "name": "Preset7"
-    },
-    {
-      "file": "Preset70.json",
-      "name": "Preset70"
-    },
-    {
-      "file": "Preset8.json",
-      "name": "Preset8"
-    },
-    {
-      "file": "Preset9.json",
-      "name": "Preset9"
+      "file": "trichloroethane.json",
+      "name": "trichloroethane"
     }
   ]
 }
