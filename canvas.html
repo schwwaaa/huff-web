@@ -17,7 +17,7 @@
     }
 
     // The detached canvas window receives frames directly from the main HUFF
-    // page through BroadcastChannel. No localhost WebSocket relay is required.
+    // page through BroadcastChannel when the direct stream path is unavailable.
     const MIRROR_CHANNEL_NAME = 'huff-canvas-mirror-v1';
     const autofs = qs('autofs') === '1';
     const fullscreenMode = qs('fullscreen') === '1';

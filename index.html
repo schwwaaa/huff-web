@@ -28,14 +28,6 @@
         });
     </script>
 
-    <script>
-        function __getWSURL__(port = 8787) {
-            const fallback = `ws://127.0.0.1:${port}`;
-            if (typeof window !== 'undefined' && typeof window.WS_MIRROR_URL === 'string' && window.WS_MIRROR_URL.length > 0)
-                return window.WS_MIRROR_URL;
-            return fallback;
-        }
-    </script>
     </head>
 
 <body>
@@ -193,7 +185,7 @@
                             <div class="ctrl">
                                 <span class="pill" id="sourceInfo"
                                     title="Decoded source → HUFF Classic processing resolution">SRC —</span>
-                                <span class="pill" id="status">WS: …</span>
+                                <span class="pill" id="status">CANVAS: …</span>
                             </div>
                             <!-- Hidden preset-compatibility control: `quality` maps to HISTORY and does not change preview encoding. -->
                             <input id="quality" type="range" min="0" max="3.00" step="0.05" value="1.00"
@@ -461,14 +453,14 @@
                                     title="Bypass only the Feedback transform and Restore layer. PERSISTENCE remains independent and keeps its established Classic behavior.">
                             </div>
                             <div class="ctrl">
-                                <label>FEEDBACK · RETURN</label>
-                                <input id="feedback" type="range" min="0" max="3" step="0.05" value="0.6"
+                                <label>FEEDBACK RETURN</label>
+                                <input id="feedback" type="range" min="0" max="1.2" step="0.05" value="0.6"
                                     title="Original HUFF FEEDBACK parameter. Controls how strongly the transformed previous composite is returned; the historical renderer clamps draw alpha at 1.0.">
                                 <span class="val" id="feedbackVal">0.60</span>
                             </div>
                             <div class="ctrl">
-                                <label>PERSISTENCE · MEMORY</label>
-                                <input id="persistence" type="range" min="0" max="10" step="0.05" value="0.7"
+                                <label>PERSISTENCE</label>
+                                <input id="persistence" type="range" min="0" max="3" step="0.05" value="0.7"
                                     title="Original HUFF PERSISTENCE parameter. This remains its own persistent-buffer decay stage and is never gated by Feedback Strobe or ENABLE.">
                                 <span class="val" id="persistenceVal">0.70</span>
                             </div>

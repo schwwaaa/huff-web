@@ -4381,13 +4381,10 @@ window.addEventListener('beforeunload', _shutdownMediaLifecycle, { once:true });
 
 
 // ─── web canvas mirror ────────────────────────────────────────────────────────
-// Pure-browser transport for the standalone web experiment.
-// The rendered HUFF canvas is JPEG-encoded exactly as before, but frames move
-// directly between index.html and canvas.html through BroadcastChannel instead
-// of the Tauri/local ws://127.0.0.1:8787 relay.
-//
-// Scope is intentionally narrow: rendering, effects, presets, native I/O, and
-// every other HUFF subsystem remain untouched.
+// Browser output transport for the detached canvas window.
+// The primary path uses canvas.captureStream() for direct real-time output.
+// BroadcastChannel and the encoder worker remain available as compatibility
+// fallback paths when direct stream transfer is unavailable.
 
 (function() {
   const STREAM_MAX_W = 1280, STREAM_MAX_H = 1280;

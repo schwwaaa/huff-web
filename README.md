@@ -1,5 +1,7 @@
 # HUFF Web Classic
 
+**Status:** stable / frozen
+
 HUFF Web Classic is the free browser version of HUFF. It is a real-time video instrument for live image processing.
 
 The web version uses a fixed 1280 × 720 processing surface. It accepts a video file or a camera source. It processes the image in the browser and can open the output in a separate window.
@@ -155,7 +157,6 @@ css/canvas.css             Readable output-window styles
 css/canvas.min.css         Release output-window styles
 presets/                   Preset JSON files and manifest updater
 mirror-encoder-worker.js   Compatibility output transport worker
-ws-mirror.js               Compatibility mirror transport
 p5.js                      Local p5.js dependency
 ```
 
