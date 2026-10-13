@@ -5,6 +5,10 @@
   "branch": "main",
   "presets": [
     {
+      "file": "acetone.json",
+      "name": "acetone"
+    },
+    {
       "file": "air freshener.json",
       "name": "air freshener"
     },
@@ -15,6 +19,10 @@
     {
       "file": "babagoogalon.json",
       "name": "babagoogalon"
+    },
+    {
+      "file": "butane.json",
+      "name": "butane"
     },
     {
       "file": "carburetor cleaner.json",
@@ -91,6 +99,10 @@
     {
       "file": "toluene.json",
       "name": "toluene"
+    },
+    {
+      "file": "wite-out.json",
+      "name": "wite-out"
     }
   ]
 }
