@@ -1891,6 +1891,7 @@ function refreshGlitch() {
 // Export the exact processed canvas backing store as PNG. This is user-triggered
 // only, so it adds no work to the live render path and preserves the full 720p
 // pixels rather than capturing the lower-bandwidth JPEG mirror stream.
+// Other aspect ratios fit the complete 16:9 image within an opaque black frame.
 function captureCanvasScreenshot(format = '16:9') {
   const source = _mainCanvasEl || canvas?.elt || canvas;
   if (!(source instanceof HTMLCanvasElement)) {
@@ -1904,15 +1905,26 @@ function captureCanvasScreenshot(format = '16:9') {
     '9:16': { width:720,  height:1280, slug:'9x16' },
   };
   const target = formats[format] || formats['16:9'];
+  if (!(source.width > 0 && source.height > 0)) {
+    showToast('Canvas has no image to capture', true);
+    return;
+  }
+
+  // Full-bleed screenshot: center-crop the 1280x720 processed image to the
+  // requested aspect ratio, then scale that region into the exact PNG size.
+  // 4:3 retains all 720 rows and crops the left/right edges to 960 pixels.
+  // 9:16 retains all 720 rows and crops to a centered 405-pixel-wide strip,
+  // then enlarges that strip to 720x1280. No stretching or letterboxing.
+  // Export never resizes the live canvas or resets history/feedback.
   const targetRatio = target.width / target.height;
   const sourceRatio = source.width / source.height;
   let sx = 0, sy = 0, sw = source.width, sh = source.height;
   if (sourceRatio > targetRatio) {
     sw = source.height * targetRatio;
-    sx = (source.width - sw) * 0.5;
+    sx = (source.width - sw) / 2;
   } else if (sourceRatio < targetRatio) {
     sh = source.width / targetRatio;
-    sy = (source.height - sh) * 0.5;
+    sy = (source.height - sh) / 2;
   }
 
   const exportCanvas = document.createElement('canvas');

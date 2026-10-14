@@ -13,6 +13,31 @@
 
     <link rel="stylesheet" href="css/huff.min.css">
 
+    <!-- Typography experiment: user's .28873.otf, identified as Bungee Regular.
+         Place your own supplied font at fonts/.28873.otf. -->
+    <style id="huff-supplied-font-experiment">
+        /* HUFF font experiment: exact user-provided .28873.otf (Bungee Regular).
+           Put the original user-owned file at fonts/.28873.otf. */
+        @font-face {
+            font-family: "HUFF Supplied Bungee";
+            src: url("fonts/.28873.otf") format("opentype");
+            font-style: normal;
+            font-weight: 100 900;
+            font-display: swap;
+        }
+        /* Typography lock: the app CSS contains more-specific label selectors.
+           Three non-matching ID exclusions increase selector specificity without
+           changing which elements match. Keep after css/huff.min.css. */
+        html, body,
+        body :not(#__huff_type_a):not(#__huff_type_b):not(#__huff_type_c),
+        body :not(#__huff_type_a):not(#__huff_type_b):not(#__huff_type_c)::before,
+        body :not(#__huff_type_a):not(#__huff_type_b):not(#__huff_type_c)::after,
+        body input::placeholder, body textarea::placeholder,
+        body svg text, body svg tspan {
+            font-family: "HUFF Supplied Bungee", sans-serif !important;
+        }
+    </style>
+
     <!-- keep form defaults; block Enter submitting -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -40,14 +65,13 @@
             <button id="aboutClose" aria-label="Close About HUFF">×</button>
             <div class="a-icon"></div>
             <h1 id="aboutTitle" style="font-family:'VT323',monospace;font-weight:normal;letter-spacing:.14em">HUFF</h1>
-            <div class="build">WEB CLASSIC · 720P VIDEO INSTRUMENT</div>
-            <p>HUFF is a real-time browser video instrument for temporal corruption, feedback, panel processing,
-                luma compositing, symmetry, solarization, and live image transformation.</p>
+            <div class="build">WEB · VIDEO INHALATION APPARATUS</div>
+            <p>A device for the intake, treatment, and recirculation of moving pictures.</p>
             <p><strong>Creator:</strong> Christopher Konopka<br>
-                <strong>Company:</strong> schwwaaa<br>
-                <strong>Copyright:</strong> © 2026 schwwaaa</p>
+                <strong>Producer:</strong> schwwaaa<br>
+                <strong>Copyright:</strong> ©2026</p>
             <div class="links">
-                <a href="https://github.com/schwwaaa/huff-web" target="_blank" rel="noopener noreferrer">github.com/schwwaaa/huff-web</a>
+                <a href="https://schwwaaa.github.io/huff-docs/index.html" target="_blank" rel="noopener noreferrer">Reference</a> • <a href="https://github.com/schwwaaa/huff-web" target="_blank" rel="noopener noreferrer">Github</a>
             </div>
         </div>
     </div>
