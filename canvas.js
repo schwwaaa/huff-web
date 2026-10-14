@@ -112,6 +112,7 @@ function _sourceIsCurrent(generation, media) {
 function _retireCurrentSource({ revokeBlob = true } = {}) {
   const hadSource = !!videoEl || !!currentBlobUrl;
   const generation = ++_sourceGeneration;
+  _resetSourceContentBounds();
   if (hadSource) _capabilityInstrumentation?.count('sourceRetirements');
   // Invalidate only the decode callback chain. Rendering, transport, mirror,
   // and profiler schedulers keep their independent clocks.
@@ -813,6 +814,9 @@ const PRESET_REPOSITORY = Object.freeze({
 });
 const _repositoryPresets = new Map();
 let _repositoryPresetCatalogLoaded = false;
+let _presetFetchSerial = 0;
+let _presetCatalogRefreshInFlight = null;
+let _presetCatalogLastFocusRefresh = 0;
 
 function _presetCatalogKey(path) {
   return String(path || '').replace(/^\.\//, '').replace(/^\//, '').toLowerCase();
@@ -999,17 +1003,18 @@ async function refreshRepositoryPresetCatalog() {
 
 async function _loadRepositoryPreset(entry) {
   if (!entry) throw new Error('Preset catalog entry is missing');
-  if (entry.preset) return entry.preset;
+  // Always fetch on recall: an earlier revision of this file may have been
+  // overwritten in the repository while the page remained open. Never reuse
+  // parsed repository presets from memory (session-loaded files are separate).
   const separator = entry.url.includes('?') ? '&' : '?';
-  const res = await fetch(`${entry.url}${separator}huff=${Date.now()}`, { cache:'no-store' });
+  const res = await fetch(`${entry.url}${separator}huff=${Date.now()}-${++_presetFetchSerial}`, { cache:'no-store' });
   if (!res.ok) throw new Error(`Preset fetch failed (${res.status})`);
   const parsed = await res.json();
   const doc = _parsePresetDocument(parsed, entry.name);
   if (doc.kind !== 'single') throw new Error('Folder preset files must contain one preset');
   // Keep the catalog/filename name visible in the menu. Many portable preset
   // documents retain older internal names after the file has been renamed.
-  entry.preset = doc.preset;
-  return entry.preset;
+  return doc.preset;
 }
 
 // Useful from DevTools when editing/pushing presets without reloading the app.
@@ -1433,7 +1438,7 @@ function cloakVideo(p5Vid) {
 function blitVideoInto(target) {
   if (!target || !videoEl) return;
   const source = videoEl.elt ?? videoEl;
-  try { _copySourceFrame(target.drawingContext, source, target.width, target.height, 'stretch'); } catch {}
+  try { _copySourceFrame(target.drawingContext, source, target.width, target.height, 'auto-fill'); } catch {}
 }
 
 let __camPrimed = false;
@@ -1490,6 +1495,60 @@ function _copyFullFrame(ctx, source, width, height) {
   }
 }
 
+// Source aspect policy: cover the 1280×720 instrument without distortion.
+// Some uploaded files include black letterbox pixels baked into the video.
+// Detect those at the first drawable frame only. Never scan inside draw().
+let _sourceContentBounds = null;
+function _resetSourceContentBounds() { _sourceContentBounds = null; }
+function _detectSourceContentBounds(source) {
+  const sw = Number(source?.videoWidth || 0), sh = Number(source?.videoHeight || 0);
+  if (!sw || !sh) return;
+  const full = { x:0, y:0, width:sw, height:sh };
+  _sourceContentBounds = { source, width:sw, height:sh, rect:full };
+  const sample = document.createElement('canvas');
+  sample.width = 96; sample.height = 96;
+  const ctx = sample.getContext('2d', { willReadFrequently:true });
+  if (!ctx) return;
+  try {
+    ctx.drawImage(source, 0, 0, 96, 96);
+    const rgba = ctx.getImageData(0, 0, 96, 96).data;
+    const darkRow = y => {
+      let dark = 0;
+      for (let x=4; x<92; x+=2) {
+        const i = (y*96+x)*4;
+        if (Math.max(rgba[i],rgba[i+1],rgba[i+2]) < 18) dark++;
+      }
+      return dark >= 42;
+    };
+    const darkCol = x => {
+      let dark = 0;
+      for (let y=4; y<92; y+=2) {
+        const i=(y*96+x)*4;
+        if (Math.max(rgba[i],rgba[i+1],rgba[i+2]) < 18) dark++;
+      }
+      return dark >= 42;
+    };
+    let top=0,bottom=96,left=0,right=96;
+    while(top<40 && darkRow(top))top++;
+    while(bottom>56 && darkRow(bottom-1))bottom--;
+    while(left<40 && darkCol(left))left++;
+    while(right>56 && darkCol(right-1))right--;
+    // Only discard meaningful border bands and retain at least 35% of each axis.
+    // Thin dark edge pixels are legitimate picture content, not letterboxing.
+    if(top<5)top=0;
+    if(96-bottom<5)bottom=96;
+    if(left<5)left=0;
+    if(96-right<5)right=96;
+    if(bottom-top<34){top=0;bottom=96;}
+    if(right-left<34){left=0;right=96;}
+    const rect={x:sw*left/96,y:sh*top/96,width:sw*(right-left)/96,height:sh*(bottom-top)/96};
+    _sourceContentBounds.rect=rect;
+  } catch(error) {
+    // CORS-tainted streams cannot be sampled. Regular proportional cover still works.
+    console.warn('[huff] auto-fill border sampling unavailable',error);
+  }
+}
+
 function _copySourceFrame(ctx, source, width, height, fitMode = 'stretch') {
   if (!ctx || !source || width <= 0 || height <= 0) return false;
   const sw = Number(source.videoWidth || source.width || 0);
@@ -1497,6 +1556,26 @@ function _copySourceFrame(ctx, source, width, height, fitMode = 'stretch') {
   if (!(sw > 0 && sh > 0)) return false;
   const mode = String(fitMode || 'stretch');
   if (mode === 'stretch') return _copyFullFrame(ctx, source, width, height);
+  if (mode === 'auto-fill') {
+    // Crop only the content bounds established for this media source, then
+    // apply proportional cover (no stretching, no black padding).
+    const bounds = _sourceContentBounds;
+    const rect = bounds && bounds.source === source && bounds.width === sw && bounds.height === sh
+      ? bounds.rect : { x:0, y:0, width:sw, height:sh };
+    const scale = Math.max(width / rect.width, height / rect.height);
+    const cropW = width / scale, cropH = height / scale;
+    const sx = rect.x + (rect.width - cropW) * 0.5;
+    const sy = rect.y + (rect.height - cropH) * 0.5;
+    ctx.save();
+    try {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'copy';
+      ctx.drawImage(source, sx, sy, cropW, cropH, 0, 0, width, height);
+    } finally { ctx.restore(); }
+    return true;
+  }
+
 
   const prevOp = ctx.globalCompositeOperation;
   const prevAlpha = ctx.globalAlpha;
@@ -1604,7 +1683,7 @@ function _syncGCur() {
   // _syncGCur resumes automatically on the next draw() call after seeking completes.
   if (videoEl.elt.seeking) return;
   try {
-    _copySourceFrame(gCur.drawingContext, videoEl.elt, gCur.width, gCur.height, 'stretch');
+    _copySourceFrame(gCur.drawingContext, videoEl.elt, gCur.width, gCur.height, 'auto-fill');
   } catch(e) {}
 }
 
@@ -1676,7 +1755,7 @@ function pumpVideoFrames() {
       }
       if (playing && gCur) {
         try {
-          if (_copySourceFrame(gCur.drawingContext, v, gCur.width, gCur.height, 'stretch')) {
+          if (_copySourceFrame(gCur.drawingContext, v, gCur.width, gCur.height, 'auto-fill')) {
             _vfc++;
             _profileCount('decoded');
             if (_pushToRing()) _profileCount('ringCaptured');
@@ -1851,7 +1930,7 @@ function _commitProcessResize(nextWidth, nextHeight, reason = 'resize') {
   _renderWasBypassed = true;
   if (typeof resetClusterPhysics === 'function') resetClusterPhysics();
   if (videoEl?.elt && gCur) {
-    try { _copySourceFrame(gCur.drawingContext, videoEl.elt, gCur.width, gCur.height, 'stretch'); } catch {}
+    try { _copySourceFrame(gCur.drawingContext, videoEl.elt, gCur.width, gCur.height, 'auto-fill'); } catch {}
   }
   updateDim();
   return true;
@@ -2821,6 +2900,17 @@ function hookSliders() {
 }
 
 function hookPresets() {
+  // Recheck the manifest when an operator opens the menu after editing/publishing
+  // repository presets. Throttle rechecks so normal keyboard/menu use stays fast.
+  const presetMenu = _$('presetList');
+  presetMenu?.addEventListener('focus', () => {
+    const now = Date.now();
+    if (_presetCatalogRefreshInFlight || now - _presetCatalogLastFocusRefresh < 2000) return;
+    _presetCatalogLastFocusRefresh = now;
+    _presetCatalogRefreshInFlight = refreshRepositoryPresetCatalog()
+      .catch(error => console.warn('[huff] preset menu refresh failed', error))
+      .finally(() => { _presetCatalogRefreshInFlight = null; });
+  });
   // Capture the shipped HTML defaults once. This creates the first immutable
   // built-in preset without tying it to localStorage or an external file.
   _classicDefaultPreset = Object.freeze({ ...capturePreset() });
@@ -3160,6 +3250,7 @@ function onFile(ev) {
     primed = true;
     clearAll(); updateDim();
     try {
+      _detectSourceContentBounds(v);
       blitVideoInto(gCur);
       _vfc++; // invalidate decoded-frame-dependent effect caches for the new source
     } catch {}
@@ -4333,7 +4424,8 @@ function startCamera(deviceId) {
         try {
           clearAll();
           updateDim();
-          if (_copySourceFrame(gCur.drawingContext, v, gCur.width, gCur.height, 'stretch')) {
+          _detectSourceContentBounds(v);
+          if (_copySourceFrame(gCur.drawingContext, v, gCur.width, gCur.height, 'auto-fill')) {
             _vfc++;
           }
 
