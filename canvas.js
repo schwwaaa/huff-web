@@ -8,6 +8,7 @@ window.$  = window.$  || _$;
 window.$$ = window.$$ || (sel => document.querySelector(sel));
 
 let videoEl, currentBlobUrl = null;
+let _stillImageActive = false; // Static image acts as an ordinary source for the existing pipeline.
 
 // ─── Dedicated audio thread ───────────────────────────────────────────────────
 // Route video audio through Web Audio so it runs on the browser's dedicated
@@ -130,6 +131,16 @@ function _retireCurrentSource({ revokeBlob = true } = {}) {
   }
   try { wrapper?.remove?.(); } catch {}
   videoEl = null;
+  _stillImageActive = false;
+  // Still images temporarily own a native-size processing canvas. Release that
+  // geometry before a replacement video/camera starts decoding so their proven
+  // fixed-size 1280×720 path is unchanged.
+  const videoDimensions = _classicProcessDimensions();
+  if (typeof width === 'number' && typeof height === 'number' &&
+      (width !== videoDimensions.width || height !== videoDimensions.height) &&
+      typeof resizeCanvas === 'function' && gCur) {
+    _commitProcessResize(videoDimensions.width, videoDimensions.height, 'source-retired');
+  }
   playing = false;
   _resetSeekGestureState({ resetDisplay: true });
   _rvfcOwnsGCur = false;
@@ -1501,7 +1512,8 @@ function _copyFullFrame(ctx, source, width, height) {
 let _sourceContentBounds = null;
 function _resetSourceContentBounds() { _sourceContentBounds = null; }
 function _detectSourceContentBounds(source) {
-  const sw = Number(source?.videoWidth || 0), sh = Number(source?.videoHeight || 0);
+  const sw = Number(source?.videoWidth || source?.naturalWidth || 0);
+  const sh = Number(source?.videoHeight || source?.naturalHeight || 0);
   if (!sw || !sh) return;
   const full = { x:0, y:0, width:sw, height:sh };
   _sourceContentBounds = { source, width:sw, height:sh, rect:full };
@@ -1551,8 +1563,8 @@ function _detectSourceContentBounds(source) {
 
 function _copySourceFrame(ctx, source, width, height, fitMode = 'stretch') {
   if (!ctx || !source || width <= 0 || height <= 0) return false;
-  const sw = Number(source.videoWidth || source.width || 0);
-  const sh = Number(source.videoHeight || source.height || 0);
+  const sw = Number(source.videoWidth || source.naturalWidth || source.width || 0);
+  const sh = Number(source.videoHeight || source.naturalHeight || source.height || 0);
   if (!(sw > 0 && sh > 0)) return false;
   const mode = String(fitMode || 'stretch');
   if (mode === 'stretch') return _copyFullFrame(ctx, source, width, height);
@@ -1671,6 +1683,9 @@ function _ensureGraphics(g, w, h) {
 
 
 function _syncGCur() {
+  // The still image was copied when it loaded. Never redraw an unchanged photo
+  // at display refresh rate; effects continue drawing from its existing gCur.
+  if (_stillImageActive) return;
   if (!playing || !videoEl?.elt || !gCur) return;
   // requestVideoFrameCallback already updates gCur exactly when a new decoded
   // frame arrives. Re-blitting the same video frame on every render tick adds a
@@ -1937,8 +1952,8 @@ function _commitProcessResize(nextWidth, nextHeight, reason = 'resize') {
 }
 
 function windowResized() {
-  // The presentation/UI window may resize, but Web Classic's processing surface
-  // remains exactly 1280×720. Do not reallocate render/history buffers here.
+  // Window resizing never changes source-owned processing dimensions: video
+  // stays 1280×720 and still images retain their native decoded dimensions.
   _capabilityInstrumentation?.count('resizeRequests');
   updateDim();
 }
@@ -1983,40 +1998,49 @@ function captureCanvasScreenshot(format = '16:9') {
     '4:3':  { width:960,  height:720, slug:'4x3' },
     '9:16': { width:720,  height:1280, slug:'9x16' },
   };
-  const target = formats[format] || formats['16:9'];
+  const nativeImageShot = format === 'IMAGE';
+  const target = nativeImageShot
+    ? { width:source.width, height:source.height, slug:'image' }
+    : (formats[format] || formats['16:9']);
   if (!(source.width > 0 && source.height > 0)) {
     showToast('Canvas has no image to capture', true);
     return;
   }
 
-  // Full-bleed screenshot: center-crop the 1280x720 processed image to the
-  // requested aspect ratio, then scale that region into the exact PNG size.
-  // 4:3 retains all 720 rows and crops the left/right edges to 960 pixels.
-  // 9:16 retains all 720 rows and crops to a centered 405-pixel-wide strip,
-  // then enlarges that strip to 720x1280. No stretching or letterboxing.
-  // Export never resizes the live canvas or resets history/feedback.
-  const targetRatio = target.width / target.height;
-  const sourceRatio = source.width / source.height;
-  let sx = 0, sy = 0, sw = source.width, sh = source.height;
-  if (sourceRatio > targetRatio) {
-    sw = source.height * targetRatio;
-    sx = (source.width - sw) / 2;
-  } else if (sourceRatio < targetRatio) {
-    sh = source.width / targetRatio;
-    sy = (source.height - sh) / 2;
-  }
+  // IMAGE: export the current processed canvas backing store directly. Never
+  // crop, resize, clear, or otherwise mutate the live canvas or its feedback.
+  let exportCanvas = source;
+  if (!nativeImageShot) {
+    // Full-bleed screenshot: center-crop the 1280x720 processed image to the
+    // requested aspect ratio, then scale that region into the exact PNG size.
+    // 4:3 retains all 720 rows and crops the left/right edges to 960 pixels.
+    // 9:16 retains all 720 rows and crops to a centered 405-pixel-wide strip,
+    // then enlarges that strip to 720x1280. No stretching or letterboxing.
+    // Export never resizes the live canvas or resets history/feedback.
+    const targetRatio = target.width / target.height;
+    const sourceRatio = source.width / source.height;
+    let sx = 0, sy = 0, sw = source.width, sh = source.height;
+    if (sourceRatio > targetRatio) {
+      sw = source.height * targetRatio;
+      sx = (source.width - sw) / 2;
+    } else if (sourceRatio < targetRatio) {
+      sh = source.width / targetRatio;
+      sy = (source.height - sh) / 2;
+    }
 
-  const exportCanvas = document.createElement('canvas');
-  exportCanvas.width = target.width;
-  exportCanvas.height = target.height;
-  const exportCtx = exportCanvas.getContext('2d', { alpha:false });
-  if (!exportCtx) {
-    showToast('Screenshot failed', true);
-    return;
+    exportCanvas = document.createElement('canvas');
+    exportCanvas.width = target.width;
+    exportCanvas.height = target.height;
+    const exportCtx = exportCanvas.getContext('2d', { alpha:false });
+    if (!exportCtx) {
+      showToast('Screenshot failed', true);
+      return;
+    }
+    exportCtx.imageSmoothingEnabled = true;
+    exportCtx.imageSmoothingQuality = 'high';
+    exportCtx.drawImage(source, sx, sy, sw, sh, 0, 0, target.width, target.height);
+
   }
-  exportCtx.imageSmoothingEnabled = true;
-  exportCtx.imageSmoothingQuality = 'high';
-  exportCtx.drawImage(source, sx, sy, sw, sh, 0, 0, target.width, target.height);
 
   const now = new Date();
   const stamp = [
@@ -2052,7 +2076,7 @@ window.captureCanvasScreenshot = captureCanvasScreenshot;
 
 function hookUI() {
   [
-    'file','playBtn','pauseBtn','refreshBtn','resetBtn','clearBufBtn','canvasShot169Btn','canvasShot43Btn','canvasShot916Btn',
+    'file','playBtn','pauseBtn','refreshBtn','resetBtn','clearBufBtn','canvasShotImageBtn','canvasShot169Btn','canvasShot43Btn','canvasShot916Btn',
     'camStartBtn','camStopBtn','camRefreshBtn','cams','vistaOn','sourceInfo',
     'quality','historyFrames','historyFramesVal','depth','depthVal','vista','vistaVal','block','blockVal',
     'glitchSpeed','glitchSpeedVal','glitchSpeedFine','glitchSpeedFineVal','vistaRate','vistaRateVal','vistaSpeed','vistaSpeedVal',
@@ -2106,6 +2130,7 @@ function hookUI() {
   hookSliders();
   hookPresets();
   hookKeyboard();
+  els.canvasShotImageBtn?.addEventListener('click', () => captureCanvasScreenshot('IMAGE'));
   els.canvasShot169Btn?.addEventListener('click', () => captureCanvasScreenshot('16:9'));
   els.canvasShot43Btn?.addEventListener('click', () => captureCanvasScreenshot('4:3'));
   els.canvasShot916Btn?.addEventListener('click', () => captureCanvasScreenshot('9:16'));
@@ -2177,6 +2202,13 @@ function hookTransport() {
   // so the readout is live even though the actual decode is throttled.
   function _tickTransport() {
     const v = videoEl?.elt;
+
+    if (_stillImageActive) {
+      if (seekBar) { seekBar.disabled = true; seekBar.value = '0'; }
+      if (timeDisp) timeDisp.textContent = 'STILL';
+      requestAnimationFrame(_tickTransport);
+      return;
+    }
 
     if (v?.srcObject) {
       if (seekBar) {
@@ -2959,6 +2991,22 @@ function hookKeyboard() {
     // changing application state. While focus is in an editable control, all
     // remaining app-global shortcuts defer to normal text/control behavior.
     if (_keyboardEventTargetsEditableControl(e)) return;
+    // Number shortcuts: unmodified digits, including the numeric keypad.
+    // Do not intercept browser shortcuts (Cmd/Ctrl/Alt) or held-key repeats.
+    if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat) {
+      const action = {
+        '1': 'aboutLogoBtn',
+        '0': 'canvasShotImageBtn',
+        '7': 'canvasShot169Btn',
+        '8': 'canvasShot43Btn',
+        '9': 'canvasShot916Btn',
+      }[e.key];
+      if (action) {
+        e.preventDefault();
+        _$(action)?.click();
+        return;
+      }
+    }
 
     if (e.key === 'z' && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
       undo(); e.preventDefault(); return;
@@ -2992,9 +3040,12 @@ function _updateSourceInfoStatus() {
   const ext = (_playbackTelemetry.sourceExt || '').toUpperCase();
   const src = sw && sh ? `${sw}×${sh}` : '—';
   const proc = `${width || 0}×${height || 0}`;
+  const nativeImage = _stillImageActive;
   const capped = sw > 0 && sh > 0 && (sw > width || sh > height) ? ' ↓' : ' →';
-  el.textContent = `SRC ${src}${capped}${proc}${ext ? ` · ${ext}` : ''} · 720P`;
-  el.title = `Source ${src} → Web Classic processing ${proc} (fixed 1280×720).`;
+  el.textContent = `SRC ${src}${capped}${proc}${ext ? ` · ${ext}` : ''} · ${nativeImage ? 'NATIVE IMAGE' : '720P'}`;
+  el.title = nativeImage
+    ? `Still image ${src} → native-resolution processing ${proc}.`
+    : `Video source ${src} → Web Classic processing ${proc} (fixed 1280×720).`;
 }
 
 function updateDim() {
@@ -3202,6 +3253,88 @@ function setSeedFromUI() {
 
 // ─── file loading ─────────────────────────────────────────────────────────────
 
+// Give still pictures a virtual decoded-frame clock so historical sampling,
+// Vista strobe, and other temporal operations continue to evolve while the
+// clean source remains the same photo. The renderer itself is unchanged.
+function _pumpStillImageFrames(generation, image) {
+  const session = ++_pumpSession;
+  let previous = 0;
+  function tick(now) {
+    if (session !== _pumpSession || generation !== _sourceGeneration ||
+        !_stillImageActive || videoEl?.elt !== image) return;
+    if (!previous || now - previous >= 1000 / 30) {
+      previous = now;
+      _vfc++;
+      _profileCount('decoded');
+      if (_pushToRing()) _profileCount('ringCaptured');
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+function _loadStillImageFile(file, generation) {
+  const img = new Image();
+  const isCurrent = () => _sourceIsCurrent(generation, img);
+  videoEl = {
+    elt: img,
+    remove() {
+      img.onload = img.onerror = null;
+      img.removeAttribute('src');
+    },
+  };
+  _stillImageActive = false;
+  img.onload = () => {
+    if (!isCurrent()) return;
+    const sw = img.naturalWidth;
+    const sh = img.naturalHeight;
+    if (!(sw > 0 && sh > 0)) {
+      showToast('Image has no drawable pixels', true);
+      return;
+    }
+    // For still images the processing canvas uses the actual decoded pixel
+    // dimensions. No video-format cover crop, borders, or resampling. The
+    // video/camera path continues using the fixed Classic 1280×720 contract.
+    try {
+      _commitProcessResize(sw, sh, 'still-image-native-size');
+      clearAll();
+      _resetSourceContentBounds();
+      if (!_copySourceFrame(gCur.drawingContext, img, gCur.width, gCur.height, 'stretch')) {
+        throw new Error('Failed to copy image into the source buffer');
+      }
+    } catch (error) {
+      console.error('[huff] image source initialization failed', error);
+      _capabilityInstrumentation?.count('sourceErrors');
+      _capabilityInstrumentation?.setSource('image-error');
+      showToast('Unable to prepare this image', true);
+      return;
+    }
+    _playbackTelemetry.sourceWidth = sw;
+    _playbackTelemetry.sourceHeight = sh;
+    _playbackTelemetry.processWidth = width;
+    _playbackTelemetry.processHeight = height;
+    _playbackTelemetry.rvfcSupported = false;
+    _capabilityInstrumentation?.count('sourceReady');
+    _capabilityInstrumentation?.setSource('image', sw, sh);
+    _stillImageActive = true;
+    playing = true;
+    updateDim();
+    enableTransport(false);
+    if (els.refreshBtn) els.refreshBtn.disabled = false;
+    _pumpStillImageFrames(generation, img);
+    showToast(`Still image · native ${width}×${height}`, false);
+  };
+  img.onerror = () => {
+    if (!isCurrent()) return;
+    _capabilityInstrumentation?.count('sourceErrors');
+    _capabilityInstrumentation?.setSource('image-error');
+    showToast('Cannot decode image. Use JPG, PNG, or WebP.', true);
+    _retireCurrentSource({ revokeBlob:true });
+    enableTransport(false);
+  };
+  img.src = currentBlobUrl;
+}
+
 function onFile(ev) {
   const input = ev.target;
   const file  = input.files?.[0]; if (!file) return;
@@ -3221,6 +3354,15 @@ function onFile(ev) {
   _playbackTelemetry.sourceExt = extMatch ? extMatch[1] : '';
   _playbackTelemetry.sourceBytes = Math.max(0, Number(file.size) || 0);
   _updateSourceInfoStatus();
+
+  const knownImages = new Set(['jpg','jpeg','png','webp']);
+  const isImage = knownImages.has(_playbackTelemetry.sourceExt) ||
+    new Set(['image/jpeg','image/png','image/webp']).has(_playbackTelemetry.sourceMime.toLowerCase());
+  if (isImage) {
+    currentBlobUrl = URL.createObjectURL(file);
+    _loadStillImageFile(file, generation);
+    return;
+  }
 
   const knownContainers = new Set(['mp4','m4v','mov','webm']);
   if (_playbackTelemetry.sourceExt && !knownContainers.has(_playbackTelemetry.sourceExt)) {
@@ -4347,7 +4489,7 @@ function drawWaiting() {
   push();
   noStroke(); fill(255, 20); rect(0, 0, width, height);
   fill(220); textAlign(CENTER, CENTER); textSize(14);
-  text('Load a video or start camera', width / 2, height / 2);
+  text('Load a video / image or start camera', width / 2, height / 2);
   pop();
 }
 

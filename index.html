@@ -85,11 +85,13 @@
                     style="display:block;width:24px;height:24px;object-fit:cover"></button></span>
             <div class="topbar-sep"></div>
             <button id="canvasWindowBtn" class="btn-dim" title="Open the rendered canvas in a separate window; click the canvas or press F there for true fullscreen">WINDOW</button>
-            <button id="canvasShot169Btn" class="btn-dim" title="Save a 1280×720 PNG from the current canvas">SHOT 16:9</button>
-            <button id="canvasShot43Btn" class="btn-dim" title="Save a centered 4:3 (960×720) PNG from the current canvas">SHOT 4:3</button>
-            <button id="canvasShot916Btn" class="btn-dim" title="Save a centered 9:16 (720×1280) PNG from the current canvas">SHOT 9:16</button>
+            <div class="topbar-sep"></div>
+            <button id="canvasShot169Btn" class="btn-dim" title="Save a 1280×720 PNG from the current canvas (shortcut 7)">16:9</button>
+            <button id="canvasShot43Btn" class="btn-dim" title="Save a centered 4:3 (960×720) PNG from the current canvas (shortcut 8)">4:3</button>
+            <button id="canvasShot916Btn" class="btn-dim" title="Save a centered 9:16 (720×1280) PNG from the current canvas (shortcut 9)">9:16</button>
+            <button id="canvasShotImageBtn" class="btn-dim" title="Save the current processed canvas as a PNG at its native pixel dimensions (shortcut 0)">IMAGE</button>
             <!-- <div class="topbar-sep"></div> -->
-            <!-- <input id="file" type="file" accept=".mp4,.m4v,.mov,.webm,video/mp4,video/quicktime,video/webm,video/*"
+            <!-- <input id="file" type="file" accept=".mp4,.m4v,.mov,.webm,.jpg,.jpeg,.png,.webp,video/*,image/jpeg,image/png,image/webp"
                 title="HUFF Classic recommends H.264/AAC MP4. MOV/WebM and other codecs depend on the operating-system WebView decoder.">
             <button id="playBtn" disabled>▶ Play</button>
             <button id="pauseBtn" disabled>⏸ Pause</button>
@@ -144,10 +146,10 @@
                             </div>
 
                             <div class="ctrl source-box source-file-box">
-                                <label>FILE</label>
+                                <label>VIDEO / IMAGE</label>
                                 <input id="file" type="file"
-                                    accept=".mp4,.m4v,.mov,.webm,video/mp4,video/quicktime,video/webm,video/*"
-                                    title="HUFF Classic recommends H.264/AAC MP4. MOV/WebM and other codecs depend on the operating-system WebView decoder.">
+                                    accept=".mp4,.m4v,.mov,.webm,.jpg,.jpeg,.png,.webp,video/*,image/jpeg,image/png,image/webp"
+                                    title="Load a video (MP4, MOV, WebM) or a still image (JPG, PNG, WebP). Still images remain available for temporal processing.">
                                 <button id="playBtn" disabled>▶ Play</button>
                                 <button id="pauseBtn" disabled>⏸ Pause</button>
                                 <button id="refreshBtn" disabled>↻ Refresh</button>
