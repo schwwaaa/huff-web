@@ -580,7 +580,7 @@ const PRESET_IDS = [
   'clusters','clusterCount','clusterRadius','spatialGap',
   'cluCenters','cluSpread','cluMinSpread','cluDepth','cluBias','cluDrift','cluSpeed','cluInertia','clusterMasterSpeed','cluMoveX','cluMoveY','cluMoveZ',
   'siftOn','siftStrength','siftScale','siftPulse','siftImpl','siftSpeed','siftTurb','siftSwirl','siftSpread',
-  'baseOn','baseMix',
+  'baseOn','baseMix','sourceBrightness','sourceContrast','sourceSaturation','sourceGamma','sourceHue','sourceSharpness',
   'symOn','symMode','symPos','symPosX','symPosY','symMix','symVDir','symHDir','symFlipH','symFlipV',
   'solarizeOn','solarizeMode','solarizeThresh','solarizeLevel','solarizeSoft','solarizeInvert','solarizePosterLevel','solarizePosterSoft','solarizePosterPhase','solarizeAmt','solarizeFluidity','solarizeR','solarizeG','solarizeB',
   'panelAlpha','panelShift','panelDrift','panelSpeed','panelGap','panelSkew',
@@ -1561,7 +1561,74 @@ function _detectSourceContentBounds(source) {
   }
 }
 
+// Source-grade color conditioning applies before any downstream effects.
+// Fast path does no extra canvas work when controls are neutral.
+const _sourceGammaTable = new Uint8Array(256);
+let _sourceGammaTableAt = NaN;
+function _applySourceGamma(ctx, width, height, gamma) {
+  if (gamma === 1) return;
+  if (_sourceGammaTableAt !== gamma) {
+    for (let i=0; i<256; i++) {
+      _sourceGammaTable[i] = Math.round(255 * Math.pow(i / 255, 1 / gamma));
+    }
+    _sourceGammaTableAt = gamma;
+  }
+  const pixels = ctx.getImageData(0,0,width,height);
+  const d=pixels.data, lut=_sourceGammaTable;
+  for (let i=0; i<d.length; i+=4) { d[i]=lut[d[i]]; d[i+1]=lut[d[i+1]]; d[i+2]=lut[d[i+2]]; }
+  ctx.putImageData(pixels,0,0);
+}
+// CPU sharpening runs only above the neutral 100% setting.
+// Four-neighbor unsharp mask preserves alpha and leaves the outermost pixels
+// untouched; a reusable source snapshot avoids allocating every video frame.
+let _sourceSharpenOriginal = new Uint8ClampedArray(0);
+function _applySourceSharpen(ctx, width, height, sharpness) {
+  if (width < 3 || height < 3) return;
+  const frame = ctx.getImageData(0,0,width,height);
+  const data = frame.data;
+  if (_sourceSharpenOriginal.length !== data.length) {
+    _sourceSharpenOriginal = new Uint8ClampedArray(data.length);
+  }
+  _sourceSharpenOriginal.set(data);
+  const src = _sourceSharpenOriginal;
+  const stride = width * 4;
+  const strength = Math.max(0,Math.min(1,(sharpness-100)/100)) * 0.32;
+  for(let y=1; y<height-1; y++){
+    let p=y*stride+4;
+    const end=(y+1)*stride-4;
+    for(;p<end;p+=4){
+      for(let c=0;c<3;c++){
+        const k=p+c;
+        data[k]=src[k] + strength*(4*src[k]-src[k-4]-src[k+4]-src[k-stride]-src[k+stride]);
+      }
+    }
+  }
+  ctx.putImageData(frame,0,0);
+}
 function _copySourceFrame(ctx, source, width, height, fitMode = 'stretch') {
+  const brightness = Number(renderState.sourceBrightness ?? 0);
+  const contrast = Number(renderState.sourceContrast ?? 100);
+  const saturation = Number(renderState.sourceSaturation ?? 100);
+  const gamma = Number(renderState.sourceGamma ?? 1);
+  const hue = Number(renderState.sourceHue ?? 0);
+  const sharpness = Number(renderState.sourceSharpness ?? 100);
+  const nativeNeutral = brightness === 0 && contrast === 100 && saturation === 100 && hue === 0;
+  if (nativeNeutral && gamma === 1 && sharpness === 100) return _copySourceFrameRaw(ctx, source, width, height, fitMode);
+  if (!ctx) return false;
+  // Canvas2D filter executes during source draw; brightness is an additive
+  // shift using brightness() plus a small overlay only where necessary.
+  ctx.save();
+  try {
+    const brightPct = Math.max(0, 100 + brightness);
+    const softPixels = sharpness < 100 ? (100 - sharpness) * 0.035 : 0;
+    ctx.filter = `brightness(${brightPct}%) contrast(${contrast}%) saturate(${saturation}%) hue-rotate(${hue}deg)${softPixels ? ` blur(${softPixels.toFixed(3)}px)` : ''}`;
+    const copied = _copySourceFrameRaw(ctx, source, width, height, fitMode);
+    if (copied && gamma !== 1) _applySourceGamma(ctx,width,height,gamma);
+    if (copied && sharpness > 100) _applySourceSharpen(ctx,width,height,sharpness);
+    return copied;
+  } finally { ctx.restore(); }
+}
+function _copySourceFrameRaw(ctx, source, width, height, fitMode = 'stretch') {
   if (!ctx || !source || width <= 0 || height <= 0) return false;
   const sw = Number(source.videoWidth || source.naturalWidth || source.width || 0);
   const sh = Number(source.videoHeight || source.naturalHeight || source.height || 0);
@@ -2076,7 +2143,7 @@ window.captureCanvasScreenshot = captureCanvasScreenshot;
 
 function hookUI() {
   [
-    'file','playBtn','pauseBtn','refreshBtn','resetBtn','clearBufBtn','canvasShotImageBtn','canvasShot169Btn','canvasShot43Btn','canvasShot916Btn',
+    'file','playBtn','pauseBtn','refreshBtn','resetBtn','sourceColorResetBtn','clearBufBtn','canvasShotImageBtn','canvasShot169Btn','canvasShot43Btn','canvasShot916Btn',
     'camStartBtn','camStopBtn','camRefreshBtn','cams','vistaOn','sourceInfo',
     'quality','historyFrames','historyFramesVal','depth','depthVal','vista','vistaVal','block','blockVal',
     'glitchSpeed','glitchSpeedVal','glitchSpeedFine','glitchSpeedFineVal','vistaRate','vistaRateVal','vistaSpeed','vistaSpeedVal',
@@ -2100,6 +2167,7 @@ function hookUI() {
     'siftPulse','siftPulseVal','siftImpl','siftImplVal',
     'siftSpeed','siftSpeedVal','siftTurb','siftTurbVal','siftSwirl','siftSwirlVal','siftSpread','siftSpreadVal',
     'baseOn','baseMix','baseMixVal',
+    'sourceBrightness','sourceBrightnessVal','sourceContrast','sourceContrastVal','sourceSaturation','sourceSaturationVal','sourceGamma','sourceGammaVal','sourceHue','sourceHueVal','sourceSharpness','sourceSharpnessVal',
     'symOn','symMode','symPos','symPosVal','symPosX','symPosXVal','symPosY','symPosYVal','symMix','symMixVal','symVDir','symHDir','symFlipH','symFlipV',
     'solarizeOn','solarizeMode','solarizeThresh','solarizeThreshVal','solarizeLevel','solarizeLevelVal','solarizeSoft','solarizeSoftVal','solarizeInvert','solarizePosterLevel','solarizePosterLevelVal','solarizePosterSoft','solarizePosterSoftVal','solarizePosterPhase','solarizePosterPhaseVal','solarizeAmt','solarizeAmtVal','solarizeFluidity','solarizeFluidityVal',
     'solarizeR','solarizeRVal','solarizeG','solarizeGVal','solarizeB','solarizeBVal',
@@ -2471,7 +2539,7 @@ function hookSliders() {
     'panelFieldSpreadX','panelFieldSpreadY','panelFieldSpreadZ','panelFieldSizeVar','panelFieldDrift','panelFieldDepthDrift',
     'glitchAlpha','glitchJitter','glitchSmearAngle',
     'siftStrength','siftScale','siftPulse','siftImpl','siftSpeed','siftTurb','siftSwirl','siftSpread','baseMix','symPos','symPosX','symPosY','symMix',
-    'depthScatter','vistaDrift',
+    'depthScatter','vistaDrift','sourceBrightness','sourceContrast','sourceSaturation','sourceGamma','sourceHue','sourceSharpness',
     'solarizeThresh','solarizeLevel','solarizeSoft','solarizePosterLevel','solarizePosterSoft','solarizePosterPhase','solarizeAmt','solarizeFluidity','solarizeR','solarizeG','solarizeB',
     'cluSpeedVar','cluPulse','cluBreathe',
     'lumaKeyMix','lumaKeyAB','lumaKeyGain','lumaKeyCleanup','lumaKeyDensity','globalMixAmt','panelAngle',
@@ -2479,6 +2547,39 @@ function hookSliders() {
 
   sliderIds.forEach(id => {
     els[id]?.addEventListener('input', () => { updateLabels(); snapshotForUndo(); });
+  });
+
+  // Re-copy still images from the ORIGINAL decoded image on every color edit;
+  // never apply adjustments to an already adjusted source buffer.
+  let sourceGradePending = false;
+  const refreshStillSourceGrade = () => {
+    if (!_stillImageActive || !videoEl?.elt || !gCur || sourceGradePending) return;
+    sourceGradePending = true;
+    requestAnimationFrame(() => {
+      sourceGradePending = false;
+      if (!_stillImageActive || !videoEl?.elt || !gCur) return;
+      _copySourceFrame(gCur.drawingContext, videoEl.elt, gCur.width, gCur.height, 'stretch');
+    });
+  };
+  for (const id of ['sourceBrightness','sourceContrast','sourceSaturation','sourceGamma','sourceHue','sourceSharpness']) {
+    els[id]?.addEventListener('input', refreshStillSourceGrade);
+    els[id]?.addEventListener('change', refreshStillSourceGrade);
+  }
+
+  // Restore source conditioning only; all other effect and source controls stay as-is.
+  els.sourceColorResetBtn?.addEventListener('click', () => {
+    const neutral = {
+      sourceBrightness: '0', sourceContrast: '100', sourceSaturation: '100',
+      sourceGamma: '1', sourceHue: '0', sourceSharpness: '100',
+    };
+    for (const [id, value] of Object.entries(neutral)) {
+      const slider = els[id];
+      if (!slider) continue;
+      slider.value = value;
+      slider.dispatchEvent(new Event('input', { bubbles:true }));
+      slider.dispatchEvent(new Event('change', { bubbles:true }));
+    }
+    updateLabels();
   });
 
   // HISTORY is the public control. The hidden `quality` ID remains for
@@ -3120,6 +3221,12 @@ function updateLabels() {
   if (els.vistaRateVal) els.vistaRateVal.textContent = `${_legacyVistaEffectiveRate().toFixed(2)}×`;
   set(els.glitchSize,       els.glitchSizeVal,       v => `${(+v / 20).toFixed(2)}×`);
   set(els.glitchSmear,      els.glitchSmearVal,      v => String(Math.max(0, Math.trunc(+v || 0))));
+  set(els.sourceBrightness, els.sourceBrightnessVal, v => `${Number(v)>0?'+':''}${Math.round(Number(v))}`);
+  set(els.sourceContrast, els.sourceContrastVal, v => `${Math.round(Number(v))}%`);
+  set(els.sourceSaturation, els.sourceSaturationVal, v => `${Math.round(Number(v))}%`);
+  set(els.sourceGamma, els.sourceGammaVal, v => Number(v).toFixed(2));
+  set(els.sourceHue, els.sourceHueVal, v => `${Math.round(Number(v))}°`);
+  set(els.sourceSharpness, els.sourceSharpnessVal, v => `${Math.round(Number(v))}%`);
   set(els.feedback,         els.feedbackVal,         f2);
   set(els.persistence,      els.persistenceVal,      f2);
   set(els.feedbackStrobeEvery, els.feedbackStrobeEveryVal, v => `${Math.max(1, Math.trunc(+v || 1))} fr`);

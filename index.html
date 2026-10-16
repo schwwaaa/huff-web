@@ -155,6 +155,7 @@
                                 <button id="refreshBtn" disabled>↻ Refresh</button>
                                 <label>LOOP</label>
                                 <input id="loopToggle" type="checkbox" checked>
+                                <span id="_fpsDisplay" style="margin-left:10px;color:#000;font-family:monospace;font-size:12px" aria-label="Render frame rate">— fps</span>
                             </div>
 
                             <!-- <div class="ctrl source-box">
@@ -208,11 +209,34 @@
                                     <option value="white">White</option>
                                 </select>
                             </div>
-                            <div class="ctrl">
-                                <span class="pill" id="sourceInfo"
-                                    title="Decoded source → HUFF Classic processing resolution">SRC —</span>
-                                <span class="pill" id="status">CANVAS: …</span>
+                            <div class="ctrl"><label>BRIGHTNESS</label>
+                                <input id="sourceBrightness" type="range" min="-100" max="100" step="1" value="0" title="Input brightness before all effects. 0 is unchanged.">
+                                <span class="val" id="sourceBrightnessVal">0</span>
                             </div>
+                            <div class="ctrl"><label>CONTRAST</label>
+                                <input id="sourceContrast" type="range" min="0" max="200" step="1" value="100" title="Input contrast before all effects. 100% is unchanged.">
+                                <span class="val" id="sourceContrastVal">100%</span>
+                            </div>
+                            <div class="ctrl"><label>SATURATION</label>
+                                <input id="sourceSaturation" type="range" min="0" max="200" step="1" value="100" title="Input saturation before all effects. 100% is unchanged.">
+                                <span class="val" id="sourceSaturationVal">100%</span>
+                            </div>
+                            <div class="ctrl"><label>GAMMA</label>
+                                <input id="sourceGamma" type="range" min="0.25" max="3" step="0.05" value="1" title="Source midtone gamma. 1.00 is unchanged. Uses pixel correction when non-neutral.">
+                                <span class="val" id="sourceGammaVal">1.00</span>
+                            </div>
+                            <div class="ctrl"><label>HUE</label>
+                                <input id="sourceHue" type="range" min="-180" max="180" step="1" value="0" title="Rotate source hue before effects. 0° is unchanged.">
+                                <span class="val" id="sourceHueVal">0°</span>
+                            </div>
+                            <div class="ctrl"><label>SHARPNESS</label>
+                                <input id="sourceSharpness" type="range" min="0" max="200" step="1" value="100" title="Below 100% softens the source; above 100% sharpens edges. 100% is unchanged.">
+                                <span class="val" id="sourceSharpnessVal">100%</span>
+                            </div>
+                            <button id="sourceColorResetBtn" type="button" class="btn-dim"
+                                title="Reset Brightness, Contrast, Saturation, Gamma, Hue and Sharpness to neutral values">↺ RESET COLOR</button>
+                            <span id="sourceInfo" style="display:none">SRC —</span>
+                            <span id="status" style="display:none">CANVAS: …</span>
                             <!-- Hidden preset-compatibility control: `quality` maps to HISTORY and does not change preview encoding. -->
                             <input id="quality" type="range" min="0" max="3.00" step="0.05" value="1.00"
                                 style="display:none" aria-hidden="true" tabindex="-1">
@@ -523,7 +547,7 @@
                             </div>
                             <div class="ctrl">
                                 <label>FB Z · ZOOM</label>
-                                <input id="fbZ" type="range" min="0.98" max="1.03" step="0.005" value="1.000"
+                                <input id="fbZ" type="range" min="0.5" max="1.5" step="0.005" value="1.000"
                                     title="Original FB Z. Recursive scale: below 1 recedes, above 1 expands.">
                                 <span class="val" id="fbZVal">1.00</span>
                             </div>
