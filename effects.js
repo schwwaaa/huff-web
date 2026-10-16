@@ -2516,7 +2516,7 @@ function _siftProfileFrame(tileCount, gridRebuilt) {
   else _siftTelemetry.swirlReuses++;
 }
 
-function applySiftWarp(src, dst, strength = 6, scale = 80, pulse = 0, implode = 0, speed = 1, turb = 0, swirl = 0, spread = 1) {
+function applySiftWarp(src, dst, strength = 6, scale = 80, pulse = 0, implode = 0, speed = 1, turb = 0, swirl = 0, spread = 1, zMosh = 0) {
   let srcFrame = src;
   if (pulse > 0 && frameRing.length > pulse) {
     const ringFrame = frameRing.fromEnd(pulse);
@@ -2549,8 +2549,11 @@ function applySiftWarp(src, dst, strength = 6, scale = 80, pulse = 0, implode = 
   _siftLastFrequencyRebuilt = _siftField.configureFrequency(_siftGrid, freq);
   _siftLastSwirlRebuilt = _siftField.configureSwirl(_siftGrid, swirl);
 
-  const turbulenceMix = turb * 0.5;
+  const turbulenceMix = Math.min(1, Math.max(0, turb) * 0.5);
   const turbulenceBaseMix = 1 - turbulenceMix;
+  // Above the legacy 0..1 range, amplify turbulence-driven displacement.
+  // Existing 0..1 presets retain their original displacement magnitudes.
+  const turbulenceAmplitude = 1 + Math.max(0, Math.min(5, turb) - 1) * 0.75;
   const implodeScale = off * implode;
   const angleScale = TWO_PI * 2.0;
   const turbulenceTimeX = t * 1.3;
@@ -2584,8 +2587,8 @@ function applySiftWarp(src, dst, strength = 6, scale = 80, pulse = 0, implode = 
       a = a * turbulenceBaseMix + a2 * turbulenceMix;
     }
 
-    let dx2 = Math.cos(a) * off;
-    let dy2 = Math.sin(a) * off;
+    let dx2 = Math.cos(a) * off * turbulenceAmplitude;
+    let dy2 = Math.sin(a) * off * turbulenceAmplitude;
 
     if (implode !== 0) {
       dx2 += inwardXs[i] * implodeScale;
@@ -2597,7 +2600,12 @@ function applySiftWarp(src, dst, strength = 6, scale = 80, pulse = 0, implode = 
       const sn = swirlSines[i];
       const rx = dx2 * cs - dy2 * sn;
       const ry = dx2 * sn + dy2 * cs;
-      dx2 = rx; dy2 = ry;
+      // Separate tangential sweep adds a visibly stronger vortex at large values.
+      // Zero swirl is byte-for-byte equivalent to the established behavior.
+      const extraSwirl = Math.sign(swirl) * Math.max(0, Math.abs(swirl) - 2);
+      const curl = extraSwirl * off * 0.9;
+      dx2 = rx - inwardYs[i] * curl;
+      dy2 = ry + inwardXs[i] * curl;
     }
 
     // Quantize displacement through Float32 before flooring so tile selection does
@@ -2608,7 +2616,20 @@ function applySiftWarp(src, dst, strength = 6, scale = 80, pulse = 0, implode = 
     const tileH = tileHeights[i];
     const sx2 = Math.max(0, Math.min(maxSourceXs[i], Math.floor(x + dx2)));
     const sy2 = Math.max(0, Math.min(maxSourceYs[i], Math.floor(y + dy2)));
-    dctx.drawImage(srcEl, sx2, sy2, tileW, tileH, x, y, tileW, tileH);
+    if (zMosh !== 0) {
+      // Simulated per-tile Z: change source window, never the destination plane.
+      // Clamp whole footprint to the input frame. Positive values zoom into
+      // local image patches; negative values gather a wider footprint.
+      const z = Math.max(-3, Math.min(3, Number(zMosh) || 0));
+      const magnification = Math.pow(2, z);
+      const srcW = Math.max(1, Math.min(w, tileW / magnification));
+      const srcH = Math.max(1, Math.min(h, tileH / magnification));
+      const cropX = Math.max(0, Math.min(w - srcW, sx2 + (tileW - srcW) * 0.5));
+      const cropY = Math.max(0, Math.min(h - srcH, sy2 + (tileH - srcH) * 0.5));
+      dctx.drawImage(srcEl, cropX, cropY, srcW, srcH, x, y, tileW, tileH);
+    } else {
+      dctx.drawImage(srcEl, sx2, sy2, tileW, tileH, x, y, tileW, tileH);
+    }
   }
   _siftProfileFrame(_siftGrid.count, siftGridRebuilt);
   dctx.restore();

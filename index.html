@@ -504,8 +504,8 @@
                             </div>
                             <div class="ctrl">
                                 <label>FEEDBACK RETURN</label>
-                                <input id="feedback" type="range" min="0" max="1.2" step="0.05" value="0.6"
-                                    title="Original HUFF FEEDBACK parameter. Controls how strongly the transformed previous composite is returned; the historical renderer clamps draw alpha at 1.0.">
+                                <input id="feedback" type="range" min="0" max="1" step="0.05" value="0.6"
+                                    title="Strength of the returned feedback image, from 0 to 1. Values above 1 have no additional effect.">
                                 <span class="val" id="feedbackVal">0.60</span>
                             </div>
                             <div class="ctrl">
@@ -549,7 +549,7 @@
                                 <label>FB Z · ZOOM</label>
                                 <input id="fbZ" type="range" min="0.5" max="1.5" step="0.005" value="1.000"
                                     title="Original FB Z. Recursive scale: below 1 recedes, above 1 expands.">
-                                <span class="val" id="fbZVal">1.00</span>
+                                <span class="val" id="fbZVal">1.000</span>
                             </div>
                             <div class="ctrl">
                                 <label>FB θ · ROTATE</label>
@@ -1386,7 +1386,7 @@
                             </div>
                             <div class="ctrl">
                                 <label>SCALE</label>
-                                <input id="siftScale" type="range" min="40" max="200" step="1" value="80">
+                                <input id="siftScale" type="range" min="40" max="1000" step="1" value="80">
                                 <span class="val" id="siftScaleVal">80</span>
                             </div>
                             <div class="ctrl">
@@ -1394,30 +1394,51 @@
                                 <input id="siftSpeed" type="range" min="0" max="6" step="0.01" value="1">
                                 <span class="val" id="siftSpeedVal">1.00</span>
                             </div>
+                            <!-- Legacy pulse depth remains addressable for older JSON presets. -->
+                            <input id="siftPulse" type="range" min="0" max="200" step="1" value="0" hidden aria-hidden="true" tabindex="-1">
+                            <span id="siftPulseVal" hidden>0</span>
+                            <div class="ctrl">
+                                <label>PULSE TYPE</label>
+                                <select id="siftPulseMode" title="NEAR = 15 historical frames; FAR = 35 historical frames when available. Older presets retain their saved depth.">
+                                    <option value="near">NEAR</option>
+                                    <option value="legacy" hidden>LEGACY PRESET</option>
+                                    <option value="far">FAR</option>
+                                </select>
+                            </div>
                             <div class="ctrl">
                                 <label>PULSE</label>
-                                <input id="siftPulse" type="range" min="0" max="200" step="1" value="0">
-                                <span class="val" id="siftPulseVal">0</span>
+                                <button id="siftPulseTrigger" type="button" title="Press and hold to pulse Sift using the chosen memory distance">HOLD / TAP</button>
+                            </div>
+                            <div class="ctrl">
+                                <label>KEEP ON</label>
+                                <input id="siftPulseHold" type="checkbox" title="Latch Sift pulse continuously until disabled">
                             </div>
                             <div class="ctrl">
                                 <label>PULL</label>
-                                <input id="siftImpl" type="range" min="-1" max="1" step="0.01" value="0">
+                                <input id="siftImpl" type="range" min="-1" max="5" step="0.01" value="0">
                                 <span class="val" id="siftImplVal">0.00</span>
                             </div>
                             <div class="ctrl">
                                 <label>SWIRL</label>
-                                <input id="siftSwirl" type="range" min="-2" max="2" step="0.01" value="0">
+                                <input id="siftSwirl" type="range" min="-12" max="12" step="0.01" value="0">
                                 <span class="val" id="siftSwirlVal">0.00</span>
                             </div>
                             <div class="ctrl">
                                 <label>TURB</label>
-                                <input id="siftTurb" type="range" min="0" max="1" step="0.01" value="0">
+                                <input id="siftTurb" type="range" min="0" max="5" step="0.01" value="0">
                                 <span class="val" id="siftTurbVal">0.00</span>
                             </div>
                             <div class="ctrl">
                                 <label>SPREAD</label>
-                                <input id="siftSpread" type="range" min="0.25" max="4" step="0.01" value="1">
+                                <input id="siftSpread" type="range" min="0.25" max="4" step="0.01" value="1"
+                                    title="Controls spatial frequency of the Sift displacement field.">
                                 <span class="val" id="siftSpreadVal">1.00</span>
+                            </div>
+                            <div class="ctrl">
+                                <label>Z MOSH</label>
+                                <input id="siftZ" type="range" min="-3" max="3" step="0.01" value="0"
+                                    title="Per-tile source magnification: negative pulls inward, positive pushes outward without resizing the output canvas.">
+                                <span class="val" id="siftZVal">0.00</span>
                             </div>
                         </div>
                     </div>

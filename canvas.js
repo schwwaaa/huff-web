@@ -579,7 +579,7 @@ const PRESET_IDS = [
   'vistaOn','feedbackEnabled','feedback','persistence','feedbackMotionRange','fbX','fbY','fbZ','fbTheta','feedbackStrobe','feedbackStrobeEvery','feedbackRestore',
   'clusters','clusterCount','clusterRadius','spatialGap',
   'cluCenters','cluSpread','cluMinSpread','cluDepth','cluBias','cluDrift','cluSpeed','cluInertia','clusterMasterSpeed','cluMoveX','cluMoveY','cluMoveZ',
-  'siftOn','siftStrength','siftScale','siftPulse','siftImpl','siftSpeed','siftTurb','siftSwirl','siftSpread',
+  'siftOn','siftStrength','siftScale','siftPulse','siftPulseMode','siftPulseHold','siftImpl','siftSpeed','siftTurb','siftSwirl','siftSpread','siftZ',
   'baseOn','baseMix','sourceBrightness','sourceContrast','sourceSaturation','sourceGamma','sourceHue','sourceSharpness',
   'symOn','symMode','symPos','symPosX','symPosY','symMix','symVDir','symHDir','symFlipH','symFlipV',
   'solarizeOn','solarizeMode','solarizeThresh','solarizeLevel','solarizeSoft','solarizeInvert','solarizePosterLevel','solarizePosterSoft','solarizePosterPhase','solarizeAmt','solarizeFluidity','solarizeR','solarizeG','solarizeB',
@@ -646,6 +646,8 @@ function applyPreset(data) {
   // LUMA QUANTIZE parameters receive neutral-safe defaults so imported presets
   // remain visually stable.
   if (!('solarizeMode' in sourceData)) sourceData.solarizeMode = 'threshold';
+  if (!('siftPulseMode' in sourceData)) sourceData.siftPulseMode = 'legacy';
+  if (!('siftPulseHold' in sourceData)) sourceData.siftPulseHold = false;
   if (!('solarizeLevel' in sourceData)) sourceData.solarizeLevel = '75';
   if (!('solarizeSoft' in sourceData)) sourceData.solarizeSoft = '0';
   if (!('solarizeInvert' in sourceData)) sourceData.solarizeInvert = false;
@@ -2164,8 +2166,8 @@ function hookUI() {
     'clusterMasterSpeed','clusterMasterSpeedVal','cluSpeed','cluSpeedVal','cluSteer','cluSteerVal','cluInertia','cluInertiaVal','cluCohere','cluCohereVal',
     'cluMoveX','cluMoveXVal','cluMoveY','cluMoveYVal','cluMoveZ','cluMoveZVal',
     'siftOn','siftStrength','siftStrengthVal','siftScale','siftScaleVal',
-    'siftPulse','siftPulseVal','siftImpl','siftImplVal',
-    'siftSpeed','siftSpeedVal','siftTurb','siftTurbVal','siftSwirl','siftSwirlVal','siftSpread','siftSpreadVal',
+    'siftPulse','siftPulseVal','siftPulseMode','siftPulseTrigger','siftPulseHold','siftImpl','siftImplVal',
+    'siftSpeed','siftSpeedVal','siftTurb','siftTurbVal','siftSwirl','siftSwirlVal','siftSpread','siftSpreadVal','siftZ','siftZVal',
     'baseOn','baseMix','baseMixVal',
     'sourceBrightness','sourceBrightnessVal','sourceContrast','sourceContrastVal','sourceSaturation','sourceSaturationVal','sourceGamma','sourceGammaVal','sourceHue','sourceHueVal','sourceSharpness','sourceSharpnessVal',
     'symOn','symMode','symPos','symPosVal','symPosX','symPosXVal','symPosY','symPosYVal','symMix','symMixVal','symVDir','symHDir','symFlipH','symFlipV',
@@ -2512,8 +2514,8 @@ function _syncVistaRateFromLegacy() {
 function _applyFeedbackMotionRange() {
   const wide = String(els.feedbackMotionRange?.value || 'classic') === 'wide';
   const specs = wide
-    ? { fbX:[-8,8,0.01], fbY:[-8,8,0.01], fbZ:[0.95,1.05,0.001], fbTheta:[-5,5,0.01] }
-    : { fbX:[-1,1,0.001], fbY:[-1,1,0.001], fbZ:[0.98,1.03,0.005], fbTheta:[-2,2,0.005] };
+    ? { fbX:[-8,8,0.01], fbY:[-8,8,0.01], fbZ:[0.5,1.5,0.005], fbTheta:[-5,5,0.01] }
+    : { fbX:[-1,1,0.001], fbY:[-1,1,0.001], fbZ:[0.5,1.5,0.005], fbTheta:[-2,2,0.005] };
   for (const [id, [min,max,step]] of Object.entries(specs)) {
     const el = els[id];
     if (!el) continue;
@@ -2527,6 +2529,29 @@ function _applyFeedbackMotionRange() {
 }
 
 function hookSliders() {
+  const pulseButton = els.siftPulseTrigger;
+  if (pulseButton) {
+    const press = event => {
+      if (event.type === 'pointerdown' && event.button !== 0) return;
+      _siftPulsePressed = true;
+      _siftPulseReleaseUntil = 0;
+      pulseButton.setAttribute('aria-pressed', 'true');
+      if (event.pointerId != null) try { pulseButton.setPointerCapture(event.pointerId); } catch {}
+    };
+    const release = () => {
+      if (_siftPulsePressed) _siftPulseReleaseUntil = performance.now() + 140;
+      _siftPulsePressed = false;
+      pulseButton.setAttribute('aria-pressed', 'false');
+    };
+    pulseButton.addEventListener('pointerdown', press);
+    pulseButton.addEventListener('pointerup', release);
+    pulseButton.addEventListener('pointercancel', release);
+    pulseButton.addEventListener('lostpointercapture', release);
+    pulseButton.addEventListener('keydown', event => { if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) press(event); });
+    pulseButton.addEventListener('keyup', release);
+    pulseButton.addEventListener('blur', release);
+  }
+  els.siftPulseMode?.addEventListener('change', () => { _siftPulsePressed = false; updateLabels(); });
   const sliderIds = [
     'historyFrames','depth','vista','block','glitchSpeed','glitchSpeedFine','glitchSpeedMul','vistaSpeed',
     'glitchSize','glitchSmear','glitchBaseX','glitchBaseY','glitchBaseZ','vistaMoveX','vistaMoveY','vistaMoveZ','glitchStrobeEvery',
@@ -2538,7 +2563,7 @@ function hookSliders() {
     'panelBandSpread','panelExpandX','panelExpandY','panelExpandZ','panelLfoAmount','panelLfoRate','panelMagnetPosition','panelMagnetStrength','panelMagnetPerspective','panelMagnetRadius','panelMagnetFalloff','panelMagnetSpeed',
     'panelFieldSpreadX','panelFieldSpreadY','panelFieldSpreadZ','panelFieldSizeVar','panelFieldDrift','panelFieldDepthDrift',
     'glitchAlpha','glitchJitter','glitchSmearAngle',
-    'siftStrength','siftScale','siftPulse','siftImpl','siftSpeed','siftTurb','siftSwirl','siftSpread','baseMix','symPos','symPosX','symPosY','symMix',
+    'siftStrength','siftScale','siftPulse','siftPulseMode','siftPulseHold','siftImpl','siftSpeed','siftTurb','siftSwirl','siftSpread','siftZ','baseMix','symPos','symPosX','symPosY','symMix',
     'depthScatter','vistaDrift','sourceBrightness','sourceContrast','sourceSaturation','sourceGamma','sourceHue','sourceSharpness',
     'solarizeThresh','solarizeLevel','solarizeSoft','solarizePosterLevel','solarizePosterSoft','solarizePosterPhase','solarizeAmt','solarizeFluidity','solarizeR','solarizeG','solarizeB',
     'cluSpeedVar','cluPulse','cluBreathe',
@@ -2857,7 +2882,7 @@ function hookSliders() {
   syncPipelineAwarenessUI();
 
   // Checkboxes and selects also get snapshotted for undo
-  ['vistaOn','vistaUpdateMode','vistaDistribution','clusterTiles','vistaMaskMode','vistaMaskSide','clusters','feedbackEnabled','feedbackMotionRange','feedbackStrobe','siftOn','baseOn','symOn','solarizeOn','solarizeMode','solarizeInvert',
+  ['vistaOn','vistaUpdateMode','vistaDistribution','clusterTiles','vistaMaskMode','vistaMaskSide','clusters','feedbackEnabled','feedbackMotionRange','feedbackStrobe','siftOn','siftPulseMode','siftPulseHold','baseOn','symOn','solarizeOn','solarizeMode','solarizeInvert',
    'cluBounds','pipelineRecipe','layerPriority','bgMode','symMode','symVDir','symHDir','symFlipH','symFlipV',
    'lumaKeyOn','lumaKeyTarget','lumaKeyInvert','lumaKeySource','lumaKeyFade','globalMixOn','globalMixBlend','globalMixCurve','globalMixPos','panelLayout',
    'panelMagnetOn','panelMagnetMode','panelMagnetEdge'].forEach(id => {
@@ -3234,7 +3259,7 @@ function updateLabels() {
   set(els.clusterMasterSpeed, els.clusterMasterSpeedVal, v => `${(+v).toFixed(2)}×`);
   set(els.fbX,              els.fbXVal,              f2);
   set(els.fbY,              els.fbYVal,              f2);
-  set(els.fbZ,              els.fbZVal,              f2);
+  set(els.fbZ,              els.fbZVal,              v => Number(v).toFixed(3));
   set(els.fbTheta,          els.fbThetaVal,          v => v);
   set(els.spatialGap,       els.spatialGapVal,       v => `${Math.round(+v)} px`);
   set(els.clusterCount,     els.clusterCountVal,     v => v);
@@ -3258,6 +3283,7 @@ function updateLabels() {
   set(els.siftImpl,         els.siftImplVal,         f2);
   set(els.siftSpeed,        els.siftSpeedVal,        f2);
   set(els.siftSpread,       els.siftSpreadVal,       f2);
+  set(els.siftZ,            els.siftZVal,            f2);
   set(els.siftTurb,         els.siftTurbVal,         f2);
   set(els.siftSwirl,        els.siftSwirlVal,        f2);
   set(els.glitchBaseX,      els.glitchBaseXVal,      v => `${Math.trunc(+v || 0)} px`);
@@ -4198,8 +4224,12 @@ function _runFeedbackStage(frame) {
 
     const ctx = gBuf.drawingContext;
     ctx.save();
-    ctx.clearRect(0, 0, gBuf.width, gBuf.height);
-    ctx.globalAlpha = Math.min(1, fb);
+    // Z transforms only the returned feedback layer. Keep the existing
+    // untransformed working image underneath rather than replacing/zooming
+    // the entire buffer plane. Other feedback transforms retain their
+    // established replacement behavior when Z is neutral.
+    if (Math.abs(fz - 1) < 1e-9) ctx.clearRect(0, 0, gBuf.width, gBuf.height);
+    ctx.globalAlpha = Math.max(0, Math.min(1, fb));
     ctx.translate(gBuf.width / 2 + fx, gBuf.height / 2 + fy);
     ctx.rotate(ft);
     ctx.scale(fz, fz);
@@ -4225,14 +4255,28 @@ function _runFeedbackStage(frame) {
   _pipelineStageProfileEnd('feedback', startedAt);
 }
 
+// Sift performance pulses: momentary trigger + independent continuous latch.
+// Saved older presets without a pulse mode retain their old numeric depth.
+let _siftPulsePressed = false;
+let _siftPulseReleaseUntil = 0;
+function _siftEffectivePulse(state) {
+  const mode = String(state.siftPulseMode || 'legacy');
+  if (mode === 'legacy') return Math.max(0, Math.trunc(Number(state.siftPulse) || 0));
+  if (!_siftPulsePressed && performance.now() > _siftPulseReleaseUntil && !state.siftPulseHold) return 0;
+  // Keep the two timbral neighborhoods stable even as the history budget changes.
+  const desired = mode === 'far' ? 35 : 15;
+  const available = Math.max(0, frameRing.length - 1);
+  return available > 0 ? Math.min(desired, available) : 0;
+}
+
 function _runSiftStage(frame) {
   const activity = frame.activity;
   if (activity.sift) {
     const startedAt = _pipelineStageProfileStart();
     const s = frame.state;
     applySiftWarp(gBuf, gScratch, Math.trunc(s.siftStrength),
-      Math.trunc(s.siftScale), Math.trunc(s.siftPulse), s.siftImpl, s.siftSpeed,
-      s.siftTurb, s.siftSwirl, s.siftSpread);
+      Math.trunc(s.siftScale), _siftEffectivePulse(s), s.siftImpl, s.siftSpeed,
+      s.siftTurb, s.siftSwirl, s.siftSpread, s.siftZ);
     [gBuf, gScratch] = [gScratch, gBuf];
     _pipelineStageProfileEnd('sift', startedAt);
   }
