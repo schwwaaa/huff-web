@@ -646,6 +646,9 @@ function applyPreset(data) {
   // LUMA QUANTIZE parameters receive neutral-safe defaults so imported presets
   // remain visually stable.
   if (!('solarizeMode' in sourceData)) sourceData.solarizeMode = 'threshold';
+  // Older presets predate Z MOSH; do not inherit its value from the previous preset.
+  // Explicitly saved siftZ values still load unchanged.
+  if (!('siftZ' in sourceData)) sourceData.siftZ = '0';
   if (!('siftPulseMode' in sourceData)) sourceData.siftPulseMode = 'legacy';
   if (!('siftPulseHold' in sourceData)) sourceData.siftPulseHold = false;
   if (!('solarizeLevel' in sourceData)) sourceData.solarizeLevel = '75';
